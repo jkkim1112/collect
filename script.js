@@ -538,7 +538,7 @@ function renderMountSummaryTable() {
 
     const itemCells = state.mountItems.map((item) => {
       const currentOwned = isEditable
-        ? Boolean(state.draftOwnedMap[item.id])
+        ? getMemberDraftOwned(member.id, item.id)
         : getOwnedValue(member.id, item.id);
 
       if (isEditable) {
