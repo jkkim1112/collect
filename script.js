@@ -13,11 +13,10 @@ const state = {
   items: [],
   memberMounts: [],
   searchTerm: "",
+  selectedMemberId: null,
   draftMemberId: null,
   draftPower: "",
-  draftOwnedMap: {},
-  sortKey: "name",
-  sortDirection: "asc"
+  draftOwnedMap: {}
 };
 
 const el = {};
@@ -40,6 +39,12 @@ function bindElements() {
   el.resetBtn = document.getElementById("resetBtn");
   el.summaryTableHead = document.getElementById("summaryTableHead");
   el.summaryTableBody = document.getElementById("summaryTableBody");
+
+  el.searchSelectModalBackdrop = document.getElementById("searchSelectModalBackdrop");
+  el.searchSelectGuideText = document.getElementById("searchSelectGuideText");
+  el.searchSelectList = document.getElementById("searchSelectList");
+  el.searchSelectCloseBtn = document.getElementById("searchSelectCloseBtn");
+  el.searchSelectCancelBtn = document.getElementById("searchSelectCancelBtn");
 
   el.passwordModalBackdrop = document.getElementById("passwordModalBackdrop");
   el.passwordInput = document.getElementById("passwordInput");
@@ -90,7 +95,10 @@ function bindEvents() {
     }
   });
 
-  el.summaryTableHead.addEventListener("click", handleSummaryTableHeadClick);
+  el.searchSelectCloseBtn.addEventListener("click", closeSearchSelectModal);
+  el.searchSelectCancelBtn.addEventListener("click", closeSearchSelectModal);
+  el.searchSelectList.addEventListener("click", handleSearchSelectClick);
+
   el.summaryTableBody.addEventListener("click", handleSummaryTableClick);
   el.summaryTableBody.addEventListener("input", handleSummaryTableInput);
 
@@ -115,7 +123,7 @@ function bindEvents() {
   el.guildManageTableBody.addEventListener("click", handleGuildManageTableClick);
   el.itemManageTableBody.addEventListener("click", handleItemManageTableClick);
 
-  [el.passwordModalBackdrop, el.guildManageModalBackdrop, el.itemManageModalBackdrop].forEach((backdrop) => {
+  [el.passwordModalBackdrop, el.guildManageModalBackdrop, el.itemManageModalBackdrop, el.searchSelectModalBackdrop].forEach((backdrop) => {
     backdrop.addEventListener("click", (event) => {
       if (event.target === backdrop) {
         closeModal(backdrop);
@@ -168,66 +176,60 @@ async function loadMountData() {
 }
 
 function handleSearch() {
-  state.searchTerm = el.searchInput.value.trim();
-  syncDraftState();
-  renderAll();
+  const keyword = el.searchInput.value.trim();
+  state.searchTerm = keyword;
+
+  if (!keyword) {
+    state.selectedMemberId = null;
+    syncDraftState();
+    renderAll();
+    return;
+  }
+
+  const matchedMembers = getMatchedMembers(keyword);
+
+  if (matchedMembers.length === 0) {
+    state.selectedMemberId = null;
+    closeSearchSelectModal();
+    syncDraftState();
+    renderAll();
+    return;
+  }
+
+  if (matchedMembers.length === 1) {
+    selectMemberFromSearch(matchedMembers[0].id);
+    return;
+  }
+
+  renderSearchSelectModal(matchedMembers);
+  openModal(el.searchSelectModalBackdrop);
 }
 
 function handleResetSearch() {
   state.searchTerm = "";
+  state.selectedMemberId = null;
   el.searchInput.value = "";
+  closeSearchSelectModal();
   syncDraftState();
   renderAll();
 }
 
+function getMatchedMembers(keyword) {
+  const exactMatched = state.members.filter((member) => member.name === keyword);
+  if (exactMatched.length > 0) return exactMatched;
+  return state.members.filter((member) => member.name.includes(keyword));
+}
+
 function getFilteredMembers() {
   const keyword = state.searchTerm.trim();
-  const filteredMembers = !keyword
-    ? [...state.members]
-    : state.members.filter((member) => member.name.includes(keyword));
-
-  return sortMembers(filteredMembers);
-}
-
-function sortMembers(members) {
-  const direction = state.sortDirection === "asc" ? 1 : -1;
-
-  return [...members].sort((left, right) => {
-    const leftValue = getSortValue(left, state.sortKey);
-    const rightValue = getSortValue(right, state.sortKey);
-
-    if (typeof leftValue === "number" && typeof rightValue === "number") {
-      if (leftValue !== rightValue) {
-        return (leftValue - rightValue) * direction;
-      }
-    } else {
-      const compareResult = String(leftValue).localeCompare(String(rightValue), "ko");
-      if (compareResult !== 0) {
-        return compareResult * direction;
-      }
-    }
-
-    return String(left.name ?? "").localeCompare(String(right.name ?? ""), "ko");
-  });
-}
-
-function getSortValue(member, sortKey) {
-  if (sortKey === "name") return member.name ?? "";
-  if (sortKey === "power") return Number(member.power ?? 0);
-
-  if (sortKey.startsWith("item:")) {
-    const itemId = sortKey.slice(5);
-    return getOwnedValue(member.id, itemId) ? 1 : 0;
-  }
-
-  return member.name ?? "";
+  if (!keyword) return state.members;
+  if (!state.selectedMemberId) return state.members;
+  return state.members.filter((member) => member.id === state.selectedMemberId);
 }
 
 function getEditableMember() {
-  if (!state.searchTerm.trim()) return null;
-  const filtered = getFilteredMembers();
-  if (filtered.length !== 1) return null;
-  return filtered[0];
+  if (!state.searchTerm.trim() || !state.selectedMemberId) return null;
+  return state.members.find((member) => member.id === state.selectedMemberId) ?? null;
 }
 
 function syncDraftState() {
@@ -268,7 +270,6 @@ function renderAll() {
 }
 
 function renderGuideText() {
-  const filtered = getFilteredMembers();
   const keyword = state.searchTerm.trim();
 
   if (!keyword) {
@@ -276,29 +277,20 @@ function renderGuideText() {
     return;
   }
 
-  if (filtered.length === 0) {
-    el.tableGuideText.textContent = "검색 결과가 없습니다.";
+  if (!state.selectedMemberId) {
+    const matchedMembers = getMatchedMembers(keyword);
+    el.tableGuideText.textContent = matchedMembers.length === 0
+      ? "검색 결과가 없습니다."
+      : "검색 결과 팝업에서 길드원을 선택해주세요.";
     return;
   }
 
-  if (filtered.length > 1) {
-    el.tableGuideText.textContent = "검색 결과가 여러 명입니다. 정확한 길드원명을 입력해주세요.";
-    return;
-  }
-
-  el.tableGuideText.textContent = "검색 결과가 정확히 1명입니다. 이 행에서 전투력과 보유 상태를 수정할 수 있습니다.";
+  el.tableGuideText.textContent = "선택된 길드원 1명만 표시됩니다. 이 행에서 전투력과 보유 상태를 수정할 수 있습니다.";
 }
 
 function renderSummaryTable() {
-  const headers = [
-    { label: "no", sortable: false, key: null },
-    { label: "길드원", sortable: true, key: "name" },
-    { label: "전투력", sortable: true, key: "power" },
-    ...state.items.map((item) => ({ label: item.name, sortable: true, key: `item:${item.id}` })),
-    { label: "저장", sortable: false, key: null }
-  ];
-
-  el.summaryTableHead.innerHTML = `<tr>${headers.map((header) => renderSummaryHeaderCell(header)).join("")}</tr>`;
+  const headers = ["no", "길드원", "전투력", ...state.items.map((item) => item.name), "저장"];
+  el.summaryTableHead.innerHTML = `<tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr>`;
 
   const filteredMembers = getFilteredMembers();
   const editableMember = getEditableMember();
@@ -327,7 +319,7 @@ function renderSummaryTable() {
           value="${escapeAttr(state.draftPower)}"
         >
       `
-      : `<span class="fixed-cell-box fixed-power-text">${member.power ?? 0}</span>`;
+      : `<span class="value-box">${member.power ?? 0}</span>`;
 
     const itemCells = state.items.map((item) => {
       const currentOwned = isEditable
@@ -358,8 +350,8 @@ function renderSummaryTable() {
     }).join("");
 
     const saveCell = isEditable
-      ? `<button class="btn btn-primary btn-sm table-action-btn" type="button" data-role="save-row" data-member-id="${member.id}">저장</button>`
-      : `<span class="fixed-cell-box fixed-action-text">수정 불가</span>`;
+      ? `<button class="btn btn-primary btn-sm" type="button" data-role="save-row" data-member-id="${member.id}">저장</button>`
+      : `<span class="notice-text action-box">수정 불가</span>`;
 
     return `
       <tr>
@@ -373,29 +365,41 @@ function renderSummaryTable() {
   }).join("");
 }
 
+function renderSearchSelectModal(members) {
+  el.searchSelectGuideText.textContent = "검색 결과에서 길드원을 선택해주세요.";
 
-function renderSummaryHeaderCell(header) {
-  if (!header.sortable) {
-    return `<th>${escapeHtml(header.label)}</th>`;
+  if (members.length === 0) {
+    el.searchSelectList.innerHTML = '<div class="search-select-empty">검색 결과가 없습니다.</div>';
+    return;
   }
 
-  const isActive = state.sortKey === header.key;
-  const directionText = isActive
-    ? (state.sortDirection === "asc" ? "▲" : "▼")
-    : "↕";
+  el.searchSelectList.innerHTML = members.map((member) => `
+    <button class="search-select-item" type="button" data-role="search-select-item" data-member-id="${member.id}">
+      ${escapeHtml(member.name)}
+    </button>
+  `).join("");
+}
 
-  return `
-    <th
-      class="sortable-header ${isActive ? "active" : ""}"
-      data-role="sort-header"
-      data-sort-key="${escapeAttr(header.key)}"
-    >
-      <span class="sort-header-inner">
-        <span>${escapeHtml(header.label)}</span>
-        <span class="sort-indicator">${directionText}</span>
-      </span>
-    </th>
-  `;
+function handleSearchSelectClick(event) {
+  const button = event.target.closest('[data-role="search-select-item"]');
+  if (!button) return;
+  selectMemberFromSearch(button.dataset.memberId);
+}
+
+function selectMemberFromSearch(memberId) {
+  const member = state.members.find((entry) => entry.id === memberId);
+  if (!member) return;
+
+  state.searchTerm = member.name;
+  state.selectedMemberId = member.id;
+  el.searchInput.value = member.name;
+  closeSearchSelectModal();
+  syncDraftState();
+  renderAll();
+}
+
+function closeSearchSelectModal() {
+  closeModal(el.searchSelectModalBackdrop);
 }
 
 function renderPlaceholderTable() {
@@ -465,23 +469,6 @@ function renderItemManageTable() {
   `).join("");
 }
 
-function handleSummaryTableHeadClick(event) {
-  const header = event.target.closest('[data-role="sort-header"]');
-  if (!header) return;
-
-  const nextSortKey = header.dataset.sortKey;
-  if (!nextSortKey) return;
-
-  if (state.sortKey === nextSortKey) {
-    state.sortDirection = state.sortDirection === "asc" ? "desc" : "asc";
-  } else {
-    state.sortKey = nextSortKey;
-    state.sortDirection = "asc";
-  }
-
-  renderSummaryTable();
-}
-
 function handleSummaryTableInput(event) {
   const target = event.target;
   if (!target.matches('[data-role="power-input"]')) return;
@@ -544,6 +531,7 @@ async function saveEditableRow(memberId) {
   }
 
   state.searchTerm = "";
+  state.selectedMemberId = null;
   el.searchInput.value = "";
 
   await loadMountData();
@@ -734,6 +722,7 @@ async function deleteMember(memberId) {
 
   if (state.draftMemberId === memberId) {
     state.searchTerm = "";
+    state.selectedMemberId = null;
     el.searchInput.value = "";
   }
 

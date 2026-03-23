@@ -166,7 +166,7 @@ button {
 }
 
 .btn-sm {
-  padding: 0 10px;
+  padding: 7px 10px;
   font-size: 13px;
   border-radius: 8px;
 }
@@ -206,42 +206,12 @@ button {
   background: #f8fafc;
 }
 
-.summary-table td > .badge,
-.summary-table td > .toggle-single-btn,
-.summary-table td > .inline-power-input,
-.summary-table td > .table-action-btn,
-.summary-table td > .fixed-cell-box {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 92px;
-  min-width: 92px;
-  height: 36px;
-}
-
-.fixed-cell-box {
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  background: #f9fafb;
-  color: #4b5563;
-  font-size: 13px;
-  font-weight: 700;
-  padding: 0 10px;
-}
-
-.fixed-power-text {
-  justify-content: flex-end;
-}
-
-.fixed-action-text {
-  color: #6b7280;
-}
-
 .badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0 10px;
+  min-width: 60px;
+  padding: 6px 10px;
   border-radius: 999px;
   font-size: 13px;
   font-weight: 700;
@@ -258,17 +228,19 @@ button {
 }
 
 .inline-power-input {
+  width: 110px;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
-  padding: 0 10px;
+  padding: 8px 10px;
   text-align: right;
 }
 
 .toggle-single-btn {
+  min-width: 78px;
   border: 1px solid #d1d5db;
   background: #fff;
   color: #374151;
-  padding: 0 12px;
+  padding: 7px 12px;
   border-radius: 8px;
   font-size: 13px;
   font-weight: 700;
@@ -423,27 +395,51 @@ button {
     width: auto;
   }
 }
-.sortable-header {
-  cursor: pointer;
-  user-select: none;
-}
 
-.sort-header-inner {
+.value-box,
+.action-box {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  width: 110px;
+  min-height: 38px;
 }
 
-.sort-indicator {
-  font-size: 12px;
-  color: #9ca3af;
+.badge,
+.toggle-single-btn {
+  width: 78px;
+  min-height: 34px;
 }
 
-.sortable-header.active {
-  color: #111827;
+.search-select-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+  max-height: 360px;
+  overflow-y: auto;
 }
 
-.sortable-header.active .sort-indicator {
-  color: #2563eb;
+.search-select-item {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #1f2937;
+  border-radius: 10px;
+  padding: 12px 14px;
+  text-align: left;
+  font-weight: 600;
+}
+
+.search-select-item:hover {
+  background: #f8fafc;
+  border-color: #93c5fd;
+}
+
+.search-select-empty {
+  border: 1px dashed #d1d5db;
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+  color: #6b7280;
 }
