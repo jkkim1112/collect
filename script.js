@@ -19,6 +19,8 @@ const state = {
   members: [],
   mountItems: [],
   memberMounts: [],
+  bossItems: [],
+  memberBossCollections: [],
   accessoryGroups: [],
   memberAccessories: [],
   searchTerm: "",
@@ -159,21 +161,27 @@ function updateTabUi() {
 
   const isSpecial = state.activeTab === "special";
   const isAccessory = state.activeTab === "accessory";
+  const isBoss = state.activeTab === "boss";
 
   el.guildManageBtn.disabled = isSpecial;
   el.bulkEditBtn.disabled = isSpecial;
   el.bulkEditBtn.textContent = state.overallEditMode ? "전체수정 종료" : "전체수정";
   el.itemManageBtn.disabled = isSpecial;
-  el.itemManageBtn.textContent = isAccessory ? "악세사리 관리" : "탈것 관리";
-  el.itemManageTitle.textContent = isAccessory ? "악세사리 관리" : "탈것 관리";
-  el.itemNameHeader.textContent = isAccessory ? "악세사리명" : "탈것명";
+  el.itemManageBtn.textContent = isAccessory ? "악세사리 관리" : isBoss ? "보스컬렉 관리" : "탈것 관리";
+  el.itemManageTitle.textContent = isAccessory ? "악세사리 관리" : isBoss ? "보스컬렉 관리" : "탈것 관리";
+  el.itemNameHeader.textContent = isAccessory ? "악세사리명" : isBoss ? "보스컬렉명" : "탈것명";
   el.itemMaxHeader.classList.toggle("hidden", !isAccessory);
-  el.addItemBtn.textContent = isAccessory ? "악세사리 추가" : "탈것 추가";
+  el.addItemBtn.textContent = isAccessory ? "악세사리 추가" : isBoss ? "보스컬렉 추가" : "탈것 추가";
 }
 
 async function loadActiveTabData() {
   if (state.activeTab === "accessory") {
     await loadAccessoryData();
+    return;
+  }
+
+  if (state.activeTab === "boss") {
+    await loadBossData();
     return;
   }
 
@@ -207,6 +215,34 @@ async function loadMountData() {
   state.memberMounts = memberMountsRes.data ?? [];
   syncDraftState();
 }
+async function loadBossData() {
+  const [membersRes, itemsRes, memberBossRes] = await Promise.all([
+    supabase.from("guild_members").select("id, name, power, updated_at").order("name", { ascending: true }),
+    supabase.from("boss_collections").select("id, name, display_order").order("display_order", { ascending: true }),
+    supabase.from("member_boss_collections").select("id, member_id, boss_collection_id, owned")
+  ]);
+
+  if (membersRes.error) {
+    alert(`길드원 조회 중 오류가 발생했습니다.\n${membersRes.error.message}`);
+    return;
+  }
+
+  if (itemsRes.error) {
+    alert(`보스컬렉 조회 중 오류가 발생했습니다.\n${itemsRes.error.message}`);
+    return;
+  }
+
+  if (memberBossRes.error) {
+    alert(`보유 정보 조회 중 오류가 발생했습니다.\n${memberBossRes.error.message}`);
+    return;
+  }
+
+  state.members = membersRes.data ?? [];
+  state.bossItems = itemsRes.data ?? [];
+  state.memberBossCollections = memberBossRes.data ?? [];
+  syncDraftState();
+}
+
 
 async function loadAccessoryData() {
   const [membersRes, groupsRes, memberAccessoriesRes] = await Promise.all([
@@ -373,9 +409,13 @@ function syncDraftState() {
     return;
   }
 
-  state.mountItems.forEach((item) => {
-    const record = state.memberMounts.find(
-      (entry) => entry.member_id === editableMember.id && entry.mount_id === item.id
+  const simpleItems = getSimpleItems();
+  const simpleRecords = getSimpleMemberRecords();
+  const simpleItemKey = getSimpleItemForeignKey();
+
+  simpleItems.forEach((item) => {
+    const record = simpleRecords.find(
+      (entry) => entry.member_id === editableMember.id && String(entry[simpleItemKey]) === String(item.id)
     );
     state.draftOwnedMap[item.id] = Boolean(record?.owned);
   });
@@ -396,8 +436,11 @@ function ensureDraftRow(memberId) {
         });
       });
     } else {
-      state.mountItems.forEach((item) => {
-        const record = state.memberMounts.find((entry) => entry.member_id === memberId && entry.mount_id === item.id);
+      const simpleItems = getSimpleItems();
+      const simpleRecords = getSimpleMemberRecords();
+      const simpleItemKey = getSimpleItemForeignKey();
+      simpleItems.forEach((item) => {
+        const record = simpleRecords.find((entry) => entry.member_id === memberId && String(entry[simpleItemKey]) === String(item.id));
         row.ownedMap[item.id] = Boolean(record?.owned);
       });
     }
@@ -497,6 +540,11 @@ function renderSummaryTable() {
     return;
   }
 
+  if (state.activeTab === "boss") {
+    renderBossSummaryTable();
+    return;
+  }
+
   renderMountSummaryTable();
 }
 
@@ -556,6 +604,79 @@ function renderMountSummaryTable() {
 
     const saveCell = isEditable
       ? `<button class="btn btn-primary btn-sm" type="button" data-role="save-row-mount" data-member-id="${member.id}">저장</button>`
+      : `<span class="notice-text action-box">불가</span>`;
+
+    const lastUpdatedCell = `<span class="last-updated-box">${formatUpdatedAt(member.updated_at)}</span>`;
+
+    return `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${escapeHtml(member.name)}</td>
+        <td>${powerCell}</td>
+        ${itemCells}
+        <td>${saveCell}</td>
+        <td>${lastUpdatedCell}</td>
+      </tr>
+    `;
+  }).join("");
+}
+
+function renderBossSummaryTable() {
+  const powerSortText = state.powerSortDirection === "asc"
+    ? "▲"
+    : state.powerSortDirection === "desc"
+      ? "▼"
+      : "↕";
+
+  const headers = [
+    `<th>no</th>`,
+    `<th>길드원</th>`,
+    `<th class="sortable-header ${state.powerSortDirection ? "active" : ""}" data-role="power-sort-header"><span class="sort-header-inner"><span>전투력</span><span class="sort-indicator">${powerSortText}</span></span></th>`,
+    ...state.bossItems.map((item) => `<th class="item-col-header">${escapeHtml(item.name)}</th>`),
+    `<th class="save-col">저장</th>`,
+    `<th class="last-updated-col">수정일</th>`
+  ];
+
+  el.summaryTableHead.innerHTML = `<tr>${headers.join("")}</tr>`;
+
+  const filteredMembers = getFilteredMembers();
+
+  if (filteredMembers.length === 0) {
+    el.summaryTableBody.innerHTML = `
+      <tr>
+        <td class="empty-row" colspan="${state.bossItems.length + 5}">표시할 길드원이 없습니다.</td>
+      </tr>
+    `;
+    return;
+  }
+
+  el.summaryTableBody.innerHTML = filteredMembers.map((member, index) => {
+    const isEditable = isMemberEditable(member.id);
+
+    const powerCell = isEditable
+      ? `<input class="inline-power-input" type="number" min="0" step="1" data-role="power-input" data-member-id="${member.id}" value="${escapeAttr(getMemberDraftPower(member))}">`
+      : `<span class="value-box">${member.power ?? 0}</span>`;
+
+    const itemCells = state.bossItems.map((item) => {
+      const currentOwned = isEditable
+        ? getMemberDraftOwned(member.id, item.id)
+        : getBossOwnedValue(member.id, item.id);
+
+      if (isEditable) {
+        return `
+          <td>
+            <button class="toggle-single-btn ${currentOwned ? "owned" : "not-owned"}" type="button" data-role="owned-toggle" data-member-id="${member.id}" data-item-id="${item.id}">
+              ${currentOwned ? "보유" : "미보유"}
+            </button>
+          </td>
+        `;
+      }
+
+      return `<td><span class="badge ${currentOwned ? "badge-own" : "badge-not"}">${currentOwned ? "보유" : "미보유"}</span></td>`;
+    }).join("");
+
+    const saveCell = isEditable
+      ? `<button class="btn btn-primary btn-sm" type="button" data-role="save-row-boss" data-member-id="${member.id}">저장</button>`
       : `<span class="notice-text action-box">불가</span>`;
 
     const lastUpdatedCell = `<span class="last-updated-box">${formatUpdatedAt(member.updated_at)}</span>`;
@@ -763,8 +884,8 @@ function renderGuildManageTable() {
 }
 
 function renderItemManageTable() {
-  const items = state.activeTab === "accessory" ? state.accessoryGroups : state.mountItems;
-  const emptyText = state.activeTab === "accessory" ? "등록된 악세사리가 없습니다." : "등록된 탈것이 없습니다.";
+  const items = state.activeTab === "accessory" ? state.accessoryGroups : state.activeTab === "boss" ? state.bossItems : state.mountItems;
+  const emptyText = state.activeTab === "accessory" ? "등록된 악세사리가 없습니다." : state.activeTab === "boss" ? "등록된 보스컬렉이 없습니다." : "등록된 탈것이 없습니다.";
 
   if (items.length === 0) {
     el.itemManageTableBody.innerHTML = `<tr><td colspan="${state.activeTab === "accessory" ? 4 : 3}">${emptyText}</td></tr>`;
@@ -878,6 +999,11 @@ function handleSummaryTableClick(event) {
 
   if (role === "save-row-accessory") {
     saveAccessoryEditableRow(button.dataset.memberId);
+    return;
+  }
+
+  if (role === "save-row-boss") {
+    saveBossEditableRow(button.dataset.memberId);
   }
 }
 
@@ -977,6 +1103,55 @@ async function saveAccessoryEditableRow(memberId) {
     resetSearchState();
   }
   await loadAccessoryData();
+  if (state.overallEditMode) {
+    state.draftAllRows = {};
+  }
+  renderAll();
+  alert("저장되었습니다.");
+}
+
+async function saveBossEditableRow(memberId) {
+  if (!state.overallEditMode && memberId !== state.draftMemberId) return;
+
+  const draftRow = state.overallEditMode ? ensureDraftRow(memberId) : null;
+  const power = Number(state.overallEditMode ? draftRow?.power : state.draftPower);
+  if (!Number.isFinite(power) || power < 0) {
+    alert("전투력을 올바르게 입력해주세요.");
+    return;
+  }
+
+  const now = new Date().toISOString();
+
+  const updateMemberRes = await supabase
+    .from("guild_members")
+    .update({ power: Math.floor(power), updated_at: now })
+    .eq("id", memberId);
+
+  if (updateMemberRes.error) {
+    alert(`전투력 저장 중 오류가 발생했습니다.\n${updateMemberRes.error.message}`);
+    return;
+  }
+
+  const upsertPayload = state.bossItems.map((item) => ({
+    member_id: memberId,
+    boss_collection_id: item.id,
+    owned: Boolean(state.overallEditMode ? draftRow?.ownedMap?.[item.id] : state.draftOwnedMap[item.id]),
+    updated_at: now
+  }));
+
+  const upsertRes = await supabase
+    .from("member_boss_collections")
+    .upsert(upsertPayload, { onConflict: "member_id,boss_collection_id" });
+
+  if (upsertRes.error) {
+    alert(`보스컬렉 저장 중 오류가 발생했습니다.\n${upsertRes.error.message}`);
+    return;
+  }
+
+  if (!state.overallEditMode) {
+    resetSearchState();
+  }
+  await loadBossData();
   if (state.overallEditMode) {
     state.draftAllRows = {};
   }
@@ -1139,6 +1314,25 @@ async function addMember() {
     }
   }
 
+  if (state.bossItems.length > 0) {
+    const now = new Date().toISOString();
+    const memberBossPayload = state.bossItems.map((item) => ({
+      member_id: newMember.id,
+      boss_collection_id: item.id,
+      owned: false,
+      updated_at: now
+    }));
+
+    const memberBossRes = await supabase
+      .from("member_boss_collections")
+      .upsert(memberBossPayload, { onConflict: "member_id,boss_collection_id" });
+
+    if (memberBossRes.error) {
+      alert(`길드원 기본 보스컬렉 정보 생성 중 오류가 발생했습니다.\n${memberBossRes.error.message}`);
+      return;
+    }
+  }
+
   await loadActiveTabData();
   renderAll();
 }
@@ -1214,6 +1408,11 @@ async function addItem() {
     return;
   }
 
+  if (state.activeTab === "boss") {
+    await addBossItem();
+    return;
+  }
+
   const nameValue = prompt("추가할 탈것명을 입력해주세요.");
   if (nameValue === null) return;
 
@@ -1263,6 +1462,61 @@ async function addItem() {
   }
 
   await loadMountData();
+  renderAll();
+}
+
+async function addBossItem() {
+  const nameValue = prompt("추가할 보스컬렉명을 입력해주세요.");
+  if (nameValue === null) return;
+
+  const name = nameValue.trim();
+  if (!name) {
+    alert("보스컬렉명을 입력해주세요.");
+    return;
+  }
+
+  if (state.bossItems.some((item) => item.name === name)) {
+    alert("이미 존재하는 보스컬렉명입니다.");
+    return;
+  }
+
+  const nextDisplayOrder = state.bossItems.length === 0
+    ? 1
+    : Math.max(...state.bossItems.map((item) => Number(item.display_order ?? 0))) + 1;
+
+  const insertRes = await supabase
+    .from("boss_collections")
+    .insert({ name, display_order: nextDisplayOrder, updated_at: new Date().toISOString() })
+    .select("id, name, display_order")
+    .single();
+
+  if (insertRes.error) {
+    alert(`보스컬렉 추가 중 오류가 발생했습니다.\n${insertRes.error.message}`);
+    return;
+  }
+
+  const newItem = insertRes.data;
+
+  if (state.members.length > 0) {
+    const now = new Date().toISOString();
+    const memberBossPayload = state.members.map((member) => ({
+      member_id: member.id,
+      boss_collection_id: newItem.id,
+      owned: false,
+      updated_at: now
+    }));
+
+    const memberBossRes = await supabase
+      .from("member_boss_collections")
+      .upsert(memberBossPayload, { onConflict: "member_id,boss_collection_id" });
+
+    if (memberBossRes.error) {
+      alert(`보스컬렉 기본 보유 정보 생성 중 오류가 발생했습니다.\n${memberBossRes.error.message}`);
+      return;
+    }
+  }
+
+  await loadBossData();
   renderAll();
 }
 
@@ -1340,6 +1594,11 @@ async function editItem(itemId) {
     return;
   }
 
+  if (state.activeTab === "boss") {
+    await editBossItem(itemId);
+    return;
+  }
+
   const item = state.mountItems.find((entry) => String(entry.id) === String(itemId));
   if (!item) return;
 
@@ -1368,6 +1627,38 @@ async function editItem(itemId) {
   }
 
   await loadMountData();
+  renderAll();
+}
+
+async function editBossItem(itemId) {
+  const item = state.bossItems.find((entry) => String(entry.id) === String(itemId));
+  if (!item) return;
+
+  const nextNameValue = prompt("보스컬렉명을 수정해주세요.", item.name);
+  if (nextNameValue === null) return;
+
+  const nextName = nextNameValue.trim();
+  if (!nextName) {
+    alert("보스컬렉명을 입력해주세요.");
+    return;
+  }
+
+  if (state.bossItems.some((entry) => String(entry.id) !== String(itemId) && entry.name === nextName)) {
+    alert("이미 존재하는 보스컬렉명입니다.");
+    return;
+  }
+
+  const updateRes = await supabase
+    .from("boss_collections")
+    .update({ name: nextName, updated_at: new Date().toISOString() })
+    .eq("id", itemId);
+
+  if (updateRes.error) {
+    alert(`보스컬렉 수정 중 오류가 발생했습니다.\n${updateRes.error.message}`);
+    return;
+  }
+
+  await loadBossData();
   renderAll();
 }
 
@@ -1418,6 +1709,11 @@ async function deleteItem(itemId) {
     return;
   }
 
+  if (state.activeTab === "boss") {
+    await deleteBossItem(itemId);
+    return;
+  }
+
   const item = state.mountItems.find((entry) => String(entry.id) === String(itemId));
   if (!item) return;
 
@@ -1434,6 +1730,26 @@ async function deleteItem(itemId) {
   }
 
   await loadMountData();
+  renderAll();
+}
+
+async function deleteBossItem(itemId) {
+  const item = state.bossItems.find((entry) => String(entry.id) === String(itemId));
+  if (!item) return;
+
+  if (!confirm(`${item.name} 보스컬렉을 삭제하시겠습니까?`)) return;
+
+  const deleteRes = await supabase
+    .from("boss_collections")
+    .delete()
+    .eq("id", itemId);
+
+  if (deleteRes.error) {
+    alert(`보스컬렉 삭제 중 오류가 발생했습니다.\n${deleteRes.error.message}`);
+    return;
+  }
+
+  await loadBossData();
   renderAll();
 }
 
@@ -1462,6 +1778,25 @@ function getOwnedValue(memberId, itemId) {
     (entry) => entry.member_id === memberId && entry.mount_id === itemId
   );
   return Boolean(record?.owned);
+}
+
+function getBossOwnedValue(memberId, itemId) {
+  const record = state.memberBossCollections.find(
+    (entry) => entry.member_id === memberId && String(entry.boss_collection_id) === String(itemId)
+  );
+  return Boolean(record?.owned);
+}
+
+function getSimpleItems() {
+  return state.activeTab === "boss" ? state.bossItems : state.mountItems;
+}
+
+function getSimpleMemberRecords() {
+  return state.activeTab === "boss" ? state.memberBossCollections : state.memberMounts;
+}
+
+function getSimpleItemForeignKey() {
+  return state.activeTab === "boss" ? "boss_collection_id" : "mount_id";
 }
 
 function getAccessoryHeatCellStyle(value, maxCount) {
