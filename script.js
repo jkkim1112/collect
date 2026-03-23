@@ -27,6 +27,7 @@ const state = {
   selectedMemberId: null,
   draftMemberId: null,
   draftTab: null,
+  draftStructureKey: "",
   draftPower: "",
   draftOwnedMap: {},
   draftAccessoryMap: {},
@@ -92,6 +93,12 @@ function bindEvents() {
 
       state.activeTab = nextTab;
       resetOverallEditMode();
+      state.draftMemberId = null;
+      state.draftTab = null;
+      state.draftStructureKey = "";
+      state.draftPower = "";
+      state.draftOwnedMap = {};
+      state.draftAccessoryMap = {};
       updateTabUi();
 
       if (nextTab === "special") {
@@ -378,22 +385,42 @@ function getEditableMember() {
   return state.members.find((member) => member.id === state.selectedMemberId) ?? null;
 }
 
+function getDraftStructureKey() {
+  if (state.activeTab === "accessory") {
+    return `accessory:${state.accessoryGroups.map((group) => String(group.id)).join(",")}`;
+  }
+
+  if (state.activeTab === "boss") {
+    return `boss:${state.bossItems.map((item) => String(item.id)).join(",")}`;
+  }
+
+  return `mount:${state.mountItems.map((item) => String(item.id)).join(",")}`;
+}
+
 function syncDraftState() {
   const editableMember = getEditableMember();
 
   if (!editableMember) {
     state.draftMemberId = null;
     state.draftTab = null;
+    state.draftStructureKey = "";
     state.draftPower = "";
     state.draftOwnedMap = {};
     state.draftAccessoryMap = {};
     return;
   }
 
-  if (state.draftMemberId === editableMember.id && state.draftTab === state.activeTab) return;
+  const nextStructureKey = getDraftStructureKey();
+  const shouldReuseDraft =
+    state.draftMemberId === editableMember.id &&
+    state.draftTab === state.activeTab &&
+    state.draftStructureKey === nextStructureKey;
+
+  if (shouldReuseDraft) return;
 
   state.draftMemberId = editableMember.id;
   state.draftTab = state.activeTab;
+  state.draftStructureKey = nextStructureKey;
   state.draftPower = String(editableMember.power ?? 0);
   state.draftOwnedMap = {};
   state.draftAccessoryMap = {};
@@ -1165,6 +1192,12 @@ async function saveBossEditableRow(memberId) {
 function resetSearchState() {
   state.searchTerm = "";
   state.selectedMemberId = null;
+  state.draftMemberId = null;
+  state.draftTab = null;
+  state.draftStructureKey = "";
+  state.draftPower = "";
+  state.draftOwnedMap = {};
+  state.draftAccessoryMap = {};
   el.searchInput.value = "";
 }
 
