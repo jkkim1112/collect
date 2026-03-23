@@ -948,11 +948,11 @@ async function addMember() {
     const memberAccessoryPayload = state.accessoryGroups.map((group) => ({
       member_id: newMember.id,
       accessory_group_id: group.id,
-      ring_count: Number(newGroup.max_count ?? 0),
-      necklace_count: Number(newGroup.max_count ?? 0),
-      earring_count: Number(newGroup.max_count ?? 0),
-      belt_count: Number(newGroup.max_count ?? 0),
-      bracelet_count: Number(newGroup.max_count ?? 0),
+      ring_count: Number(group.max_count ?? 0),
+      necklace_count: Number(group.max_count ?? 0),
+      earring_count: Number(group.max_count ?? 0),
+      belt_count: Number(group.max_count ?? 0),
+      bracelet_count: Number(group.max_count ?? 0),
       updated_at: now
     }));
 
