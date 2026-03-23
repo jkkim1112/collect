@@ -1,49 +1,30 @@
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+const SUPABASE_URL = "YOUR_SUPABASE_URL";
+const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
 const ADMIN_PASSWORD = "1234";
 
-const TAB_CONFIG = {
-  mount: {
-    label: "탈것",
-    itemLabel: "탈것",
-    statusTitle: "탈것 보유 현황"
-  },
-  accessory: {
-    label: "악세",
-    itemLabel: "악세",
-    statusTitle: "악세 보유 현황"
-  },
-  special: {
-    label: "특수",
-    itemLabel: "특수",
-    statusTitle: "특수 보유 현황"
-  }
-};
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const state = {
   activeTab: "mount",
   pendingManageType: null,
-  selectedMemberId: null,
-  data: {
-    mount: {
-      members: [],
-      items: []
-    },
-    accessory: {
-      members: [],
-      items: []
-    },
-    special: {
-      members: [],
-      items: []
-    }
-  }
+  members: [],
+  items: [],
+  memberMounts: [],
+  searchTerm: "",
+  draftMemberId: null,
+  draftPower: "",
+  draftOwnedMap: {}
 };
 
 const el = {};
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   bindElements();
-  seedInitialData();
   bindEvents();
+  updateTabUi();
+  await loadMountData();
   renderAll();
 });
 
@@ -51,13 +32,10 @@ function bindElements() {
   el.tabs = Array.from(document.querySelectorAll(".tab"));
   el.guildManageBtn = document.getElementById("guildManageBtn");
   el.itemManageBtn = document.getElementById("itemManageBtn");
-  el.searchNameInput = document.getElementById("searchNameInput");
+  el.tableGuideText = document.getElementById("tableGuideText");
+  el.searchInput = document.getElementById("searchInput");
   el.searchBtn = document.getElementById("searchBtn");
-  el.memberNameInput = document.getElementById("memberNameInput");
-  el.memberPowerInput = document.getElementById("memberPowerInput");
-  el.statusTitle = document.getElementById("statusTitle");
-  el.statusList = document.getElementById("statusList");
-  el.saveBtn = document.getElementById("saveBtn");
+  el.resetBtn = document.getElementById("resetBtn");
   el.summaryTableHead = document.getElementById("summaryTableHead");
   el.summaryTableBody = document.getElementById("summaryTableBody");
 
@@ -80,80 +58,42 @@ function bindElements() {
   el.itemManageCloseBtn = document.getElementById("itemManageCloseBtn");
 }
 
-function seedInitialData() {
-  state.data.mount.items = [
-    { id: createId(), name: "늑대" },
-    { id: createId(), name: "말" },
-    { id: createId(), name: "비행선" }
-  ];
-
-  state.data.accessory.items = [
-    { id: createId(), name: "목걸이" },
-    { id: createId(), name: "반지" },
-    { id: createId(), name: "귀걸이" }
-  ];
-
-  state.data.special.items = [
-    { id: createId(), name: "특수1" },
-    { id: createId(), name: "특수2" },
-    { id: createId(), name: "특수3" }
-  ];
-
-  state.data.mount.members = [
-    createMember("홍길동", 12345, [true, false, true]),
-    createMember("김철수", 15600, [false, true, false]),
-    createMember("이영희", 14100, [true, true, false])
-  ];
-
-  state.data.accessory.members = [
-    createMember("홍길동", 12345, [true, false, false]),
-    createMember("김철수", 15600, [true, true, false]),
-    createMember("이영희", 14100, [false, true, true])
-  ];
-
-  state.data.special.members = [
-    createMember("홍길동", 12345, [false, true, false]),
-    createMember("김철수", 15600, [true, false, true]),
-    createMember("이영희", 14100, [false, false, true])
-  ];
-}
-
-function createMember(name, power, ownedStates) {
-  return {
-    id: createId(),
-    name,
-    power,
-    ownedMap: ownedStates.reduce((acc, owned, index) => {
-      acc[index] = owned;
-      return acc;
-    }, {})
-  };
-}
-
 function bindEvents() {
-  el.tabs.forEach((tabButton) => {
-    tabButton.addEventListener("click", () => {
-      const nextTab = tabButton.dataset.tab;
-      if (!nextTab || nextTab === state.activeTab) return;
-      state.activeTab = nextTab;
-      state.selectedMemberId = null;
-      el.searchNameInput.value = "";
+  el.tabs.forEach((tab) => {
+    tab.addEventListener("click", async () => {
+      const nextTab = tab.dataset.tab;
+      if (nextTab === state.activeTab) return;
+
+      if (nextTab !== "mount") {
+        state.activeTab = nextTab;
+        updateTabUi();
+        renderPlaceholderTable();
+        return;
+      }
+
+      state.activeTab = "mount";
+      updateTabUi();
+      await loadMountData();
       renderAll();
     });
   });
 
   el.searchBtn.addEventListener("click", handleSearch);
-  el.searchNameInput.addEventListener("keydown", (event) => {
+  el.resetBtn.addEventListener("click", handleResetSearch);
+
+  el.searchInput.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
       event.preventDefault();
       handleSearch();
     }
   });
 
-  el.saveBtn.addEventListener("click", handleSave);
+  el.summaryTableBody.addEventListener("click", handleSummaryTableClick);
+  el.summaryTableBody.addEventListener("input", handleSummaryTableInput);
 
   el.guildManageBtn.addEventListener("click", () => openPasswordModal("guild"));
   el.itemManageBtn.addEventListener("click", () => openPasswordModal("item"));
+
   el.passwordCancelBtn.addEventListener("click", closePasswordModal);
   el.passwordConfirmBtn.addEventListener("click", confirmPassword);
   el.passwordInput.addEventListener("keydown", (event) => {
@@ -165,12 +105,12 @@ function bindEvents() {
 
   el.guildManageCloseBtn.addEventListener("click", () => closeModal(el.guildManageModalBackdrop));
   el.itemManageCloseBtn.addEventListener("click", () => closeModal(el.itemManageModalBackdrop));
+
   el.addMemberBtn.addEventListener("click", addMember);
   el.addItemBtn.addEventListener("click", addItem);
 
   el.guildManageTableBody.addEventListener("click", handleGuildManageTableClick);
   el.itemManageTableBody.addEventListener("click", handleItemManageTableClick);
-  el.statusList.addEventListener("click", handleStatusListClick);
 
   [el.passwordModalBackdrop, el.guildManageModalBackdrop, el.itemManageModalBackdrop].forEach((backdrop) => {
     backdrop.addEventListener("click", (event) => {
@@ -181,100 +121,227 @@ function bindEvents() {
   });
 }
 
+function updateTabUi() {
+  el.tabs.forEach((tab) => {
+    const active = tab.dataset.tab === state.activeTab;
+    tab.classList.toggle("active", active);
+    tab.classList.toggle("disabled", tab.dataset.tab !== "mount");
+  });
+
+  const isMount = state.activeTab === "mount";
+  el.guildManageBtn.disabled = !isMount;
+  el.itemManageBtn.disabled = !isMount;
+  el.itemManageBtn.textContent = isMount ? "탈것 관리" : "준비중";
+  el.itemManageTitle.textContent = "탈것 관리";
+  el.itemNameHeader.textContent = "탈것명";
+}
+
+async function loadMountData() {
+  const [membersRes, itemsRes, memberMountsRes] = await Promise.all([
+    supabase.from("guild_members").select("id, name, power").order("name", { ascending: true }),
+    supabase.from("mounts").select("id, name, display_order").order("display_order", { ascending: true }),
+    supabase.from("member_mounts").select("id, member_id, mount_id, owned")
+  ]);
+
+  if (membersRes.error) {
+    alert(`길드원 조회 중 오류가 발생했습니다.\n${membersRes.error.message}`);
+    return;
+  }
+
+  if (itemsRes.error) {
+    alert(`탈것 조회 중 오류가 발생했습니다.\n${itemsRes.error.message}`);
+    return;
+  }
+
+  if (memberMountsRes.error) {
+    alert(`보유 정보 조회 중 오류가 발생했습니다.\n${memberMountsRes.error.message}`);
+    return;
+  }
+
+  state.members = membersRes.data ?? [];
+  state.items = itemsRes.data ?? [];
+  state.memberMounts = memberMountsRes.data ?? [];
+  syncDraftState();
+}
+
+function handleSearch() {
+  state.searchTerm = el.searchInput.value.trim();
+  syncDraftState();
+  renderAll();
+}
+
+function handleResetSearch() {
+  state.searchTerm = "";
+  el.searchInput.value = "";
+  syncDraftState();
+  renderAll();
+}
+
+function getFilteredMembers() {
+  const keyword = state.searchTerm.trim();
+  if (!keyword) return state.members;
+
+  return state.members.filter((member) => member.name.includes(keyword));
+}
+
+function getEditableMember() {
+  if (!state.searchTerm.trim()) return null;
+  const filtered = getFilteredMembers();
+  if (filtered.length !== 1) return null;
+  return filtered[0];
+}
+
+function syncDraftState() {
+  const editableMember = getEditableMember();
+
+  if (!editableMember) {
+    state.draftMemberId = null;
+    state.draftPower = "";
+    state.draftOwnedMap = {};
+    return;
+  }
+
+  if (state.draftMemberId === editableMember.id) return;
+
+  state.draftMemberId = editableMember.id;
+  state.draftPower = String(editableMember.power ?? 0);
+  state.draftOwnedMap = {};
+
+  state.items.forEach((item) => {
+    const record = state.memberMounts.find(
+      (entry) => entry.member_id === editableMember.id && entry.mount_id === item.id
+    );
+    state.draftOwnedMap[item.id] = Boolean(record?.owned);
+  });
+}
+
 function renderAll() {
-  updateActiveTabButtons();
-  updateDynamicLabels();
-  renderSearchPanel();
+  if (state.activeTab !== "mount") {
+    renderPlaceholderTable();
+    return;
+  }
+
+  syncDraftState();
+  renderGuideText();
   renderSummaryTable();
   renderGuildManageTable();
   renderItemManageTable();
 }
 
-function updateActiveTabButtons() {
-  el.tabs.forEach((tabButton) => {
-    tabButton.classList.toggle("active", tabButton.dataset.tab === state.activeTab);
-  });
-}
+function renderGuideText() {
+  const filtered = getFilteredMembers();
+  const keyword = state.searchTerm.trim();
 
-function updateDynamicLabels() {
-  const config = TAB_CONFIG[state.activeTab];
-  el.itemManageBtn.textContent = `${config.itemLabel} 관리`;
-  el.itemManageTitle.textContent = `${config.itemLabel} 관리`;
-  el.itemNameHeader.textContent = `${config.itemLabel}명`;
-  el.addItemBtn.textContent = `${config.itemLabel} 추가`;
-  el.statusTitle.textContent = config.statusTitle;
-}
-
-function renderSearchPanel() {
-  const data = getActiveData();
-  const member = data.members.find((item) => item.id === state.selectedMemberId) || null;
-
-  el.memberNameInput.value = member ? member.name : "";
-  el.memberPowerInput.value = member ? member.power : "";
-  el.statusList.innerHTML = "";
-
-  if (!member) {
-    const empty = document.createElement("div");
-    empty.className = "status-item";
-    empty.innerHTML = `
-      <span class="status-name">검색된 길드원이 없습니다.</span>
-      <div class="status-actions"></div>
-    `;
-    el.statusList.appendChild(empty);
+  if (!keyword) {
+    el.tableGuideText.textContent = "전체 목록 상태에서는 수정할 수 없습니다. 길드원을 검색해주세요.";
     return;
   }
 
-  data.items.forEach((item, index) => {
-    const owned = Boolean(member.ownedMap[index]);
-    const row = document.createElement("div");
-    row.className = "status-item";
-    row.innerHTML = `
-      <span class="status-name">${escapeHtml(item.name)}</span>
-      <div class="status-actions" data-item-index="${index}">
-        <button class="chip ${owned ? "chip-active" : ""}" type="button" data-owned-value="true">보유</button>
-        <button class="chip ${owned ? "" : "chip-active"}" type="button" data-owned-value="false">미보유</button>
-      </div>
-    `;
-    el.statusList.appendChild(row);
-  });
+  if (filtered.length === 0) {
+    el.tableGuideText.textContent = "검색 결과가 없습니다.";
+    return;
+  }
+
+  if (filtered.length > 1) {
+    el.tableGuideText.textContent = "검색 결과가 여러 명입니다. 정확한 길드원명을 입력해주세요.";
+    return;
+  }
+
+  el.tableGuideText.textContent = "검색 결과가 정확히 1명입니다. 이 행에서 전투력과 보유 상태를 수정할 수 있습니다.";
 }
 
 function renderSummaryTable() {
-  const data = getActiveData();
+  const headers = ["no", "길드원", "전투력", ...state.items.map((item) => item.name), "저장"];
+  el.summaryTableHead.innerHTML = `<tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr>`;
 
-  const headCells = ["no", "길드원", "전투력", ...data.items.map((item) => item.name)];
-  el.summaryTableHead.innerHTML = `<tr>${headCells.map((cell) => `<th>${escapeHtml(cell)}</th>`).join("")}</tr>`;
+  const filteredMembers = getFilteredMembers();
+  const editableMember = getEditableMember();
 
-  if (data.members.length === 0) {
+  if (filteredMembers.length === 0) {
     el.summaryTableBody.innerHTML = `
       <tr>
-        <td colspan="${headCells.length}">등록된 데이터가 없습니다.</td>
+        <td class="empty-row" colspan="${headers.length}">표시할 길드원이 없습니다.</td>
       </tr>
     `;
     return;
   }
 
-  el.summaryTableBody.innerHTML = data.members.map((member, rowIndex) => {
-    const statusColumns = data.items.map((_, itemIndex) => {
-      const owned = Boolean(member.ownedMap[itemIndex]);
-      return `<td><span class="badge ${owned ? "badge-own" : "badge-not"}">${owned ? "보유" : "미보유"}</span></td>`;
+  el.summaryTableBody.innerHTML = filteredMembers.map((member, index) => {
+    const isEditable = editableMember && editableMember.id === member.id;
+
+    const powerCell = isEditable
+      ? `
+        <input
+          class="inline-power-input"
+          type="number"
+          min="0"
+          step="1"
+          data-role="power-input"
+          data-member-id="${member.id}"
+          value="${escapeAttr(state.draftPower)}"
+        >
+      `
+      : `${member.power ?? 0}`;
+
+    const itemCells = state.items.map((item) => {
+      const currentOwned = isEditable
+        ? Boolean(state.draftOwnedMap[item.id])
+        : getOwnedValue(member.id, item.id);
+
+      if (isEditable) {
+        return `
+          <td>
+            <div class="toggle-group">
+              <button class="toggle-btn ${currentOwned ? "active-own" : ""}" type="button" data-role="owned-toggle" data-member-id="${member.id}" data-item-id="${item.id}" data-value="true">보유</button>
+              <button class="toggle-btn ${currentOwned ? "" : "active-not"}" type="button" data-role="owned-toggle" data-member-id="${member.id}" data-item-id="${item.id}" data-value="false">미보유</button>
+            </div>
+          </td>
+        `;
+      }
+
+      return `
+        <td>
+          <span class="badge ${currentOwned ? "badge-own" : "badge-not"}">${currentOwned ? "보유" : "미보유"}</span>
+        </td>
+      `;
     }).join("");
+
+    const saveCell = isEditable
+      ? `<button class="btn btn-primary btn-sm" type="button" data-role="save-row" data-member-id="${member.id}">저장</button>`
+      : `<span class="notice-text">수정 불가</span>`;
 
     return `
       <tr>
-        <td>${rowIndex + 1}</td>
+        <td>${index + 1}</td>
         <td>${escapeHtml(member.name)}</td>
-        <td>${member.power}</td>
-        ${statusColumns}
+        <td>${powerCell}</td>
+        ${itemCells}
+        <td>${saveCell}</td>
       </tr>
     `;
   }).join("");
 }
 
-function renderGuildManageTable() {
-  const data = getActiveData();
+function renderPlaceholderTable() {
+  el.tableGuideText.textContent = "현재는 탈것 탭만 연결되어 있습니다.";
+  el.summaryTableHead.innerHTML = `
+    <tr>
+      <th>no</th>
+      <th>항목</th>
+      <th>상태</th>
+    </tr>
+  `;
+  el.summaryTableBody.innerHTML = `
+    <tr>
+      <td>1</td>
+      <td>${state.activeTab === "accessory" ? "악세" : "특수"}</td>
+      <td>준비중</td>
+    </tr>
+  `;
+}
 
-  if (data.members.length === 0) {
+function renderGuildManageTable() {
+  if (state.members.length === 0) {
     el.guildManageTableBody.innerHTML = `
       <tr>
         <td colspan="4">등록된 길드원이 없습니다.</td>
@@ -283,103 +350,115 @@ function renderGuildManageTable() {
     return;
   }
 
-  el.guildManageTableBody.innerHTML = data.members.map((member, index) => `
+  el.guildManageTableBody.innerHTML = state.members.map((member, index) => `
     <tr>
       <td>${index + 1}</td>
       <td>${escapeHtml(member.name)}</td>
-      <td>${member.power}</td>
-      <td class="action-cell">
-        <button class="text-btn" type="button" data-action="edit-member" data-id="${member.id}">수정</button>
-        <button class="text-btn danger" type="button" data-action="delete-member" data-id="${member.id}">삭제</button>
+      <td>${member.power ?? 0}</td>
+      <td>
+        <div class="row-actions">
+          <button class="text-btn" type="button" data-action="edit-member" data-id="${member.id}">수정</button>
+          <button class="text-btn danger" type="button" data-action="delete-member" data-id="${member.id}">삭제</button>
+        </div>
       </td>
     </tr>
   `).join("");
 }
 
 function renderItemManageTable() {
-  const data = getActiveData();
-
-  if (data.items.length === 0) {
+  if (state.items.length === 0) {
     el.itemManageTableBody.innerHTML = `
       <tr>
-        <td colspan="3">등록된 ${TAB_CONFIG[state.activeTab].itemLabel}이 없습니다.</td>
+        <td colspan="3">등록된 탈것이 없습니다.</td>
       </tr>
     `;
     return;
   }
 
-  el.itemManageTableBody.innerHTML = data.items.map((item, index) => `
+  el.itemManageTableBody.innerHTML = state.items.map((item, index) => `
     <tr>
       <td>${index + 1}</td>
       <td>${escapeHtml(item.name)}</td>
-      <td class="action-cell">
-        <button class="text-btn" type="button" data-action="edit-item" data-id="${item.id}">수정</button>
-        <button class="text-btn danger" type="button" data-action="delete-item" data-id="${item.id}">삭제</button>
+      <td>
+        <div class="row-actions">
+          <button class="text-btn" type="button" data-action="edit-item" data-id="${item.id}">수정</button>
+          <button class="text-btn danger" type="button" data-action="delete-item" data-id="${item.id}">삭제</button>
+        </div>
       </td>
     </tr>
   `).join("");
 }
 
-function handleSearch() {
-  const keyword = el.searchNameInput.value.trim();
-  if (!keyword) {
-    alert("길드원명을 입력해주세요.");
-    return;
-  }
-
-  const data = getActiveData();
-  const member = data.members.find((item) => item.name === keyword);
-
-  if (!member) {
-    state.selectedMemberId = null;
-    renderSearchPanel();
-    alert("일치하는 길드원을 찾지 못했습니다.");
-    return;
-  }
-
-  state.selectedMemberId = member.id;
-  renderSearchPanel();
+function handleSummaryTableInput(event) {
+  const target = event.target;
+  if (!target.matches('[data-role="power-input"]')) return;
+  state.draftPower = target.value;
 }
 
-function handleSave() {
-  const data = getActiveData();
-  const member = data.members.find((item) => item.id === state.selectedMemberId);
+function handleSummaryTableClick(event) {
+  const button = event.target.closest("button");
+  if (!button) return;
 
-  if (!member) {
-    alert("먼저 길드원을 검색해주세요.");
+  const role = button.dataset.role;
+
+  if (role === "owned-toggle") {
+    const memberId = button.dataset.memberId;
+    if (memberId !== state.draftMemberId) return;
+    state.draftOwnedMap[button.dataset.itemId] = button.dataset.value === "true";
+    renderSummaryTable();
     return;
   }
 
-  const power = Number(el.memberPowerInput.value);
+  if (role === "save-row") {
+    saveEditableRow(button.dataset.memberId);
+  }
+}
+
+async function saveEditableRow(memberId) {
+  if (memberId !== state.draftMemberId) return;
+
+  const power = Number(state.draftPower);
   if (!Number.isFinite(power) || power < 0) {
     alert("전투력을 올바르게 입력해주세요.");
     return;
   }
 
-  member.power = Math.floor(power);
-  renderSummaryTable();
-  renderGuildManageTable();
-  alert("저장되었습니다.");
-}
+  const updateMemberRes = await supabase
+    .from("guild_members")
+    .update({ power: Math.floor(power) })
+    .eq("id", memberId);
 
-function handleStatusListClick(event) {
-  const button = event.target.closest("button[data-owned-value]");
-  if (!button) return;
-
-  const data = getActiveData();
-  const member = data.members.find((item) => item.id === state.selectedMemberId);
-  if (!member) {
-    alert("먼저 길드원을 검색해주세요.");
+  if (updateMemberRes.error) {
+    alert(`전투력 저장 중 오류가 발생했습니다.\n${updateMemberRes.error.message}`);
     return;
   }
 
-  const actions = button.closest(".status-actions");
-  const itemIndex = Number(actions.dataset.itemIndex);
-  member.ownedMap[itemIndex] = button.dataset.ownedValue === "true";
-  renderSearchPanel();
+  const upsertPayload = state.items.map((item) => ({
+    member_id: memberId,
+    mount_id: item.id,
+    owned: Boolean(state.draftOwnedMap[item.id])
+  }));
+
+  const upsertRes = await supabase
+    .from("member_mounts")
+    .upsert(upsertPayload, { onConflict: "member_id,mount_id" });
+
+  if (upsertRes.error) {
+    alert(`보유 상태 저장 중 오류가 발생했습니다.\n${upsertRes.error.message}`);
+    return;
+  }
+
+  await loadMountData();
+  renderAll();
+  alert("저장되었습니다.");
 }
 
 function openPasswordModal(type) {
+  if (state.activeTab !== "mount") {
+    alert("현재는 탈것 탭만 사용할 수 있습니다.");
+    return;
+  }
+
   state.pendingManageType = type;
   el.passwordInput.value = "";
   el.passwordErrorText.classList.add("hidden");
@@ -393,8 +472,7 @@ function closePasswordModal() {
 }
 
 function confirmPassword() {
-  const inputValue = el.passwordInput.value;
-  if (inputValue !== ADMIN_PASSWORD) {
+  if (el.passwordInput.value !== ADMIN_PASSWORD) {
     el.passwordErrorText.classList.remove("hidden");
     return;
   }
@@ -417,15 +495,13 @@ function handleGuildManageTableClick(event) {
   const button = event.target.closest("button[data-action]");
   if (!button) return;
 
-  const action = button.dataset.action;
-  const id = button.dataset.id;
-
-  if (action === "edit-member") {
-    editMember(id);
+  if (button.dataset.action === "edit-member") {
+    editMember(button.dataset.id);
+    return;
   }
 
-  if (action === "delete-member") {
-    deleteMember(id);
+  if (button.dataset.action === "delete-member") {
+    deleteMember(button.dataset.id);
   }
 }
 
@@ -433,30 +509,27 @@ function handleItemManageTableClick(event) {
   const button = event.target.closest("button[data-action]");
   if (!button) return;
 
-  const action = button.dataset.action;
-  const id = button.dataset.id;
-
-  if (action === "edit-item") {
-    editItem(id);
+  if (button.dataset.action === "edit-item") {
+    editItem(button.dataset.id);
+    return;
   }
 
-  if (action === "delete-item") {
-    deleteItem(id);
+  if (button.dataset.action === "delete-item") {
+    deleteItem(button.dataset.id);
   }
 }
 
-function addMember() {
-  const data = getActiveData();
-  const name = prompt("추가할 길드원명을 입력해주세요.");
-  if (name === null) return;
+async function addMember() {
+  const nameValue = prompt("추가할 길드원명을 입력해주세요.");
+  if (nameValue === null) return;
 
-  const trimmedName = name.trim();
-  if (!trimmedName) {
+  const name = nameValue.trim();
+  if (!name) {
     alert("길드원명을 입력해주세요.");
     return;
   }
 
-  if (data.members.some((member) => member.name === trimmedName)) {
+  if (state.members.some((member) => member.name === name)) {
     alert("이미 존재하는 길드원명입니다.");
     return;
   }
@@ -470,41 +543,59 @@ function addMember() {
     return;
   }
 
-  const ownedMap = {};
-  data.items.forEach((_, index) => {
-    ownedMap[index] = false;
-  });
+  const insertRes = await supabase
+    .from("guild_members")
+    .insert({ name, power: Math.floor(power) })
+    .select("id, name, power")
+    .single();
 
-  data.members.push({
-    id: createId(),
-    name: trimmedName,
-    power: Math.floor(power),
-    ownedMap
-  });
+  if (insertRes.error) {
+    alert(`길드원 추가 중 오류가 발생했습니다.\n${insertRes.error.message}`);
+    return;
+  }
 
+  const newMember = insertRes.data;
+
+  if (state.items.length > 0) {
+    const memberMountPayload = state.items.map((item) => ({
+      member_id: newMember.id,
+      mount_id: item.id,
+      owned: false
+    }));
+
+    const memberMountRes = await supabase
+      .from("member_mounts")
+      .upsert(memberMountPayload, { onConflict: "member_id,mount_id" });
+
+    if (memberMountRes.error) {
+      alert(`길드원 기본 탈것 정보 생성 중 오류가 발생했습니다.\n${memberMountRes.error.message}`);
+      return;
+    }
+  }
+
+  await loadMountData();
   renderAll();
 }
 
-function editMember(memberId) {
-  const data = getActiveData();
-  const member = data.members.find((item) => item.id === memberId);
+async function editMember(memberId) {
+  const member = state.members.find((entry) => entry.id === memberId);
   if (!member) return;
 
-  const nextName = prompt("길드원명을 수정해주세요.", member.name);
-  if (nextName === null) return;
+  const nextNameValue = prompt("길드원명을 수정해주세요.", member.name);
+  if (nextNameValue === null) return;
 
-  const trimmedName = nextName.trim();
-  if (!trimmedName) {
+  const nextName = nextNameValue.trim();
+  if (!nextName) {
     alert("길드원명을 입력해주세요.");
     return;
   }
 
-  if (data.members.some((item) => item.id !== member.id && item.name === trimmedName)) {
+  if (state.members.some((entry) => entry.id !== memberId && entry.name === nextName)) {
     alert("이미 존재하는 길드원명입니다.");
     return;
   }
 
-  const nextPowerValue = prompt("전투력을 수정해주세요.", String(member.power));
+  const nextPowerValue = prompt("전투력을 수정해주세요.", String(member.power ?? 0));
   if (nextPowerValue === null) return;
 
   const nextPower = Number(nextPowerValue);
@@ -513,109 +604,155 @@ function editMember(memberId) {
     return;
   }
 
-  member.name = trimmedName;
-  member.power = Math.floor(nextPower);
+  const updateRes = await supabase
+    .from("guild_members")
+    .update({ name: nextName, power: Math.floor(nextPower) })
+    .eq("id", memberId);
 
-  if (state.selectedMemberId === member.id) {
-    el.memberNameInput.value = member.name;
-    el.memberPowerInput.value = member.power;
+  if (updateRes.error) {
+    alert(`길드원 수정 중 오류가 발생했습니다.\n${updateRes.error.message}`);
+    return;
   }
 
+  await loadMountData();
   renderAll();
 }
 
-function deleteMember(memberId) {
-  const data = getActiveData();
-  const member = data.members.find((item) => item.id === memberId);
+async function deleteMember(memberId) {
+  const member = state.members.find((entry) => entry.id === memberId);
   if (!member) return;
 
-  const ok = confirm(`${member.name} 길드원을 삭제하시겠습니까?`);
-  if (!ok) return;
+  if (!confirm(`${member.name} 길드원을 삭제하시겠습니까?`)) return;
 
-  data.members = data.members.filter((item) => item.id !== memberId);
+  const deleteRes = await supabase
+    .from("guild_members")
+    .delete()
+    .eq("id", memberId);
 
-  if (state.selectedMemberId === memberId) {
-    state.selectedMemberId = null;
-    el.searchNameInput.value = "";
-  }
-
-  renderAll();
-}
-
-function addItem() {
-  const data = getActiveData();
-  const itemLabel = TAB_CONFIG[state.activeTab].itemLabel;
-  const name = prompt(`추가할 ${itemLabel}명을 입력해주세요.`);
-  if (name === null) return;
-
-  const trimmedName = name.trim();
-  if (!trimmedName) {
-    alert(`${itemLabel}명을 입력해주세요.`);
+  if (deleteRes.error) {
+    alert(`길드원 삭제 중 오류가 발생했습니다.\n${deleteRes.error.message}`);
     return;
   }
 
-  if (data.items.some((item) => item.name === trimmedName)) {
-    alert(`이미 존재하는 ${itemLabel}명입니다.`);
-    return;
+  if (state.draftMemberId === memberId) {
+    state.searchTerm = "";
+    el.searchInput.value = "";
   }
 
-  data.items.push({ id: createId(), name: trimmedName });
-  data.members.forEach((member) => {
-    member.ownedMap[data.items.length - 1] = false;
-  });
-
+  await loadMountData();
   renderAll();
 }
 
-function editItem(itemId) {
-  const data = getActiveData();
-  const item = data.items.find((entry) => entry.id === itemId);
+async function addItem() {
+  const nameValue = prompt("추가할 탈것명을 입력해주세요.");
+  if (nameValue === null) return;
+
+  const name = nameValue.trim();
+  if (!name) {
+    alert("탈것명을 입력해주세요.");
+    return;
+  }
+
+  if (state.items.some((item) => item.name === name)) {
+    alert("이미 존재하는 탈것명입니다.");
+    return;
+  }
+
+  const nextDisplayOrder = state.items.length === 0
+    ? 1
+    : Math.max(...state.items.map((item) => Number(item.display_order ?? 0))) + 1;
+
+  const insertRes = await supabase
+    .from("mounts")
+    .insert({ name, display_order: nextDisplayOrder })
+    .select("id, name, display_order")
+    .single();
+
+  if (insertRes.error) {
+    alert(`탈것 추가 중 오류가 발생했습니다.\n${insertRes.error.message}`);
+    return;
+  }
+
+  const newItem = insertRes.data;
+
+  if (state.members.length > 0) {
+    const memberMountPayload = state.members.map((member) => ({
+      member_id: member.id,
+      mount_id: newItem.id,
+      owned: false
+    }));
+
+    const memberMountRes = await supabase
+      .from("member_mounts")
+      .upsert(memberMountPayload, { onConflict: "member_id,mount_id" });
+
+    if (memberMountRes.error) {
+      alert(`탈것 기본 보유 정보 생성 중 오류가 발생했습니다.\n${memberMountRes.error.message}`);
+      return;
+    }
+  }
+
+  await loadMountData();
+  renderAll();
+}
+
+async function editItem(itemId) {
+  const item = state.items.find((entry) => entry.id === itemId);
   if (!item) return;
 
-  const itemLabel = TAB_CONFIG[state.activeTab].itemLabel;
-  const name = prompt(`${itemLabel}명을 수정해주세요.`, item.name);
-  if (name === null) return;
+  const nextNameValue = prompt("탈것명을 수정해주세요.", item.name);
+  if (nextNameValue === null) return;
 
-  const trimmedName = name.trim();
-  if (!trimmedName) {
-    alert(`${itemLabel}명을 입력해주세요.`);
+  const nextName = nextNameValue.trim();
+  if (!nextName) {
+    alert("탈것명을 입력해주세요.");
     return;
   }
 
-  if (data.items.some((entry) => entry.id !== item.id && entry.name === trimmedName)) {
-    alert(`이미 존재하는 ${itemLabel}명입니다.`);
+  if (state.items.some((entry) => entry.id !== itemId && entry.name === nextName)) {
+    alert("이미 존재하는 탈것명입니다.");
     return;
   }
 
-  item.name = trimmedName;
+  const updateRes = await supabase
+    .from("mounts")
+    .update({ name: nextName })
+    .eq("id", itemId);
+
+  if (updateRes.error) {
+    alert(`탈것 수정 중 오류가 발생했습니다.\n${updateRes.error.message}`);
+    return;
+  }
+
+  await loadMountData();
   renderAll();
 }
 
-function deleteItem(itemId) {
-  const data = getActiveData();
-  const itemIndex = data.items.findIndex((entry) => entry.id === itemId);
-  if (itemIndex < 0) return;
+async function deleteItem(itemId) {
+  const item = state.items.find((entry) => entry.id === itemId);
+  if (!item) return;
 
-  const item = data.items[itemIndex];
-  const itemLabel = TAB_CONFIG[state.activeTab].itemLabel;
-  const ok = confirm(`${item.name} ${itemLabel}을 삭제하시겠습니까?`);
-  if (!ok) return;
+  if (!confirm(`${item.name} 탈것을 삭제하시겠습니까?`)) return;
 
-  data.items.splice(itemIndex, 1);
+  const deleteRes = await supabase
+    .from("mounts")
+    .delete()
+    .eq("id", itemId);
 
-  data.members.forEach((member) => {
-    const nextOwnedMap = {};
-    Object.keys(member.ownedMap)
-      .map(Number)
-      .sort((a, b) => a - b)
-      .forEach((key) => {
-        if (key < itemIndex) nextOwnedMap[key] = member.ownedMap[key];
-        if (key > itemIndex) nextOwnedMap[key - 1] = member.ownedMap[key];
-      });
-    member.ownedMap = nextOwnedMap;
-  });
+  if (deleteRes.error) {
+    alert(`탈것 삭제 중 오류가 발생했습니다.\n${deleteRes.error.message}`);
+    return;
+  }
 
+  await loadMountData();
   renderAll();
+}
+
+function getOwnedValue(memberId, itemId) {
+  const record = state.memberMounts.find(
+    (entry) => entry.member_id === memberId && entry.mount_id === itemId
+  );
+  return Boolean(record?.owned);
 }
 
 function openModal(backdrop) {
@@ -626,14 +763,6 @@ function closeModal(backdrop) {
   backdrop.classList.add("hidden");
 }
 
-function getActiveData() {
-  return state.data[state.activeTab];
-}
-
-function createId() {
-  return `${Date.now()}_${Math.random().toString(16).slice(2)}`;
-}
-
 function escapeHtml(value) {
   return String(value)
     .replaceAll("&", "&amp;")
@@ -641,4 +770,8 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function escapeAttr(value) {
+  return escapeHtml(value);
 }
