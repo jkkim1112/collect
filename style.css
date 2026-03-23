@@ -166,7 +166,7 @@ button {
 }
 
 .btn-sm {
-  padding: 7px 10px;
+  padding: 0 10px;
   font-size: 13px;
   border-radius: 8px;
 }
@@ -206,12 +206,42 @@ button {
   background: #f8fafc;
 }
 
+.summary-table td > .badge,
+.summary-table td > .toggle-single-btn,
+.summary-table td > .inline-power-input,
+.summary-table td > .table-action-btn,
+.summary-table td > .fixed-cell-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 92px;
+  min-width: 92px;
+  height: 36px;
+}
+
+.fixed-cell-box {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f9fafb;
+  color: #4b5563;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 0 10px;
+}
+
+.fixed-power-text {
+  justify-content: flex-end;
+}
+
+.fixed-action-text {
+  color: #6b7280;
+}
+
 .badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 60px;
-  padding: 6px 10px;
+  padding: 0 10px;
   border-radius: 999px;
   font-size: 13px;
   font-weight: 700;
@@ -228,19 +258,17 @@ button {
 }
 
 .inline-power-input {
-  width: 110px;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
-  padding: 8px 10px;
+  padding: 0 10px;
   text-align: right;
 }
 
 .toggle-single-btn {
-  min-width: 78px;
   border: 1px solid #d1d5db;
   background: #fff;
   color: #374151;
-  padding: 7px 12px;
+  padding: 0 12px;
   border-radius: 8px;
   font-size: 13px;
   font-weight: 700;
@@ -377,6 +405,24 @@ button {
   color: #6b7280;
 }
 
+@media (max-width: 900px) {
+  .app {
+    padding: 16px;
+  }
+
+  .table-header {
+    align-items: stretch;
+  }
+
+  .table-search {
+    width: 100%;
+  }
+
+  .table-search input {
+    flex: 1 1 220px;
+    width: auto;
+  }
+}
 .sortable-header {
   cursor: pointer;
   user-select: none;
@@ -400,23 +446,4 @@ button {
 
 .sortable-header.active .sort-indicator {
   color: #2563eb;
-}
-
-@media (max-width: 900px) {
-  .app {
-    padding: 16px;
-  }
-
-  .table-header {
-    align-items: stretch;
-  }
-
-  .table-search {
-    width: 100%;
-  }
-
-  .table-search input {
-    flex: 1 1 220px;
-    width: auto;
-  }
 }

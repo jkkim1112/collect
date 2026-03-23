@@ -327,7 +327,7 @@ function renderSummaryTable() {
           value="${escapeAttr(state.draftPower)}"
         >
       `
-      : `${member.power ?? 0}`;
+      : `<span class="fixed-cell-box fixed-power-text">${member.power ?? 0}</span>`;
 
     const itemCells = state.items.map((item) => {
       const currentOwned = isEditable
@@ -358,8 +358,8 @@ function renderSummaryTable() {
     }).join("");
 
     const saveCell = isEditable
-      ? `<button class="btn btn-primary btn-sm" type="button" data-role="save-row" data-member-id="${member.id}">저장</button>`
-      : `<span class="notice-text">수정 불가</span>`;
+      ? `<button class="btn btn-primary btn-sm table-action-btn" type="button" data-role="save-row" data-member-id="${member.id}">저장</button>`
+      : `<span class="fixed-cell-box fixed-action-text">수정 불가</span>`;
 
     return `
       <tr>
@@ -372,6 +372,7 @@ function renderSummaryTable() {
     `;
   }).join("");
 }
+
 
 function renderSummaryHeaderCell(header) {
   if (!header.sortable) {
