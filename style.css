@@ -245,7 +245,7 @@ button {
 }
 
 .inline-power-input {
-  width: 82px;
+  width: 74px;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
   padding: 7px 8px;
@@ -411,6 +411,28 @@ button {
     flex: 1 1 220px;
     width: auto;
   }
+}
+
+.summary-table th:nth-child(3),
+.summary-table td:nth-child(3) {
+  width: 74px;
+  min-width: 74px;
+}
+
+.summary-table th:nth-last-child(2),
+.summary-table td:nth-last-child(2) {
+  width: 62px;
+  min-width: 62px;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+.summary-table th:last-child,
+.summary-table td:last-child {
+  width: 72px;
+  min-width: 72px;
+  padding-left: 6px;
+  padding-right: 6px;
 }
 
 .value-box,
@@ -584,13 +606,13 @@ button {
 
   .value-box,
   .action-box {
-    width: 78px;
+    width: 72px;
     min-height: 32px;
     font-size: 12px;
   }
 
   .inline-power-input {
-    width: 78px;
+    width: 72px;
     min-height: 32px;
     padding: 6px 8px;
     font-size: 12px;
@@ -711,7 +733,7 @@ button {
   .value-box,
   .action-box,
   .inline-power-input {
-    width: 72px;
+    width: 66px;
     min-height: 30px;
     font-size: 11px;
   }
@@ -950,7 +972,7 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 88px;
+  width: 68px;
   min-height: 34px;
   color: #6b7280;
   font-size: 12px;
@@ -959,5 +981,59 @@ button {
 }
 
 .last-updated-col {
-  min-width: 98px;
+  min-width: 72px;
+}
+
+.save-col {
+  min-width: 62px;
+}
+
+@media (max-width: 768px) {
+  .summary-table th:nth-child(3),
+  .summary-table td:nth-child(3) {
+    width: 72px;
+    min-width: 72px;
+  }
+
+  .summary-table th:nth-last-child(2),
+  .summary-table td:nth-last-child(2) {
+    width: 58px;
+    min-width: 58px;
+  }
+
+  .summary-table th:last-child,
+  .summary-table td:last-child {
+    width: 66px;
+    min-width: 66px;
+  }
+
+  .last-updated-box {
+    width: 62px;
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 480px) {
+  .summary-table th:nth-child(3),
+  .summary-table td:nth-child(3) {
+    width: 66px;
+    min-width: 66px;
+  }
+
+  .summary-table th:nth-last-child(2),
+  .summary-table td:nth-last-child(2) {
+    width: 54px;
+    min-width: 54px;
+  }
+
+  .summary-table th:last-child,
+  .summary-table td:last-child {
+    width: 60px;
+    min-width: 60px;
+  }
+
+  .last-updated-box {
+    width: 56px;
+    font-size: 10px;
+  }
 }
