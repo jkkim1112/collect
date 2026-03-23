@@ -718,6 +718,12 @@ function handleSummaryTableInput(event) {
 }
 
 function handleSummaryTableHeadClick(event) {
+  const hideButton = event.target.closest('[data-role="toggle-accessory-group-hidden"]');
+  if (hideButton) {
+    toggleAccessoryGroupHidden(hideButton.dataset.groupId);
+    return;
+  }
+
   const header = event.target.closest('[data-role="power-sort-header"]');
   if (!header) return;
 
