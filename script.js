@@ -258,12 +258,18 @@ function handleSearch() {
   openModal(el.searchSelectModalBackdrop);
 }
 
-function handleResetSearch() {
+async function handleResetSearch() {
   state.searchTerm = "";
   state.selectedMemberId = null;
   el.searchInput.value = "";
   closeSearchSelectModal();
-  syncDraftState();
+
+  if (state.activeTab !== "special") {
+    await loadActiveTabData();
+  } else {
+    syncDraftState();
+  }
+
   renderAll();
 }
 
