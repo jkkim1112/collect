@@ -987,15 +987,17 @@ button {
 }
 
 .inline-qty-input {
-  width: 56px;
+  width: 46px;
+  min-width: 46px;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
-  padding: 7px 6px;
+  padding: 6px 4px;
   text-align: center;
 }
 
 .qty-box {
-  width: 56px;
+  width: 46px;
+  min-width: 46px;
 }
 
 .summary-table th[rowspan="2"] {
@@ -1023,13 +1025,15 @@ button {
 
 @media (max-width: 768px) {
   .inline-qty-input {
-    width: 52px;
+    width: 42px;
+    min-width: 42px;
     min-height: 32px;
-    padding: 6px 4px;
+    padding: 5px 3px;
     font-size: 12px;
   }
 
   .qty-box {
-    width: 52px;
+    width: 42px;
+    min-width: 42px;
   }
 }
