@@ -245,7 +245,7 @@ button {
 }
 
 .inline-power-input {
-  width: 96px;
+  width: 82px;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
   padding: 7px 8px;
@@ -418,7 +418,7 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 96px;
+  width: 82px;
   min-height: 34px;
   font-size: 13px;
 }
@@ -584,13 +584,13 @@ button {
 
   .value-box,
   .action-box {
-    width: 86px;
+    width: 78px;
     min-height: 32px;
     font-size: 12px;
   }
 
   .inline-power-input {
-    width: 86px;
+    width: 78px;
     min-height: 32px;
     padding: 6px 8px;
     font-size: 12px;
@@ -711,7 +711,7 @@ button {
   .value-box,
   .action-box,
   .inline-power-input {
-    width: 78px;
+    width: 72px;
     min-height: 30px;
     font-size: 11px;
   }
@@ -950,7 +950,7 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 118px;
+  width: 88px;
   min-height: 34px;
   color: #6b7280;
   font-size: 12px;
@@ -959,5 +959,5 @@ button {
 }
 
 .last-updated-col {
-  min-width: 128px;
+  min-width: 98px;
 }
