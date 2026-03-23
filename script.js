@@ -26,6 +26,7 @@ const state = {
   searchTerm: "",
   selectedMemberId: null,
   draftMemberId: null,
+  draftTab: null,
   draftPower: "",
   draftOwnedMap: {},
   draftAccessoryMap: {},
@@ -382,15 +383,17 @@ function syncDraftState() {
 
   if (!editableMember) {
     state.draftMemberId = null;
+    state.draftTab = null;
     state.draftPower = "";
     state.draftOwnedMap = {};
     state.draftAccessoryMap = {};
     return;
   }
 
-  if (state.draftMemberId === editableMember.id) return;
+  if (state.draftMemberId === editableMember.id && state.draftTab === state.activeTab) return;
 
   state.draftMemberId = editableMember.id;
+  state.draftTab = state.activeTab;
   state.draftPower = String(editableMember.power ?? 0);
   state.draftOwnedMap = {};
   state.draftAccessoryMap = {};
