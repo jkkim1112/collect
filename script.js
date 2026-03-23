@@ -71,6 +71,7 @@ function bindElements() {
   el.itemManageModalBackdrop = document.getElementById("itemManageModalBackdrop");
   el.itemManageTitle = document.getElementById("itemManageTitle");
   el.itemNameHeader = document.getElementById("itemNameHeader");
+  el.itemMaxHeader = document.getElementById("itemMaxHeader");
   el.itemManageTableBody = document.getElementById("itemManageTableBody");
   el.addItemBtn = document.getElementById("addItemBtn");
   el.itemManageCloseBtn = document.getElementById("itemManageCloseBtn");
@@ -158,6 +159,7 @@ function updateTabUi() {
   el.itemManageBtn.textContent = isAccessory ? "악세사리 관리" : "탈것 관리";
   el.itemManageTitle.textContent = isAccessory ? "악세사리 관리" : "탈것 관리";
   el.itemNameHeader.textContent = isAccessory ? "악세사리명" : "탈것명";
+  el.itemMaxHeader.classList.toggle("hidden", !isAccessory);
   el.addItemBtn.textContent = isAccessory ? "악세사리 추가" : "탈것 추가";
 }
 
@@ -201,7 +203,7 @@ async function loadMountData() {
 async function loadAccessoryData() {
   const [membersRes, groupsRes, memberAccessoriesRes] = await Promise.all([
     supabase.from("guild_members").select("id, name, power, updated_at").order("name", { ascending: true }),
-    supabase.from("accessory_groups").select("id, name, display_order").order("display_order", { ascending: true }),
+    supabase.from("accessory_groups").select("id, name, display_order, max_count").order("display_order", { ascending: true }),
     supabase.from("member_accessories").select("id, member_id, accessory_group_id, ring_count, necklace_count, earring_count, belt_count, bracelet_count, updated_at")
   ]);
 
@@ -513,6 +515,7 @@ function renderAccessorySummaryTable() {
     const groupCells = state.accessoryGroups.map((group) => {
       const record = getAccessoryRecord(member.id, group.id);
       return ACCESSORY_PARTS.map((part) => {
+        const maxCount = Number(group.max_count ?? 0);
         const currentValue = isEditable
           ? Number(state.draftAccessoryMap[group.id]?.[part.key] ?? 0)
           : Number(record?.[part.key] ?? 0);
@@ -520,7 +523,7 @@ function renderAccessorySummaryTable() {
         if (isEditable) {
           return `
             <td>
-              <input class="inline-qty-input" type="number" min="0" step="1" data-role="accessory-qty-input" data-member-id="${member.id}" data-group-id="${group.id}" data-part-key="${part.key}" value="${escapeAttr(currentValue)}">
+              <input class="inline-qty-input" type="number" min="0" max="${escapeAttr(maxCount)}" step="1" data-role="accessory-qty-input" data-member-id="${member.id}" data-group-id="${group.id}" data-part-key="${part.key}" value="${escapeAttr(currentValue)}">
             </td>
           `;
         }
@@ -629,7 +632,7 @@ function renderItemManageTable() {
   const emptyText = state.activeTab === "accessory" ? "등록된 악세사리가 없습니다." : "등록된 탈것이 없습니다.";
 
   if (items.length === 0) {
-    el.itemManageTableBody.innerHTML = `<tr><td colspan="3">${emptyText}</td></tr>`;
+    el.itemManageTableBody.innerHTML = `<tr><td colspan="${state.activeTab === "accessory" ? 4 : 3}">${emptyText}</td></tr>`;
     return;
   }
 
@@ -637,6 +640,7 @@ function renderItemManageTable() {
     <tr>
       <td>${index + 1}</td>
       <td>${escapeHtml(item.name)}</td>
+      ${state.activeTab === "accessory" ? `<td>${Number(item.max_count ?? 0)}</td>` : ""}
       <td>
         <div class="row-actions">
           <button class="text-btn" type="button" data-action="edit-item" data-id="${item.id}">수정</button>
@@ -661,7 +665,9 @@ function handleSummaryTableInput(event) {
     const partKey = target.dataset.partKey;
     if (memberId !== state.draftMemberId) return;
 
-    const value = Math.max(0, Math.floor(Number(target.value) || 0));
+    const group = state.accessoryGroups.find((entry) => String(entry.id) === String(groupId));
+    const maxCount = Number(group?.max_count ?? 0);
+    const value = Math.min(maxCount, Math.max(0, Math.floor(Number(target.value) || 0)));
     if (!state.draftAccessoryMap[groupId]) {
       state.draftAccessoryMap[groupId] = {};
     }
@@ -771,16 +777,21 @@ async function saveAccessoryEditableRow(memberId) {
   }
 
   const now = new Date().toISOString();
-  const upsertPayload = state.accessoryGroups.map((group) => ({
-    member_id: memberId,
-    accessory_group_id: group.id,
-    ring_count: Number(state.draftAccessoryMap[group.id]?.ring_count ?? 0),
-    necklace_count: Number(state.draftAccessoryMap[group.id]?.necklace_count ?? 0),
-    earring_count: Number(state.draftAccessoryMap[group.id]?.earring_count ?? 0),
-    belt_count: Number(state.draftAccessoryMap[group.id]?.belt_count ?? 0),
-    bracelet_count: Number(state.draftAccessoryMap[group.id]?.bracelet_count ?? 0),
-    updated_at: now
-  }));
+  const upsertPayload = state.accessoryGroups.map((group) => {
+    const maxCount = Number(group.max_count ?? 0);
+    const normalizeCount = (value) => Math.min(maxCount, Math.max(0, Math.floor(Number(value) || 0)));
+
+    return {
+      member_id: memberId,
+      accessory_group_id: group.id,
+      ring_count: normalizeCount(state.draftAccessoryMap[group.id]?.ring_count),
+      necklace_count: normalizeCount(state.draftAccessoryMap[group.id]?.necklace_count),
+      earring_count: normalizeCount(state.draftAccessoryMap[group.id]?.earring_count),
+      belt_count: normalizeCount(state.draftAccessoryMap[group.id]?.belt_count),
+      bracelet_count: normalizeCount(state.draftAccessoryMap[group.id]?.bracelet_count),
+      updated_at: now
+    };
+  });
 
   const upsertRes = await supabase
     .from("member_accessories")
@@ -928,11 +939,11 @@ async function addMember() {
     const memberAccessoryPayload = state.accessoryGroups.map((group) => ({
       member_id: newMember.id,
       accessory_group_id: group.id,
-      ring_count: 0,
-      necklace_count: 0,
-      earring_count: 0,
-      belt_count: 0,
-      bracelet_count: 0,
+      ring_count: Number(newGroup.max_count ?? 0),
+      necklace_count: Number(newGroup.max_count ?? 0),
+      earring_count: Number(newGroup.max_count ?? 0),
+      belt_count: Number(newGroup.max_count ?? 0),
+      bracelet_count: Number(newGroup.max_count ?? 0),
       updated_at: now
     }));
 
@@ -1083,6 +1094,15 @@ async function addAccessoryGroup() {
     return;
   }
 
+  const maxCountValue = prompt("최대값을 입력해주세요.", "0");
+  if (maxCountValue === null) return;
+
+  const maxCount = Math.floor(Number(maxCountValue));
+  if (!Number.isFinite(maxCount) || maxCount < 0) {
+    alert("최대값을 올바르게 입력해주세요.");
+    return;
+  }
+
   if (state.accessoryGroups.some((item) => item.name === name)) {
     alert("이미 존재하는 악세사리명입니다.");
     return;
@@ -1094,8 +1114,8 @@ async function addAccessoryGroup() {
 
   const insertRes = await supabase
     .from("accessory_groups")
-    .insert({ name, display_order: nextDisplayOrder })
-    .select("id, name, display_order")
+    .insert({ name, display_order: nextDisplayOrder, max_count: maxCount, updated_at: new Date().toISOString() })
+    .select("id, name, display_order, max_count")
     .single();
 
   if (insertRes.error) {
@@ -1110,11 +1130,11 @@ async function addAccessoryGroup() {
     const memberAccessoryPayload = state.members.map((member) => ({
       member_id: member.id,
       accessory_group_id: newGroup.id,
-      ring_count: 0,
-      necklace_count: 0,
-      earring_count: 0,
-      belt_count: 0,
-      bracelet_count: 0,
+      ring_count: Number(group.max_count ?? 0),
+      necklace_count: Number(group.max_count ?? 0),
+      earring_count: Number(group.max_count ?? 0),
+      belt_count: Number(group.max_count ?? 0),
+      bracelet_count: Number(group.max_count ?? 0),
       updated_at: now
     }));
 
@@ -1182,6 +1202,15 @@ async function editAccessoryGroup(itemId) {
     return;
   }
 
+  const nextMaxCountValue = prompt("최대값을 수정해주세요.", String(Number(item.max_count ?? 0)));
+  if (nextMaxCountValue === null) return;
+
+  const nextMaxCount = Math.floor(Number(nextMaxCountValue));
+  if (!Number.isFinite(nextMaxCount) || nextMaxCount < 0) {
+    alert("최대값을 올바르게 입력해주세요.");
+    return;
+  }
+
   if (state.accessoryGroups.some((entry) => String(entry.id) !== String(itemId) && entry.name === nextName)) {
     alert("이미 존재하는 악세사리명입니다.");
     return;
@@ -1189,7 +1218,7 @@ async function editAccessoryGroup(itemId) {
 
   const updateRes = await supabase
     .from("accessory_groups")
-    .update({ name: nextName, updated_at: new Date().toISOString() })
+    .update({ name: nextName, max_count: nextMaxCount, updated_at: new Date().toISOString() })
     .eq("id", itemId);
 
   if (updateRes.error) {
