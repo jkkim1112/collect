@@ -180,7 +180,6 @@ function handleResetSearch() {
 function getFilteredMembers() {
   const keyword = state.searchTerm.trim();
   if (!keyword) return state.members;
-
   return state.members.filter((member) => member.name.includes(keyword));
 }
 
@@ -291,10 +290,15 @@ function renderSummaryTable() {
       if (isEditable) {
         return `
           <td>
-            <div class="toggle-group">
-              <button class="toggle-btn ${currentOwned ? "active-own" : ""}" type="button" data-role="owned-toggle" data-member-id="${member.id}" data-item-id="${item.id}" data-value="true">보유</button>
-              <button class="toggle-btn ${currentOwned ? "" : "active-not"}" type="button" data-role="owned-toggle" data-member-id="${member.id}" data-item-id="${item.id}" data-value="false">미보유</button>
-            </div>
+            <button
+              class="toggle-single-btn ${currentOwned ? "owned" : "not-owned"}"
+              type="button"
+              data-role="owned-toggle"
+              data-member-id="${member.id}"
+              data-item-id="${item.id}"
+            >
+              ${currentOwned ? "보유" : "미보유"}
+            </button>
           </td>
         `;
       }
@@ -403,8 +407,10 @@ function handleSummaryTableClick(event) {
 
   if (role === "owned-toggle") {
     const memberId = button.dataset.memberId;
+    const itemId = button.dataset.itemId;
     if (memberId !== state.draftMemberId) return;
-    state.draftOwnedMap[button.dataset.itemId] = button.dataset.value === "true";
+
+    state.draftOwnedMap[itemId] = !Boolean(state.draftOwnedMap[itemId]);
     renderSummaryTable();
     return;
   }
@@ -447,6 +453,9 @@ async function saveEditableRow(memberId) {
     alert(`보유 상태 저장 중 오류가 발생했습니다.\n${upsertRes.error.message}`);
     return;
   }
+
+  state.searchTerm = "";
+  el.searchInput.value = "";
 
   await loadMountData();
   renderAll();

@@ -235,30 +235,25 @@ button {
   text-align: right;
 }
 
-.toggle-group {
-  display: inline-flex;
-  gap: 6px;
-  align-items: center;
-}
-
-.toggle-btn {
+.toggle-single-btn {
+  min-width: 78px;
   border: 1px solid #d1d5db;
   background: #fff;
   color: #374151;
-  padding: 7px 10px;
+  padding: 7px 12px;
   border-radius: 8px;
   font-size: 13px;
   font-weight: 700;
 }
 
-.toggle-btn.active-own {
+.toggle-single-btn.owned {
   border-color: #2563eb;
   background: #dbeafe;
   color: #1d4ed8;
 }
 
-.toggle-btn.active-not {
-  border-color: #6b7280;
+.toggle-single-btn.not-owned {
+  border-color: #9ca3af;
   background: #f3f4f6;
   color: #374151;
 }
