@@ -479,13 +479,18 @@ function renderAccessorySummaryTable() {
     `<th rowspan="2">no</th>`,
     `<th rowspan="2">길드원</th>`,
     `<th rowspan="2" class="sortable-header ${state.powerSortDirection ? "active" : ""}" data-role="power-sort-header"><span class="sort-header-inner"><span>전투력</span><span class="sort-indicator">${powerSortText}</span></span></th>`,
-    ...state.accessoryGroups.map((group) => `<th colspan="${ACCESSORY_PARTS.length}" class="group-header">${escapeHtml(group.name)}</th>`),
+    ...state.accessoryGroups.map((group) => `<th colspan="${ACCESSORY_PARTS.length}" class="group-header group-boundary-start group-boundary-end">${escapeHtml(group.name)}</th>`),
     `<th rowspan="2" class="save-col">저장</th>`,
     `<th rowspan="2" class="last-updated-col">수정일</th>`
   ];
 
   const subHeaders = state.accessoryGroups.flatMap(() => (
-    ACCESSORY_PARTS.map((part) => `<th class="accessory-sub-header">${part.label}</th>`)
+    ACCESSORY_PARTS.map((part, partIndex) => {
+      const classes = ['accessory-sub-header'];
+      if (partIndex === 0) classes.push('group-boundary-start');
+      if (partIndex === ACCESSORY_PARTS.length - 1) classes.push('group-boundary-end');
+      return `<th class="${classes.join(' ')}">${part.label}</th>`;
+    })
   ));
 
   el.summaryTableHead.innerHTML = `
@@ -514,21 +519,25 @@ function renderAccessorySummaryTable() {
 
     const groupCells = state.accessoryGroups.map((group) => {
       const record = getAccessoryRecord(member.id, group.id);
-      return ACCESSORY_PARTS.map((part) => {
+      return ACCESSORY_PARTS.map((part, partIndex) => {
         const maxCount = Number(group.max_count ?? 0);
         const currentValue = isEditable
           ? Number(state.draftAccessoryMap[group.id]?.[part.key] ?? 0)
           : Number(record?.[part.key] ?? 0);
+        const tdClasses = [];
+        if (partIndex === 0) tdClasses.push('group-boundary-start');
+        if (partIndex === ACCESSORY_PARTS.length - 1) tdClasses.push('group-boundary-end');
+        const tdClassAttr = tdClasses.length > 0 ? ` class="${tdClasses.join(' ')}"` : '';
 
         if (isEditable) {
           return `
-            <td>
+            <td${tdClassAttr}>
               <input class="inline-qty-input" type="number" min="0" max="${escapeAttr(maxCount)}" step="1" data-role="accessory-qty-input" data-member-id="${member.id}" data-group-id="${group.id}" data-part-key="${part.key}" value="${escapeAttr(currentValue)}">
             </td>
           `;
         }
 
-        return `<td><span class="value-box qty-box">${currentValue}</span></td>`;
+        return `<td${tdClassAttr}><span class="value-box qty-box">${currentValue}</span></td>`;
       }).join("");
     }).join("");
 
