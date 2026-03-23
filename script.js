@@ -497,7 +497,9 @@ function renderAccessorySummaryTable() {
       ? "▼"
       : "↕";
 
-  const visibleGroups = state.accessoryGroups.filter((group) => !state.hiddenAccessoryGroupIds[group.id]);
+  const totalAccessoryColumnCount = state.accessoryGroups.reduce((sum, group) => {
+    return sum + (state.hiddenAccessoryGroupIds[group.id] ? 1 : ACCESSORY_PARTS.length);
+  }, 0);
 
   const topHeaders = [
     `<th rowspan="2">no</th>`,
@@ -505,22 +507,28 @@ function renderAccessorySummaryTable() {
     `<th rowspan="2" class="sortable-header ${state.powerSortDirection ? "active" : ""}" data-role="power-sort-header"><span class="sort-header-inner"><span>전투력</span><span class="sort-indicator">${powerSortText}</span></span></th>`,
     ...state.accessoryGroups.map((group) => {
       const isHidden = Boolean(state.hiddenAccessoryGroupIds[group.id]);
-      const hiddenClass = isHidden ? " hidden-accessory-group" : "";
-      return `<th colspan="${ACCESSORY_PARTS.length}" class="group-header group-boundary-start group-boundary-end${hiddenClass}"><div class="group-header-inner"><span class="group-header-text">${escapeHtml(group.name)}</span><button class="group-hide-btn ${isHidden ? "is-hidden" : ""}" type="button" data-role="toggle-accessory-group-hidden" data-group-id="${group.id}">${isHidden ? "숨김해제" : "숨김"}</button></div></th>`;
+      const colSpan = isHidden ? 1 : ACCESSORY_PARTS.length;
+      const hiddenClass = isHidden ? ' is-collapsed' : '';
+      return `<th colspan="${colSpan}" class="group-header group-boundary-start group-boundary-end${hiddenClass}"><div class="group-header-inner"><span class="group-header-text">${escapeHtml(group.name)}</span><button class="group-hide-btn ${isHidden ? "is-hidden" : ""}" type="button" data-role="toggle-accessory-group-hidden" data-group-id="${group.id}">${isHidden ? "숨김해제" : "숨김"}</button></div></th>`;
     }),
     `<th rowspan="2" class="save-col">저장</th>`,
     `<th rowspan="2" class="last-updated-col">수정일</th>`
   ];
 
-  const subHeaders = state.accessoryGroups.flatMap((group) => (
-    ACCESSORY_PARTS.map((part, partIndex) => {
+  const subHeaders = state.accessoryGroups.flatMap((group) => {
+    const isHidden = Boolean(state.hiddenAccessoryGroupIds[group.id]);
+
+    if (isHidden) {
+      return [`<th class="accessory-sub-header accessory-collapsed-header group-boundary-start group-boundary-end">숨김</th>`];
+    }
+
+    return ACCESSORY_PARTS.map((part, partIndex) => {
       const classes = ['accessory-sub-header'];
       if (partIndex === 0) classes.push('group-boundary-start');
       if (partIndex === ACCESSORY_PARTS.length - 1) classes.push('group-boundary-end');
-      if (state.hiddenAccessoryGroupIds[group.id]) classes.push('hidden-accessory-group');
       return `<th class="${classes.join(' ')}">${part.label}</th>`;
-    })
-  ));
+    });
+  });
 
   el.summaryTableHead.innerHTML = `
     <tr>${topHeaders.join("")}</tr>
@@ -533,7 +541,7 @@ function renderAccessorySummaryTable() {
   if (filteredMembers.length === 0) {
     el.summaryTableBody.innerHTML = `
       <tr>
-        <td class="empty-row" colspan="${visibleGroups.length * ACCESSORY_PARTS.length + 5}">표시할 길드원이 없습니다.</td>
+        <td class="empty-row" colspan="${totalAccessoryColumnCount + 5}">표시할 길드원이 없습니다.</td>
       </tr>
     `;
     return;
@@ -549,6 +557,11 @@ function renderAccessorySummaryTable() {
     const groupCells = state.accessoryGroups.map((group) => {
       const record = getAccessoryRecord(member.id, group.id);
       const isHidden = Boolean(state.hiddenAccessoryGroupIds[group.id]);
+
+      if (isHidden) {
+        return `<td class="accessory-collapsed-cell group-boundary-start group-boundary-end"><span class="accessory-collapsed-text">숨김</span></td>`;
+      }
+
       return ACCESSORY_PARTS.map((part, partIndex) => {
         const maxCount = Number(group.max_count ?? 0);
         const currentValue = isEditable
@@ -557,7 +570,6 @@ function renderAccessorySummaryTable() {
         const tdClasses = ['accessory-heat-cell'];
         if (partIndex === 0) tdClasses.push('group-boundary-start');
         if (partIndex === ACCESSORY_PARTS.length - 1) tdClasses.push('group-boundary-end');
-        if (isHidden) tdClasses.push('hidden-accessory-group');
         const tdClassAttr = ` class="${tdClasses.join(' ')}"`;
         const tdStyleAttr = ` style="${getAccessoryHeatCellStyle(currentValue, maxCount)}"`;
 
