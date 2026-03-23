@@ -889,3 +889,36 @@ button {
     border-radius: 8px;
   }
 }
+
+@media (max-width: 480px) {
+  .table-search {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 42px;
+    grid-template-areas:
+      "input search"
+      "reset reset";
+    gap: 8px;
+    align-items: center;
+  }
+
+  .table-search input {
+    grid-area: input;
+  }
+
+  #searchBtn {
+    grid-area: search;
+    width: 42px;
+    min-width: 42px;
+    height: 42px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+  }
+
+  #resetBtn {
+    grid-area: reset;
+    width: 100%;
+  }
+}
