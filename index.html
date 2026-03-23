@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>길드 현황 관리</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <header class="page-header">
+      <h1>길드 현황 관리</h1>
+    </header>
+
+    <nav class="tabs" aria-label="카테고리 탭">
+      <button class="tab active" type="button" data-tab="mount">탈것</button>
+      <button class="tab" type="button" data-tab="accessory">악세</button>
+      <button class="tab" type="button" data-tab="special">특수</button>
+    </nav>
+
+    <section class="toolbar">
+      <button class="btn btn-outline" type="button" id="guildManageBtn">길드원 관리</button>
+      <button class="btn btn-primary" type="button" id="itemManageBtn">탈것 관리</button>
+    </section>
+
+    <main class="content-grid">
+      <section class="card search-card">
+        <div class="card-header">
+          <h2>길드원 검색 / 수정</h2>
+        </div>
+
+        <div class="search-row">
+          <label class="field grow">
+            <span>길드원명</span>
+            <input type="text" id="searchNameInput" placeholder="길드원명을 입력해주세요">
+          </label>
+          <button class="btn btn-primary" type="button" id="searchBtn">검색</button>
+        </div>
+
+        <div class="edit-panel">
+          <div class="edit-row two-col">
+            <label class="field">
+              <span>길드원명</span>
+              <input type="text" id="memberNameInput" value="" placeholder="검색 후 표시됩니다" readonly>
+            </label>
+            <label class="field">
+              <span>전투력</span>
+              <input type="number" id="memberPowerInput" value="" placeholder="전투력을 입력해주세요">
+            </label>
+          </div>
+
+          <div class="mount-status">
+            <div class="mount-status-header">
+              <h3 id="statusTitle">탈것 보유 현황</h3>
+            </div>
+
+            <div class="status-list" id="statusList"></div>
+          </div>
+
+          <div class="panel-actions">
+            <button class="btn btn-primary" type="button" id="saveBtn">저장</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card table-card">
+        <div class="card-header">
+          <h2>전체 현황</h2>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead id="summaryTableHead"></thead>
+            <tbody id="summaryTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-backdrop hidden" id="passwordModalBackdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>비밀번호 입력</h3>
+      </div>
+      <div class="modal-body">
+        <label class="field">
+          <span>비밀번호</span>
+          <input type="password" id="passwordInput" placeholder="비밀번호를 입력해주세요">
+        </label>
+        <p class="helper-text error-text hidden" id="passwordErrorText">비밀번호가 올바르지 않습니다.</p>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" type="button" id="passwordCancelBtn">취소</button>
+        <button class="btn btn-primary" type="button" id="passwordConfirmBtn">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop hidden" id="guildManageModalBackdrop">
+    <div class="modal modal-large">
+      <div class="modal-header">
+        <h3>길드원 관리</h3>
+      </div>
+      <div class="modal-body">
+        <div class="modal-toolbar">
+          <button class="btn btn-primary" type="button" id="addMemberBtn">길드원 추가</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>no</th>
+                <th>길드원</th>
+                <th>전투력</th>
+                <th>관리</th>
+              </tr>
+            </thead>
+            <tbody id="guildManageTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" type="button" id="guildManageCloseBtn">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop hidden" id="itemManageModalBackdrop">
+    <div class="modal modal-large">
+      <div class="modal-header">
+        <h3 id="itemManageTitle">탈것 관리</h3>
+      </div>
+      <div class="modal-body">
+        <div class="modal-toolbar">
+          <button class="btn btn-primary" type="button" id="addItemBtn">탈것 추가</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>no</th>
+                <th id="itemNameHeader">탈것명</th>
+                <th>관리</th>
+              </tr>
+            </thead>
+            <tbody id="itemManageTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" type="button" id="itemManageCloseBtn">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
