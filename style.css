@@ -925,8 +925,8 @@ button {
 
   #searchBtn {
     grid-area: search;
-    width: 42px;
-    min-width: 42px;
+    width: 36px;
+    min-width: 36px;
     height: 42px;
     padding: 0;
     display: inline-flex;
@@ -987,8 +987,8 @@ button {
 }
 
 .inline-qty-input {
-  width: 46px;
-  min-width: 46px;
+  width: 38px;
+  min-width: 38px;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
   padding: 6px 4px;
@@ -996,8 +996,8 @@ button {
 }
 
 .qty-box {
-  width: 46px;
-  min-width: 46px;
+  width: 38px;
+  min-width: 38px;
 }
 
 .summary-table th[rowspan="2"] {
@@ -1025,8 +1025,8 @@ button {
 
 @media (max-width: 768px) {
   .inline-qty-input {
-    width: 42px;
-    min-width: 42px;
+    width: 36px;
+    min-width: 36px;
     min-height: 32px;
     padding: 5px 3px;
     font-size: 12px;
