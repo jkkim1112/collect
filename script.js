@@ -151,7 +151,7 @@ function updateTabUi() {
 
 async function loadMountData() {
   const [membersRes, itemsRes, memberMountsRes] = await Promise.all([
-    supabase.from("guild_members").select("id, name, power").order("name", { ascending: true }),
+    supabase.from("guild_members").select("id, name, power, updated_at").order("name", { ascending: true }),
     supabase.from("mounts").select("id, name, display_order").order("display_order", { ascending: true }),
     supabase.from("member_mounts").select("id, member_id, mount_id, owned")
   ]);
@@ -328,7 +328,8 @@ function renderSummaryTable() {
     `<th>길드원</th>`,
     `<th class="sortable-header ${state.powerSortDirection ? "active" : ""}" data-role="power-sort-header"><span class="sort-header-inner"><span>전투력</span><span class="sort-indicator">${powerSortText}</span></span></th>`,
     ...state.items.map((item) => `<th class="item-col-header">${escapeHtml(item.name)}</th>`),
-    `<th>저장</th>`
+    `<th>저장</th>`,
+    `<th class="last-updated-col">최종 수정일</th>`
   ];
 
   el.summaryTableHead.innerHTML = `<tr>${headers.join("")}</tr>`;
@@ -339,7 +340,7 @@ function renderSummaryTable() {
   if (filteredMembers.length === 0) {
     el.summaryTableBody.innerHTML = `
       <tr>
-        <td class="empty-row" colspan="${state.items.length + 4}">표시할 길드원이 없습니다.</td>
+        <td class="empty-row" colspan="${state.items.length + 5}">표시할 길드원이 없습니다.</td>
       </tr>
     `;
     return;
@@ -394,6 +395,8 @@ function renderSummaryTable() {
       ? `<button class="btn btn-primary btn-sm" type="button" data-role="save-row" data-member-id="${member.id}">저장</button>`
       : `<span class="notice-text action-box">수정 불가</span>`;
 
+    const lastUpdatedCell = `<span class="last-updated-box">${formatUpdatedAt(member.updated_at)}</span>`;
+
     return `
       <tr>
         <td>${index + 1}</td>
@@ -401,6 +404,7 @@ function renderSummaryTable() {
         <td>${powerCell}</td>
         ${itemCells}
         <td>${saveCell}</td>
+        <td>${lastUpdatedCell}</td>
       </tr>
     `;
   }).join("");
@@ -563,7 +567,7 @@ async function saveEditableRow(memberId) {
 
   const updateMemberRes = await supabase
     .from("guild_members")
-    .update({ power: Math.floor(power) })
+    .update({ power: Math.floor(power), updated_at: new Date().toISOString() })
     .eq("id", memberId);
 
   if (updateMemberRes.error) {
@@ -688,7 +692,7 @@ async function addMember() {
   const insertRes = await supabase
     .from("guild_members")
     .insert({ name, power: Math.floor(power) })
-    .select("id, name, power")
+    .select("id, name, power, updated_at")
     .single();
 
   if (insertRes.error) {
@@ -748,7 +752,7 @@ async function editMember(memberId) {
 
   const updateRes = await supabase
     .from("guild_members")
-    .update({ name: nextName, power: Math.floor(nextPower) })
+    .update({ name: nextName, power: Math.floor(nextPower), updated_at: new Date().toISOString() })
     .eq("id", memberId);
 
   if (updateRes.error) {
@@ -904,6 +908,17 @@ function openModal(backdrop) {
 
 function closeModal(backdrop) {
   backdrop.classList.add("hidden");
+}
+
+function formatUpdatedAt(value) {
+  if (!value) return "-";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${month}/${day}`;
 }
 
 function escapeHtml(value) {

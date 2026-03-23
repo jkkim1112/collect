@@ -180,6 +180,13 @@ button {
 .manage-table {
   width: 100%;
   border-collapse: collapse;
+}
+
+.summary-table {
+  min-width: 820px;
+}
+
+.manage-table {
   min-width: 900px;
 }
 
@@ -188,10 +195,20 @@ button {
 .manage-table th,
 .manage-table td {
   border-bottom: 1px solid #e5e7eb;
-  padding: 14px 12px;
   text-align: center;
   vertical-align: middle;
   white-space: nowrap;
+}
+
+.summary-table th,
+.summary-table td {
+  padding: 12px 8px;
+  font-size: 13px;
+}
+
+.manage-table th,
+.manage-table td {
+  padding: 14px 12px;
 }
 
 .summary-table th,
@@ -228,21 +245,21 @@ button {
 }
 
 .inline-power-input {
-  width: 110px;
+  width: 96px;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
-  padding: 8px 10px;
+  padding: 7px 8px;
   text-align: right;
 }
 
 .toggle-single-btn {
-  min-width: 78px;
+  min-width: 70px;
   border: 1px solid #d1d5db;
   background: #fff;
   color: #374151;
-  padding: 7px 12px;
+  padding: 6px 10px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -401,14 +418,15 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 110px;
-  min-height: 38px;
+  width: 96px;
+  min-height: 34px;
+  font-size: 13px;
 }
 
 .badge,
 .toggle-single-btn {
-  width: 78px;
-  min-height: 34px;
+  width: 70px;
+  min-height: 32px;
 }
 
 .search-select-list {
@@ -924,45 +942,22 @@ button {
 }
 
 
-@media (min-width: 901px) {
-  .page-title {
-    font-size: 26px;
-  }
+.item-col-header {
+  font-size: 12px;
+}
 
-  .page-desc,
-  .card-subtitle,
-  .error-text,
-  .notice-text,
-  .empty-row {
-    font-size: 13px;
-  }
+.last-updated-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 118px;
+  min-height: 34px;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: center;
+}
 
-  .card-title,
-  .modal h3 {
-    font-size: 20px;
-  }
-
-  .tab,
-  .btn,
-  .table-search input,
-  .form-row input {
-    font-size: 13px;
-  }
-
-  .summary-table th,
-  .summary-table td,
-  .manage-table th,
-  .manage-table td {
-    font-size: 13px;
-  }
-
-  .badge,
-  .toggle-single-btn,
-  .btn-sm {
-    font-size: 12px;
-  }
-
-  .icon-btn {
-    font-size: 20px;
-  }
+.last-updated-col {
+  min-width: 128px;
 }
