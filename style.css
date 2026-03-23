@@ -377,6 +377,31 @@ button {
   color: #6b7280;
 }
 
+.sortable-header {
+  cursor: pointer;
+  user-select: none;
+}
+
+.sort-header-inner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.sort-indicator {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.sortable-header.active {
+  color: #111827;
+}
+
+.sortable-header.active .sort-indicator {
+  color: #2563eb;
+}
+
 @media (max-width: 900px) {
   .app {
     padding: 16px;

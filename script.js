@@ -15,7 +15,9 @@ const state = {
   searchTerm: "",
   draftMemberId: null,
   draftPower: "",
-  draftOwnedMap: {}
+  draftOwnedMap: {},
+  sortKey: "name",
+  sortDirection: "asc"
 };
 
 const el = {};
@@ -88,6 +90,7 @@ function bindEvents() {
     }
   });
 
+  el.summaryTableHead.addEventListener("click", handleSummaryTableHeadClick);
   el.summaryTableBody.addEventListener("click", handleSummaryTableClick);
   el.summaryTableBody.addEventListener("input", handleSummaryTableInput);
 
@@ -179,8 +182,45 @@ function handleResetSearch() {
 
 function getFilteredMembers() {
   const keyword = state.searchTerm.trim();
-  if (!keyword) return state.members;
-  return state.members.filter((member) => member.name.includes(keyword));
+  const filteredMembers = !keyword
+    ? [...state.members]
+    : state.members.filter((member) => member.name.includes(keyword));
+
+  return sortMembers(filteredMembers);
+}
+
+function sortMembers(members) {
+  const direction = state.sortDirection === "asc" ? 1 : -1;
+
+  return [...members].sort((left, right) => {
+    const leftValue = getSortValue(left, state.sortKey);
+    const rightValue = getSortValue(right, state.sortKey);
+
+    if (typeof leftValue === "number" && typeof rightValue === "number") {
+      if (leftValue !== rightValue) {
+        return (leftValue - rightValue) * direction;
+      }
+    } else {
+      const compareResult = String(leftValue).localeCompare(String(rightValue), "ko");
+      if (compareResult !== 0) {
+        return compareResult * direction;
+      }
+    }
+
+    return String(left.name ?? "").localeCompare(String(right.name ?? ""), "ko");
+  });
+}
+
+function getSortValue(member, sortKey) {
+  if (sortKey === "name") return member.name ?? "";
+  if (sortKey === "power") return Number(member.power ?? 0);
+
+  if (sortKey.startsWith("item:")) {
+    const itemId = sortKey.slice(5);
+    return getOwnedValue(member.id, itemId) ? 1 : 0;
+  }
+
+  return member.name ?? "";
 }
 
 function getEditableMember() {
@@ -250,8 +290,15 @@ function renderGuideText() {
 }
 
 function renderSummaryTable() {
-  const headers = ["no", "길드원", "전투력", ...state.items.map((item) => item.name), "저장"];
-  el.summaryTableHead.innerHTML = `<tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr>`;
+  const headers = [
+    { label: "no", sortable: false, key: null },
+    { label: "길드원", sortable: true, key: "name" },
+    { label: "전투력", sortable: true, key: "power" },
+    ...state.items.map((item) => ({ label: item.name, sortable: true, key: `item:${item.id}` })),
+    { label: "저장", sortable: false, key: null }
+  ];
+
+  el.summaryTableHead.innerHTML = `<tr>${headers.map((header) => renderSummaryHeaderCell(header)).join("")}</tr>`;
 
   const filteredMembers = getFilteredMembers();
   const editableMember = getEditableMember();
@@ -326,6 +373,30 @@ function renderSummaryTable() {
   }).join("");
 }
 
+function renderSummaryHeaderCell(header) {
+  if (!header.sortable) {
+    return `<th>${escapeHtml(header.label)}</th>`;
+  }
+
+  const isActive = state.sortKey === header.key;
+  const directionText = isActive
+    ? (state.sortDirection === "asc" ? "▲" : "▼")
+    : "↕";
+
+  return `
+    <th
+      class="sortable-header ${isActive ? "active" : ""}"
+      data-role="sort-header"
+      data-sort-key="${escapeAttr(header.key)}"
+    >
+      <span class="sort-header-inner">
+        <span>${escapeHtml(header.label)}</span>
+        <span class="sort-indicator">${directionText}</span>
+      </span>
+    </th>
+  `;
+}
+
 function renderPlaceholderTable() {
   el.tableGuideText.textContent = "현재는 탈것 탭만 연결되어 있습니다.";
   el.summaryTableHead.innerHTML = `
@@ -391,6 +462,23 @@ function renderItemManageTable() {
       </td>
     </tr>
   `).join("");
+}
+
+function handleSummaryTableHeadClick(event) {
+  const header = event.target.closest('[data-role="sort-header"]');
+  if (!header) return;
+
+  const nextSortKey = header.dataset.sortKey;
+  if (!nextSortKey) return;
+
+  if (state.sortKey === nextSortKey) {
+    state.sortDirection = state.sortDirection === "asc" ? "desc" : "asc";
+  } else {
+    state.sortKey = nextSortKey;
+    state.sortDirection = "asc";
+  }
+
+  renderSummaryTable();
 }
 
 function handleSummaryTableInput(event) {
