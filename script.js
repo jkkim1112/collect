@@ -26,8 +26,6 @@ const state = {
   searchTerm: "",
   selectedMemberId: null,
   draftMemberId: null,
-  draftTab: null,
-  draftStructureKey: "",
   draftPower: "",
   draftOwnedMap: {},
   draftAccessoryMap: {},
@@ -93,12 +91,6 @@ function bindEvents() {
 
       state.activeTab = nextTab;
       resetOverallEditMode();
-      state.draftMemberId = null;
-      state.draftTab = null;
-      state.draftStructureKey = "";
-      state.draftPower = "";
-      state.draftOwnedMap = {};
-      state.draftAccessoryMap = {};
       updateTabUi();
 
       if (nextTab === "special") {
@@ -226,7 +218,11 @@ async function loadMountData() {
 async function loadBossData() {
   const [membersRes, itemsRes, memberBossRes] = await Promise.all([
     supabase.from("guild_members").select("id, name, power, updated_at").order("name", { ascending: true }),
-    supabase.from("boss_collections").select("id, name, display_order").order("display_order", { ascending: true }),
+    supabase
+      .from("boss_collections")
+      .select("id, name, display_order")
+      .order("display_order", { ascending: true })
+      .order("id", { ascending: true }),
     supabase.from("member_boss_collections").select("id, member_id, boss_collection_id, owned")
   ]);
 
@@ -385,42 +381,20 @@ function getEditableMember() {
   return state.members.find((member) => member.id === state.selectedMemberId) ?? null;
 }
 
-function getDraftStructureKey() {
-  if (state.activeTab === "accessory") {
-    return `accessory:${state.accessoryGroups.map((group) => String(group.id)).join(",")}`;
-  }
-
-  if (state.activeTab === "boss") {
-    return `boss:${state.bossItems.map((item) => String(item.id)).join(",")}`;
-  }
-
-  return `mount:${state.mountItems.map((item) => String(item.id)).join(",")}`;
-}
-
 function syncDraftState() {
   const editableMember = getEditableMember();
 
   if (!editableMember) {
     state.draftMemberId = null;
-    state.draftTab = null;
-    state.draftStructureKey = "";
     state.draftPower = "";
     state.draftOwnedMap = {};
     state.draftAccessoryMap = {};
     return;
   }
 
-  const nextStructureKey = getDraftStructureKey();
-  const shouldReuseDraft =
-    state.draftMemberId === editableMember.id &&
-    state.draftTab === state.activeTab &&
-    state.draftStructureKey === nextStructureKey;
-
-  if (shouldReuseDraft) return;
+  if (state.draftMemberId === editableMember.id) return;
 
   state.draftMemberId = editableMember.id;
-  state.draftTab = state.activeTab;
-  state.draftStructureKey = nextStructureKey;
   state.draftPower = String(editableMember.power ?? 0);
   state.draftOwnedMap = {};
   state.draftAccessoryMap = {};
@@ -1192,12 +1166,6 @@ async function saveBossEditableRow(memberId) {
 function resetSearchState() {
   state.searchTerm = "";
   state.selectedMemberId = null;
-  state.draftMemberId = null;
-  state.draftTab = null;
-  state.draftStructureKey = "";
-  state.draftPower = "";
-  state.draftOwnedMap = {};
-  state.draftAccessoryMap = {};
   el.searchInput.value = "";
 }
 
