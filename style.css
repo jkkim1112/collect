@@ -418,7 +418,7 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 72px;
+  width: 60px;
   min-height: 34px;
   font-size: 13px;
 }
@@ -584,7 +584,7 @@ button {
 
   .value-box,
   .action-box {
-    width: 68px;
+    width: 58px;
     min-height: 32px;
     font-size: 12px;
   }
@@ -711,7 +711,7 @@ button {
   .value-box,
   .action-box,
   .inline-power-input {
-    width: 64px;
+    width: 56px;
     min-height: 30px;
     font-size: 11px;
   }
@@ -950,7 +950,7 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 76px;
+  width: 64px;
   min-height: 34px;
   color: #6b7280;
   font-size: 12px;
@@ -959,7 +959,7 @@ button {
 }
 
 .last-updated-col {
-  min-width: 84px;
+  min-width: 72px;
 }
 
 .tab.disabled {
