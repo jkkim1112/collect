@@ -173,6 +173,8 @@ button {
 
 .table-wrap {
   overflow-x: auto;
+  overflow-y: auto;
+  max-height: 62vh;
   padding: 0 24px 24px;
 }
 
@@ -558,6 +560,7 @@ button {
   }
 
   .table-wrap {
+    max-height: 58vh;
     padding: 0 14px 14px;
     -webkit-overflow-scrolling: touch;
   }
@@ -692,6 +695,7 @@ button {
   }
 
   .table-wrap {
+    max-height: 55vh;
     padding: 0 12px 12px;
   }
 
@@ -1048,62 +1052,4 @@ button {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-}
-
-
-.group-header-inner {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-}
-
-.group-header-text {
-  font-weight: 800;
-}
-
-.group-hide-btn {
-  border: 1px solid #cbd5e1;
-  background: #ffffff;
-  color: #475569;
-  border-radius: 999px;
-  padding: 2px 8px;
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1.4;
-}
-
-.group-hide-btn.is-hidden {
-  background: #e2e8f0;
-  color: #334155;
-}
-
-.summary-table .group-header.is-collapsed {
-  background: #eef2f7;
-}
-
-.accessory-collapsed-header,
-.accessory-collapsed-cell {
-  background: #f8fafc;
-}
-
-.accessory-collapsed-text {
-  color: #94a3b8;
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.hidden-accessory-group {
-  display: none;
-}
-
-@media (max-width: 768px) {
-  .group-header-inner {
-    gap: 4px;
-  }
-
-  .group-hide-btn {
-    padding: 2px 6px;
-    font-size: 10px;
-  }
 }
