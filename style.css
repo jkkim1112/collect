@@ -922,3 +922,47 @@ button {
     width: 100%;
   }
 }
+
+
+@media (min-width: 901px) {
+  .page-title {
+    font-size: 26px;
+  }
+
+  .page-desc,
+  .card-subtitle,
+  .error-text,
+  .notice-text,
+  .empty-row {
+    font-size: 13px;
+  }
+
+  .card-title,
+  .modal h3 {
+    font-size: 20px;
+  }
+
+  .tab,
+  .btn,
+  .table-search input,
+  .form-row input {
+    font-size: 13px;
+  }
+
+  .summary-table th,
+  .summary-table td,
+  .manage-table th,
+  .manage-table td {
+    font-size: 13px;
+  }
+
+  .badge,
+  .toggle-single-btn,
+  .btn-sm {
+    font-size: 12px;
+  }
+
+  .icon-btn {
+    font-size: 20px;
+  }
+}
