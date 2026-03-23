@@ -524,20 +524,21 @@ function renderAccessorySummaryTable() {
         const currentValue = isEditable
           ? Number(state.draftAccessoryMap[group.id]?.[part.key] ?? 0)
           : Number(record?.[part.key] ?? 0);
-        const tdClasses = [];
+        const tdClasses = ['accessory-heat-cell'];
         if (partIndex === 0) tdClasses.push('group-boundary-start');
         if (partIndex === ACCESSORY_PARTS.length - 1) tdClasses.push('group-boundary-end');
-        const tdClassAttr = tdClasses.length > 0 ? ` class="${tdClasses.join(' ')}"` : '';
+        const tdClassAttr = ` class="${tdClasses.join(' ')}"`;
+        const tdStyleAttr = ` style="${getAccessoryHeatCellStyle(currentValue, maxCount)}"`;
 
         if (isEditable) {
           return `
-            <td${tdClassAttr}>
-              <input class="inline-qty-input" type="number" min="0" max="${escapeAttr(maxCount)}" step="1" data-role="accessory-qty-input" data-member-id="${member.id}" data-group-id="${group.id}" data-part-key="${part.key}" value="${escapeAttr(currentValue)}">
+            <td${tdClassAttr}${tdStyleAttr}>
+              <input class="inline-qty-input accessory-heat-input" type="number" min="0" max="${escapeAttr(maxCount)}" step="1" data-role="accessory-qty-input" data-member-id="${member.id}" data-group-id="${group.id}" data-part-key="${part.key}" value="${escapeAttr(currentValue)}">
             </td>
           `;
         }
 
-        return `<td${tdClassAttr}><span class="value-box qty-box">${currentValue}</span></td>`;
+        return `<td${tdClassAttr}${tdStyleAttr}><span class="value-box qty-box accessory-heat-value">${currentValue}</span></td>`;
       }).join("");
     }).join("");
 
@@ -1289,6 +1290,21 @@ function getOwnedValue(memberId, itemId) {
     (entry) => entry.member_id === memberId && entry.mount_id === itemId
   );
   return Boolean(record?.owned);
+}
+
+function getAccessoryHeatCellStyle(value, maxCount) {
+  const safeMax = Math.max(Number(maxCount ?? 0), 0);
+  const safeValue = Math.max(0, Math.min(Number(value ?? 0), safeMax));
+
+  if (safeMax <= 0 || safeValue <= 0) {
+    return "background-color: #ffffff;";
+  }
+
+  const ratio = safeValue / safeMax;
+  const saturation = 75;
+  const lightness = 97 - (ratio * 14);
+
+  return `background-color: hsl(215 ${saturation}% ${lightness}%);`;
 }
 
 function getAccessoryRecord(memberId, groupId) {

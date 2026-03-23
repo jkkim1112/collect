@@ -1002,6 +1002,25 @@ button {
   vertical-align: middle;
 }
 
+.summary-table td.accessory-heat-cell {
+  transition: background-color 0.2s ease;
+}
+
+.accessory-heat-value {
+  border-radius: 8px;
+  font-weight: 700;
+}
+
+.accessory-heat-input {
+  background: rgba(255, 255, 255, 0.88);
+  font-weight: 700;
+}
+
+.accessory-heat-input:focus {
+  background: #ffffff;
+}
+
+
 @media (max-width: 768px) {
   .inline-qty-input {
     width: 52px;
