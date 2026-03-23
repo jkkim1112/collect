@@ -229,7 +229,8 @@ function getFilteredMembers() {
   if (!keyword) {
     filteredMembers = [...state.members];
   } else if (!state.selectedMemberId) {
-    filteredMembers = [...state.members];
+    const matchedMembers = getMatchedMembers(keyword);
+    filteredMembers = matchedMembers.length === 0 ? [] : [...state.members];
   } else {
     filteredMembers = state.members.filter((member) => member.id === state.selectedMemberId);
   }
