@@ -16,7 +16,8 @@ const state = {
   selectedMemberId: null,
   draftMemberId: null,
   draftPower: "",
-  draftOwnedMap: {}
+  draftOwnedMap: {},
+  powerSortDirection: null
 };
 
 const el = {};
@@ -99,6 +100,7 @@ function bindEvents() {
   el.searchSelectCancelBtn.addEventListener("click", closeSearchSelectModal);
   el.searchSelectList.addEventListener("click", handleSearchSelectClick);
 
+  el.summaryTableHead.addEventListener("click", handleSummaryTableHeadClick);
   el.summaryTableBody.addEventListener("click", handleSummaryTableClick);
   el.summaryTableBody.addEventListener("input", handleSummaryTableInput);
 
@@ -222,9 +224,34 @@ function getMatchedMembers(keyword) {
 
 function getFilteredMembers() {
   const keyword = state.searchTerm.trim();
-  if (!keyword) return state.members;
-  if (!state.selectedMemberId) return state.members;
-  return state.members.filter((member) => member.id === state.selectedMemberId);
+  let filteredMembers;
+
+  if (!keyword) {
+    filteredMembers = [...state.members];
+  } else if (!state.selectedMemberId) {
+    filteredMembers = [...state.members];
+  } else {
+    filteredMembers = state.members.filter((member) => member.id === state.selectedMemberId);
+  }
+
+  return sortFilteredMembers(filteredMembers);
+}
+
+function sortFilteredMembers(members) {
+  if (!state.powerSortDirection) return members;
+
+  const direction = state.powerSortDirection === "asc" ? 1 : -1;
+
+  return [...members].sort((left, right) => {
+    const leftPower = Number(left.power ?? 0);
+    const rightPower = Number(right.power ?? 0);
+
+    if (leftPower !== rightPower) {
+      return (leftPower - rightPower) * direction;
+    }
+
+    return String(left.name ?? "").localeCompare(String(right.name ?? ""), "ko");
+  });
 }
 
 function getEditableMember() {
@@ -289,8 +316,21 @@ function renderGuideText() {
 }
 
 function renderSummaryTable() {
-  const headers = ["no", "길드원", "전투력", ...state.items.map((item) => item.name), "저장"];
-  el.summaryTableHead.innerHTML = `<tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr>`;
+  const powerSortText = state.powerSortDirection === "asc"
+    ? "▲"
+    : state.powerSortDirection === "desc"
+      ? "▼"
+      : "↕";
+
+  const headers = [
+    `<th>no</th>`,
+    `<th>길드원</th>`,
+    `<th class="sortable-header ${state.powerSortDirection ? "active" : ""}" data-role="power-sort-header"><span class="sort-header-inner"><span>전투력</span><span class="sort-indicator">${powerSortText}</span></span></th>`,
+    ...state.items.map((item) => `<th class="item-col-header">${escapeHtml(item.name)}</th>`),
+    `<th>저장</th>`
+  ];
+
+  el.summaryTableHead.innerHTML = `<tr>${headers.join("")}</tr>`;
 
   const filteredMembers = getFilteredMembers();
   const editableMember = getEditableMember();
@@ -298,7 +338,7 @@ function renderSummaryTable() {
   if (filteredMembers.length === 0) {
     el.summaryTableBody.innerHTML = `
       <tr>
-        <td class="empty-row" colspan="${headers.length}">표시할 길드원이 없습니다.</td>
+        <td class="empty-row" colspan="${state.items.length + 4}">표시할 길드원이 없습니다.</td>
       </tr>
     `;
     return;
@@ -473,6 +513,21 @@ function handleSummaryTableInput(event) {
   const target = event.target;
   if (!target.matches('[data-role="power-input"]')) return;
   state.draftPower = target.value;
+}
+
+function handleSummaryTableHeadClick(event) {
+  const header = event.target.closest('[data-role="power-sort-header"]');
+  if (!header) return;
+
+  if (state.powerSortDirection === "asc") {
+    state.powerSortDirection = "desc";
+  } else if (state.powerSortDirection === "desc") {
+    state.powerSortDirection = null;
+  } else {
+    state.powerSortDirection = "asc";
+  }
+
+  renderSummaryTable();
 }
 
 function handleSummaryTableClick(event) {
