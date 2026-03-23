@@ -27,6 +27,8 @@ const state = {
   draftPower: "",
   draftOwnedMap: {},
   draftAccessoryMap: {},
+  draftAllRows: {},
+  overallEditMode: false,
   powerSortDirection: null,
   hiddenAccessoryGroupIds: {}
 };
@@ -44,6 +46,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 function bindElements() {
   el.tabs = Array.from(document.querySelectorAll(".tab"));
   el.guildManageBtn = document.getElementById("guildManageBtn");
+  el.bulkEditBtn = document.getElementById("bulkEditBtn");
   el.itemManageBtn = document.getElementById("itemManageBtn");
   el.tableGuideText = document.getElementById("tableGuideText");
   el.searchInput = document.getElementById("searchInput");
@@ -85,6 +88,7 @@ function bindEvents() {
       if (nextTab === state.activeTab) return;
 
       state.activeTab = nextTab;
+      resetOverallEditMode();
       updateTabUi();
 
       if (nextTab === "special") {
@@ -116,6 +120,7 @@ function bindEvents() {
   el.summaryTableBody.addEventListener("input", handleSummaryTableInput);
 
   el.guildManageBtn.addEventListener("click", () => openPasswordModal("guild"));
+  el.bulkEditBtn.addEventListener("click", handleBulkEditButtonClick);
   el.itemManageBtn.addEventListener("click", () => openPasswordModal("item"));
 
   el.passwordCancelBtn.addEventListener("click", closePasswordModal);
@@ -156,6 +161,8 @@ function updateTabUi() {
   const isAccessory = state.activeTab === "accessory";
 
   el.guildManageBtn.disabled = isSpecial;
+  el.bulkEditBtn.disabled = isSpecial;
+  el.bulkEditBtn.textContent = state.overallEditMode ? "전체수정 종료" : "전체수정";
   el.itemManageBtn.disabled = isSpecial;
   el.itemManageBtn.textContent = isAccessory ? "악세사리 관리" : "탈것 관리";
   el.itemManageTitle.textContent = isAccessory ? "악세사리 관리" : "탈것 관리";
@@ -329,6 +336,7 @@ function sortFilteredMembers(members) {
 }
 
 function getEditableMember() {
+  if (state.overallEditMode) return null;
   if (!state.searchTerm.trim() || !state.selectedMemberId) return null;
   return state.members.find((member) => member.id === state.selectedMemberId) ?? null;
 }
@@ -373,7 +381,76 @@ function syncDraftState() {
   });
 }
 
+function ensureDraftRow(memberId) {
+  if (!memberId) return null;
+  if (!state.draftAllRows[memberId]) {
+    const member = state.members.find((entry) => entry.id === memberId);
+    const row = { power: String(member?.power ?? 0), ownedMap: {}, accessoryMap: {} };
+
+    if (state.activeTab === "accessory") {
+      state.accessoryGroups.forEach((group) => {
+        const record = state.memberAccessories.find((entry) => entry.member_id === memberId && String(entry.accessory_group_id) === String(group.id));
+        row.accessoryMap[group.id] = {};
+        ACCESSORY_PARTS.forEach((part) => {
+          row.accessoryMap[group.id][part.key] = Number(record?.[part.key] ?? 0);
+        });
+      });
+    } else {
+      state.mountItems.forEach((item) => {
+        const record = state.memberMounts.find((entry) => entry.member_id === memberId && entry.mount_id === item.id);
+        row.ownedMap[item.id] = Boolean(record?.owned);
+      });
+    }
+
+    state.draftAllRows[memberId] = row;
+  }
+  return state.draftAllRows[memberId];
+}
+
+function isMemberEditable(memberId) {
+  if (state.overallEditMode) return true;
+  const editableMember = getEditableMember();
+  return Boolean(editableMember && editableMember.id === memberId);
+}
+
+function getMemberDraftPower(member) {
+  if (state.overallEditMode) {
+    return ensureDraftRow(member.id)?.power ?? String(member.power ?? 0);
+  }
+  return state.draftPower;
+}
+
+function getMemberDraftOwned(memberId, itemId) {
+  if (state.overallEditMode) {
+    return Boolean(ensureDraftRow(memberId)?.ownedMap?.[itemId]);
+  }
+  return Boolean(state.draftOwnedMap[itemId]);
+}
+
+function getMemberDraftAccessory(memberId, groupId, partKey) {
+  if (state.overallEditMode) {
+    return Number(ensureDraftRow(memberId)?.accessoryMap?.[groupId]?.[partKey] ?? 0);
+  }
+  return Number(state.draftAccessoryMap[groupId]?.[partKey] ?? 0);
+}
+
+function resetOverallEditMode() {
+  state.overallEditMode = false;
+  state.draftAllRows = {};
+}
+
+function handleBulkEditButtonClick() {
+  if (state.overallEditMode) {
+    resetOverallEditMode();
+    renderAll();
+    return;
+  }
+  openPasswordModal("bulk-edit");
+}
+
 function renderAll() {
+  updateTabUi();
+
   if (state.activeTab === "special") {
     renderPlaceholderTable();
     return;
@@ -388,6 +465,13 @@ function renderAll() {
 
 function renderGuideText() {
   const keyword = state.searchTerm.trim();
+
+  if (state.overallEditMode) {
+    el.tableGuideText.textContent = state.activeTab === "accessory"
+      ? "전체수정 모드입니다. 전체 목록에서 전투력과 악세사리 수량을 수정할 수 있습니다."
+      : "전체수정 모드입니다. 전체 목록에서 전투력과 보유 상태를 수정할 수 있습니다.";
+    return;
+  }
 
   if (!keyword) {
     el.tableGuideText.textContent = "전체 목록 상태에서는 수정할 수 없습니다. 길드원을 검색해주세요.";
@@ -435,7 +519,6 @@ function renderMountSummaryTable() {
   el.summaryTableHead.innerHTML = `<tr>${headers.join("")}</tr>`;
 
   const filteredMembers = getFilteredMembers();
-  const editableMember = getEditableMember();
 
   if (filteredMembers.length === 0) {
     el.summaryTableBody.innerHTML = `
@@ -447,10 +530,10 @@ function renderMountSummaryTable() {
   }
 
   el.summaryTableBody.innerHTML = filteredMembers.map((member, index) => {
-    const isEditable = editableMember && editableMember.id === member.id;
+    const isEditable = isMemberEditable(member.id);
 
     const powerCell = isEditable
-      ? `<input class="inline-power-input" type="number" min="0" step="1" data-role="power-input" data-member-id="${member.id}" value="${escapeAttr(state.draftPower)}">`
+      ? `<input class="inline-power-input" type="number" min="0" step="1" data-role="power-input" data-member-id="${member.id}" value="${escapeAttr(getMemberDraftPower(member))}">`
       : `<span class="value-box">${member.power ?? 0}</span>`;
 
     const itemCells = state.mountItems.map((item) => {
@@ -536,7 +619,6 @@ function renderAccessorySummaryTable() {
   `;
 
   const filteredMembers = getFilteredMembers();
-  const editableMember = getEditableMember();
 
   if (filteredMembers.length === 0) {
     el.summaryTableBody.innerHTML = `
@@ -548,10 +630,10 @@ function renderAccessorySummaryTable() {
   }
 
   el.summaryTableBody.innerHTML = filteredMembers.map((member, index) => {
-    const isEditable = editableMember && editableMember.id === member.id;
+    const isEditable = isMemberEditable(member.id);
 
     const powerCell = isEditable
-      ? `<input class="inline-power-input" type="number" min="0" step="1" data-role="power-input" data-member-id="${member.id}" value="${escapeAttr(state.draftPower)}">`
+      ? `<input class="inline-power-input" type="number" min="0" step="1" data-role="power-input" data-member-id="${member.id}" value="${escapeAttr(getMemberDraftPower(member))}">`
       : `<span class="value-box">${member.power ?? 0}</span>`;
 
     const groupCells = state.accessoryGroups.map((group) => {
@@ -565,7 +647,7 @@ function renderAccessorySummaryTable() {
       return ACCESSORY_PARTS.map((part, partIndex) => {
         const maxCount = Number(group.max_count ?? 0);
         const currentValue = isEditable
-          ? Number(state.draftAccessoryMap[group.id]?.[part.key] ?? 0)
+          ? getMemberDraftAccessory(member.id, group.id, part.key)
           : Number(record?.[part.key] ?? 0);
         const tdClasses = ['accessory-heat-cell'];
         if (partIndex === 0) tdClasses.push('group-boundary-start');
@@ -708,7 +790,12 @@ function handleSummaryTableInput(event) {
   const target = event.target;
 
   if (target.matches('[data-role="power-input"]')) {
-    state.draftPower = target.value;
+    const memberId = target.dataset.memberId;
+    if (state.overallEditMode) {
+      ensureDraftRow(memberId).power = target.value;
+    } else {
+      state.draftPower = target.value;
+    }
     return;
   }
 
@@ -716,15 +803,23 @@ function handleSummaryTableInput(event) {
     const memberId = target.dataset.memberId;
     const groupId = target.dataset.groupId;
     const partKey = target.dataset.partKey;
-    if (memberId !== state.draftMemberId) return;
+    if (!state.overallEditMode && memberId !== state.draftMemberId) return;
 
     const group = state.accessoryGroups.find((entry) => String(entry.id) === String(groupId));
     const maxCount = Number(group?.max_count ?? 0);
     const value = Math.min(maxCount, Math.max(0, Math.floor(Number(target.value) || 0)));
-    if (!state.draftAccessoryMap[groupId]) {
-      state.draftAccessoryMap[groupId] = {};
+    if (state.overallEditMode) {
+      const draftRow = ensureDraftRow(memberId);
+      if (!draftRow.accessoryMap[groupId]) {
+        draftRow.accessoryMap[groupId] = {};
+      }
+      draftRow.accessoryMap[groupId][partKey] = value;
+    } else {
+      if (!state.draftAccessoryMap[groupId]) {
+        state.draftAccessoryMap[groupId] = {};
+      }
+      state.draftAccessoryMap[groupId][partKey] = value;
     }
-    state.draftAccessoryMap[groupId][partKey] = value;
     target.value = String(value);
   }
 }
@@ -759,9 +854,14 @@ function handleSummaryTableClick(event) {
   if (role === "owned-toggle") {
     const memberId = button.dataset.memberId;
     const itemId = button.dataset.itemId;
-    if (memberId !== state.draftMemberId) return;
+    if (!state.overallEditMode && memberId !== state.draftMemberId) return;
 
-    state.draftOwnedMap[itemId] = !Boolean(state.draftOwnedMap[itemId]);
+    if (state.overallEditMode) {
+      const draftRow = ensureDraftRow(memberId);
+      draftRow.ownedMap[itemId] = !Boolean(draftRow.ownedMap[itemId]);
+    } else {
+      state.draftOwnedMap[itemId] = !Boolean(state.draftOwnedMap[itemId]);
+    }
     renderSummaryTable();
     return;
   }
@@ -782,9 +882,10 @@ function handleSummaryTableClick(event) {
 }
 
 async function saveMountEditableRow(memberId) {
-  if (memberId !== state.draftMemberId) return;
+  if (!state.overallEditMode && memberId !== state.draftMemberId) return;
 
-  const power = Number(state.draftPower);
+  const draftRow = state.overallEditMode ? ensureDraftRow(memberId) : null;
+  const power = Number(state.overallEditMode ? draftRow?.power : state.draftPower);
   if (!Number.isFinite(power) || power < 0) {
     alert("전투력을 올바르게 입력해주세요.");
     return;
@@ -803,7 +904,7 @@ async function saveMountEditableRow(memberId) {
   const upsertPayload = state.mountItems.map((item) => ({
     member_id: memberId,
     mount_id: item.id,
-    owned: Boolean(state.draftOwnedMap[item.id])
+    owned: Boolean(state.overallEditMode ? draftRow?.ownedMap?.[item.id] : state.draftOwnedMap[item.id])
   }));
 
   const upsertRes = await supabase
@@ -815,16 +916,22 @@ async function saveMountEditableRow(memberId) {
     return;
   }
 
-  resetSearchState();
+  if (!state.overallEditMode) {
+    resetSearchState();
+  }
   await loadMountData();
+  if (state.overallEditMode) {
+    state.draftAllRows = {};
+  }
   renderAll();
   alert("저장되었습니다.");
 }
 
 async function saveAccessoryEditableRow(memberId) {
-  if (memberId !== state.draftMemberId) return;
+  if (!state.overallEditMode && memberId !== state.draftMemberId) return;
 
-  const power = Number(state.draftPower);
+  const draftRow = state.overallEditMode ? ensureDraftRow(memberId) : null;
+  const power = Number(state.overallEditMode ? draftRow?.power : state.draftPower);
   if (!Number.isFinite(power) || power < 0) {
     alert("전투력을 올바르게 입력해주세요.");
     return;
@@ -848,11 +955,11 @@ async function saveAccessoryEditableRow(memberId) {
     return {
       member_id: memberId,
       accessory_group_id: group.id,
-      ring_count: normalizeCount(state.draftAccessoryMap[group.id]?.ring_count),
-      necklace_count: normalizeCount(state.draftAccessoryMap[group.id]?.necklace_count),
-      earring_count: normalizeCount(state.draftAccessoryMap[group.id]?.earring_count),
-      belt_count: normalizeCount(state.draftAccessoryMap[group.id]?.belt_count),
-      bracelet_count: normalizeCount(state.draftAccessoryMap[group.id]?.bracelet_count),
+      ring_count: normalizeCount(state.overallEditMode ? draftRow?.accessoryMap?.[group.id]?.ring_count : state.draftAccessoryMap[group.id]?.ring_count),
+      necklace_count: normalizeCount(state.overallEditMode ? draftRow?.accessoryMap?.[group.id]?.necklace_count : state.draftAccessoryMap[group.id]?.necklace_count),
+      earring_count: normalizeCount(state.overallEditMode ? draftRow?.accessoryMap?.[group.id]?.earring_count : state.draftAccessoryMap[group.id]?.earring_count),
+      belt_count: normalizeCount(state.overallEditMode ? draftRow?.accessoryMap?.[group.id]?.belt_count : state.draftAccessoryMap[group.id]?.belt_count),
+      bracelet_count: normalizeCount(state.overallEditMode ? draftRow?.accessoryMap?.[group.id]?.bracelet_count : state.draftAccessoryMap[group.id]?.bracelet_count),
       updated_at: now
     };
   });
@@ -866,8 +973,13 @@ async function saveAccessoryEditableRow(memberId) {
     return;
   }
 
-  resetSearchState();
+  if (!state.overallEditMode) {
+    resetSearchState();
+  }
   await loadAccessoryData();
+  if (state.overallEditMode) {
+    state.draftAllRows = {};
+  }
   renderAll();
   alert("저장되었습니다.");
 }
@@ -911,6 +1023,12 @@ function confirmPassword() {
 
   if (state.pendingManageType === "item") {
     openModal(el.itemManageModalBackdrop);
+  }
+
+  if (state.pendingManageType === "bulk-edit") {
+    state.overallEditMode = true;
+    state.draftAllRows = {};
+    renderAll();
   }
 
   state.pendingManageType = null;
