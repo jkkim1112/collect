@@ -1049,3 +1049,44 @@ button {
   min-height: 0;
   overflow-y: auto;
 }
+
+.accessory-filter-bar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.accessory-filter-btn {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #334155;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.accessory-filter-btn.is-visible {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.accessory-filter-btn.is-hidden {
+  border-color: #d1d5db;
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+@media (max-width: 768px) {
+  .accessory-filter-bar {
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  .accessory-filter-btn {
+    padding: 5px 9px;
+    font-size: 11px;
+  }
+}
