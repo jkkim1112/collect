@@ -438,3 +438,9 @@ button {
     font-size: 20px;
   }
 }
+
+@media (min-width: 901px) {
+  .top-actions {
+    margin-bottom: 10px;
+  }
+}
