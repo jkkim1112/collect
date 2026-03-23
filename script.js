@@ -328,8 +328,8 @@ function renderSummaryTable() {
     `<th>길드원</th>`,
     `<th class="sortable-header ${state.powerSortDirection ? "active" : ""}" data-role="power-sort-header"><span class="sort-header-inner"><span>전투력</span><span class="sort-indicator">${powerSortText}</span></span></th>`,
     ...state.items.map((item) => `<th class="item-col-header">${escapeHtml(item.name)}</th>`),
-    `<th>저장</th>`,
-    `<th class="last-updated-col">최종 수정일</th>`
+    `<th class="save-col">저장</th>`,
+    `<th class="last-updated-col">수정일</th>`
   ];
 
   el.summaryTableHead.innerHTML = `<tr>${headers.join("")}</tr>`;
@@ -393,7 +393,7 @@ function renderSummaryTable() {
 
     const saveCell = isEditable
       ? `<button class="btn btn-primary btn-sm" type="button" data-role="save-row" data-member-id="${member.id}">저장</button>`
-      : `<span class="notice-text action-box">수정 불가</span>`;
+       : `<span class="notice-text action-box">불가</span>`;
 
     const lastUpdatedCell = `<span class="last-updated-box">${formatUpdatedAt(member.updated_at)}</span>`;
 
