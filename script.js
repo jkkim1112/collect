@@ -28,7 +28,7 @@ const state = {
   draftOwnedMap: {},
   draftAccessoryMap: {},
   powerSortDirection: null,
-  hiddenAccessoryParts: {}
+  hiddenAccessoryGroupIds: {}
 };
 
 const el = {};
@@ -49,7 +49,6 @@ function bindElements() {
   el.searchInput = document.getElementById("searchInput");
   el.searchBtn = document.getElementById("searchBtn");
   el.resetBtn = document.getElementById("resetBtn");
-  el.accessoryPartFilter = document.getElementById("accessoryPartFilter");
   el.summaryTableHead = document.getElementById("summaryTableHead");
   el.summaryTableBody = document.getElementById("summaryTableBody");
 
@@ -111,7 +110,6 @@ function bindEvents() {
   el.searchSelectCloseBtn.addEventListener("click", closeSearchSelectModal);
   el.searchSelectCancelBtn.addEventListener("click", closeSearchSelectModal);
   el.searchSelectList.addEventListener("click", handleSearchSelectClick);
-  el.accessoryPartFilter.addEventListener("click", handleAccessoryFilterClick);
 
   el.summaryTableHead.addEventListener("click", handleSummaryTableHeadClick);
   el.summaryTableBody.addEventListener("click", handleSummaryTableClick);
@@ -156,11 +154,6 @@ function updateTabUi() {
 
   const isSpecial = state.activeTab === "special";
   const isAccessory = state.activeTab === "accessory";
-
-  el.accessoryPartFilter.classList.toggle("hidden", !isAccessory);
-  if (isAccessory) {
-    renderAccessoryPartFilter();
-  }
 
   el.guildManageBtn.disabled = isSpecial;
   el.itemManageBtn.disabled = isSpecial;
@@ -233,7 +226,22 @@ async function loadAccessoryData() {
   state.members = membersRes.data ?? [];
   state.accessoryGroups = groupsRes.data ?? [];
   state.memberAccessories = memberAccessoriesRes.data ?? [];
+  ensureAccessoryHiddenState();
   syncDraftState();
+}
+
+function ensureAccessoryHiddenState() {
+  const nextHiddenMap = {};
+  state.accessoryGroups.forEach((group) => {
+    nextHiddenMap[group.id] = Boolean(state.hiddenAccessoryGroupIds[group.id]);
+  });
+  state.hiddenAccessoryGroupIds = nextHiddenMap;
+}
+
+function toggleAccessoryGroupHidden(groupId) {
+  if (state.activeTab !== "accessory") return;
+  state.hiddenAccessoryGroupIds[groupId] = !Boolean(state.hiddenAccessoryGroupIds[groupId]);
+  renderSummaryTable();
 }
 
 function handleSearch() {
@@ -378,33 +386,6 @@ function renderAll() {
   renderItemManageTable();
 }
 
-function renderAccessoryPartFilter() {
-  el.accessoryPartFilter.innerHTML = ACCESSORY_PARTS.map((part) => {
-    const hidden = Boolean(state.hiddenAccessoryParts[part.key]);
-    return `
-      <button class="accessory-filter-btn ${hidden ? "is-hidden" : "is-visible"}" type="button" data-role="accessory-filter-toggle" data-part-key="${part.key}">
-        ${escapeHtml(part.label)} ${hidden ? "숨김" : "표시"}
-      </button>
-    `;
-  }).join("");
-}
-
-function handleAccessoryFilterClick(event) {
-  const button = event.target.closest('[data-role="accessory-filter-toggle"]');
-  if (!button) return;
-
-  const partKey = button.dataset.partKey;
-  if (!partKey) return;
-
-  state.hiddenAccessoryParts[partKey] = !Boolean(state.hiddenAccessoryParts[partKey]);
-  renderAccessoryPartFilter();
-  renderSummaryTable();
-}
-
-function getVisibleAccessoryParts() {
-  return ACCESSORY_PARTS.filter((part) => !state.hiddenAccessoryParts[part.key]);
-}
-
 function renderGuideText() {
   const keyword = state.searchTerm.trim();
 
@@ -515,46 +496,44 @@ function renderAccessorySummaryTable() {
     : state.powerSortDirection === "desc"
       ? "▼"
       : "↕";
-  const visibleParts = getVisibleAccessoryParts();
-  const hasVisibleAccessoryPart = visibleParts.length > 0;
+
+  const visibleGroups = state.accessoryGroups.filter((group) => !state.hiddenAccessoryGroupIds[group.id]);
 
   const topHeaders = [
-    `<th ${hasVisibleAccessoryPart ? 'rowspan="2"' : ''}>no</th>`,
-    `<th ${hasVisibleAccessoryPart ? 'rowspan="2"' : ''}>길드원</th>`,
-    `<th ${hasVisibleAccessoryPart ? 'rowspan="2"' : ''} class="sortable-header ${state.powerSortDirection ? "active" : ""}" data-role="power-sort-header"><span class="sort-header-inner"><span>전투력</span><span class="sort-indicator">${powerSortText}</span></span></th>`,
-    ...state.accessoryGroups.map((group) => hasVisibleAccessoryPart
-      ? `<th colspan="${visibleParts.length}" class="group-header group-boundary-start group-boundary-end">${escapeHtml(group.name)}</th>`
-      : ''),
-    `<th ${hasVisibleAccessoryPart ? 'rowspan="2"' : ''} class="save-col">저장</th>`,
-    `<th ${hasVisibleAccessoryPart ? 'rowspan="2"' : ''} class="last-updated-col">수정일</th>`
-  ].filter(Boolean);
+    `<th rowspan="2">no</th>`,
+    `<th rowspan="2">길드원</th>`,
+    `<th rowspan="2" class="sortable-header ${state.powerSortDirection ? "active" : ""}" data-role="power-sort-header"><span class="sort-header-inner"><span>전투력</span><span class="sort-indicator">${powerSortText}</span></span></th>`,
+    ...state.accessoryGroups.map((group) => {
+      const isHidden = Boolean(state.hiddenAccessoryGroupIds[group.id]);
+      const hiddenClass = isHidden ? " hidden-accessory-group" : "";
+      return `<th colspan="${ACCESSORY_PARTS.length}" class="group-header group-boundary-start group-boundary-end${hiddenClass}"><div class="group-header-inner"><span class="group-header-text">${escapeHtml(group.name)}</span><button class="group-hide-btn ${isHidden ? "is-hidden" : ""}" type="button" data-role="toggle-accessory-group-hidden" data-group-id="${group.id}">${isHidden ? "숨김해제" : "숨김"}</button></div></th>`;
+    }),
+    `<th rowspan="2" class="save-col">저장</th>`,
+    `<th rowspan="2" class="last-updated-col">수정일</th>`
+  ];
 
-  const subHeaders = hasVisibleAccessoryPart
-    ? state.accessoryGroups.flatMap(() => (
-        visibleParts.map((part, partIndex) => {
-          const classes = ['accessory-sub-header'];
-          if (partIndex === 0) classes.push('group-boundary-start');
-          if (partIndex === visibleParts.length - 1) classes.push('group-boundary-end');
-          return `<th class="${classes.join(' ')}">${part.label}</th>`;
-        })
-      ))
-    : [];
+  const subHeaders = state.accessoryGroups.flatMap((group) => (
+    ACCESSORY_PARTS.map((part, partIndex) => {
+      const classes = ['accessory-sub-header'];
+      if (partIndex === 0) classes.push('group-boundary-start');
+      if (partIndex === ACCESSORY_PARTS.length - 1) classes.push('group-boundary-end');
+      if (state.hiddenAccessoryGroupIds[group.id]) classes.push('hidden-accessory-group');
+      return `<th class="${classes.join(' ')}">${part.label}</th>`;
+    })
+  ));
 
-  el.summaryTableHead.innerHTML = hasVisibleAccessoryPart
-    ? `
-      <tr>${topHeaders.join("")}</tr>
-      <tr>${subHeaders.join("")}</tr>
-    `
-    : `<tr>${topHeaders.join("")}</tr>`;
+  el.summaryTableHead.innerHTML = `
+    <tr>${topHeaders.join("")}</tr>
+    <tr>${subHeaders.join("")}</tr>
+  `;
 
   const filteredMembers = getFilteredMembers();
   const editableMember = getEditableMember();
-  const totalColumnCount = state.accessoryGroups.length * visibleParts.length + 5;
 
   if (filteredMembers.length === 0) {
     el.summaryTableBody.innerHTML = `
       <tr>
-        <td class="empty-row" colspan="${totalColumnCount}">표시할 길드원이 없습니다.</td>
+        <td class="empty-row" colspan="${visibleGroups.length * ACCESSORY_PARTS.length + 5}">표시할 길드원이 없습니다.</td>
       </tr>
     `;
     return;
@@ -569,14 +548,16 @@ function renderAccessorySummaryTable() {
 
     const groupCells = state.accessoryGroups.map((group) => {
       const record = getAccessoryRecord(member.id, group.id);
-      return visibleParts.map((part, partIndex) => {
+      const isHidden = Boolean(state.hiddenAccessoryGroupIds[group.id]);
+      return ACCESSORY_PARTS.map((part, partIndex) => {
         const maxCount = Number(group.max_count ?? 0);
         const currentValue = isEditable
           ? Number(state.draftAccessoryMap[group.id]?.[part.key] ?? 0)
           : Number(record?.[part.key] ?? 0);
         const tdClasses = ['accessory-heat-cell'];
         if (partIndex === 0) tdClasses.push('group-boundary-start');
-        if (partIndex === visibleParts.length - 1) tdClasses.push('group-boundary-end');
+        if (partIndex === ACCESSORY_PARTS.length - 1) tdClasses.push('group-boundary-end');
+        if (isHidden) tdClasses.push('hidden-accessory-group');
         const tdClassAttr = ` class="${tdClasses.join(' ')}"`;
         const tdStyleAttr = ` style="${getAccessoryHeatCellStyle(currentValue, maxCount)}"`;
 
@@ -764,6 +745,11 @@ function handleSummaryTableClick(event) {
 
     state.draftOwnedMap[itemId] = !Boolean(state.draftOwnedMap[itemId]);
     renderSummaryTable();
+    return;
+  }
+
+  if (role === "toggle-accessory-group-hidden") {
+    toggleAccessoryGroupHidden(button.dataset.groupId);
     return;
   }
 

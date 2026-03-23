@@ -1050,43 +1050,45 @@ button {
   overflow-y: auto;
 }
 
-.accessory-filter-bar {
+
+.group-header-inner {
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 12px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
-.accessory-filter-btn {
+.group-header-text {
+  font-weight: 800;
+}
+
+.group-hide-btn {
   border: 1px solid #cbd5e1;
-  background: #fff;
-  color: #334155;
+  background: #ffffff;
+  color: #475569;
   border-radius: 999px;
-  padding: 6px 10px;
-  font-size: 12px;
+  padding: 2px 8px;
+  font-size: 11px;
   font-weight: 700;
+  line-height: 1.4;
 }
 
-.accessory-filter-btn.is-visible {
-  border-color: #93c5fd;
-  background: #eff6ff;
-  color: #1d4ed8;
+.group-hide-btn.is-hidden {
+  background: #e2e8f0;
+  color: #334155;
 }
 
-.accessory-filter-btn.is-hidden {
-  border-color: #d1d5db;
-  background: #f3f4f6;
-  color: #6b7280;
+.hidden-accessory-group {
+  display: none;
 }
 
 @media (max-width: 768px) {
-  .accessory-filter-bar {
-    gap: 6px;
-    margin-top: 10px;
+  .group-header-inner {
+    gap: 4px;
   }
 
-  .accessory-filter-btn {
-    padding: 5px 9px;
-    font-size: 11px;
+  .group-hide-btn {
+    padding: 2px 6px;
+    font-size: 10px;
   }
 }
