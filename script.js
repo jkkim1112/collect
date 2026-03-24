@@ -32,7 +32,7 @@ const state = {
   draftAccessoryMap: {},
   draftAllRows: {},
   overallEditMode: false,
-  powerSortDirection: null,
+  powerSortDirection: "desc",
   hiddenAccessoryGroupIds: {},
   isBulkSaving: false,
   bulkSaveProgress: 0
