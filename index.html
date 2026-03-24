@@ -55,6 +55,7 @@
       </div>
       <div class="top-actions actions-below-table-right">
         <button class="btn btn-outline" id="guildManageBtn" type="button">길드원 관리</button>
+        <button class="btn btn-gray" id="importOpenBtn" type="button">초기값 붙여넣기</button>
         <button class="btn btn-primary" id="itemManageBtn" type="button">탈것 관리</button>
       </div>
     </div>
@@ -125,6 +126,27 @@
           </thead>
           <tbody id="itemManageTableBody"></tbody>
         </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop hidden" id="importModalBackdrop">
+    <div class="modal modal-lg import-modal">
+      <div class="modal-header">
+        <h3 id="importModalTitle">초기값 붙여넣기</h3>
+        <button class="icon-btn" id="importCloseBtn" type="button">×</button>
+      </div>
+      <p class="card-subtitle import-guide" id="importGuideText">첫 줄은 헤더, 첫 칸은 이름으로 붙여넣어주세요. 없는 항목명과 길드원명은 반영되지 않습니다.</p>
+      <div class="form-row">
+        <label for="importTextarea">붙여넣기 데이터</label>
+        <textarea id="importTextarea" class="import-textarea" placeholder="이름	항목1	항목2
+홍길동	1	0"></textarea>
+      </div>
+      <div class="import-preview" id="importPreviewBox">미리보기를 눌러주세요.</div>
+      <div class="modal-buttons">
+        <button class="btn btn-gray" id="importPreviewBtn" type="button">미리보기</button>
+        <button class="btn btn-primary" id="importApplyBtn" type="button">적용</button>
+        <button class="btn btn-gray" id="importCancelBtn" type="button">취소</button>
       </div>
     </div>
   </div>
