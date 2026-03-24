@@ -13,21 +13,6 @@ const ACCESSORY_PARTS = [
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const BOSS_ALERT_DEBUG_ENABLED = true;
-const bossAlertDebugState = { shownKeys: new Set() };
-
-function showBossAlertOnce(key, message) {
-  if (!BOSS_ALERT_DEBUG_ENABLED) return;
-  if (bossAlertDebugState.shownKeys.has(key)) return;
-  bossAlertDebugState.shownKeys.add(key);
-  alert(message);
-}
-
-function resetBossAlertDebug() {
-  bossAlertDebugState.shownKeys.clear();
-}
-
-
 const BOSS_DEBUG_ENABLED = true;
 
 function logBossDebug(label, payload) {
@@ -117,7 +102,6 @@ function bindEvents() {
 
       state.activeTab = nextTab;
       resetOverallEditMode();
-      resetBossAlertDebug();
       updateTabUi();
 
       if (nextTab === "special") {
@@ -243,47 +227,53 @@ async function loadMountData() {
   syncDraftState();
 }
 async function loadBossData() {
-  const [membersRes, itemsRes, memberBossRes] = await Promise.all([
+  const [membersRes, itemsRes] = await Promise.all([
     supabase.from("guild_members").select("id, name, power, updated_at").order("name", { ascending: true }),
     supabase
       .from("boss_collections")
       .select("id, name, display_order")
       .order("display_order", { ascending: true })
-      .order("id", { ascending: true }),
-    supabase.from("member_boss_collections").select("id, member_id, boss_collection_id, owned")
+      .order("id", { ascending: true })
   ]);
 
   if (membersRes.error) {
-    alert(`길드원 조회 중 오류가 발생했습니다.\n${membersRes.error.message}`);
+    alert(`길드원 조회 중 오류가 발생했습니다.
+${membersRes.error.message}`);
     return;
   }
 
   if (itemsRes.error) {
-    alert(`보스컬렉 조회 중 오류가 발생했습니다.\n${itemsRes.error.message}`);
+    alert(`보스컬렉 조회 중 오류가 발생했습니다.
+${itemsRes.error.message}`);
     return;
   }
 
-  if (memberBossRes.error) {
-    alert(`보유 정보 조회 중 오류가 발생했습니다.\n${memberBossRes.error.message}`);
-    return;
+  const allBossRows = [];
+  const pageSize = 1000;
+  let from = 0;
+
+  while (true) {
+    const memberBossRes = await supabase
+      .from("member_boss_collections")
+      .select("id, member_id, boss_collection_id, owned")
+      .range(from, from + pageSize - 1);
+
+    if (memberBossRes.error) {
+      alert(`보유 정보 조회 중 오류가 발생했습니다.
+${memberBossRes.error.message}`);
+      return;
+    }
+
+    const rows = memberBossRes.data ?? [];
+    allBossRows.push(...rows);
+
+    if (rows.length < pageSize) break;
+    from += pageSize;
   }
 
   state.members = membersRes.data ?? [];
   state.bossItems = itemsRes.data ?? [];
-  state.memberBossCollections = memberBossRes.data ?? [];
-  logBossDebug("loadBossData.result", {
-    memberCount: state.members.length,
-    bossItemCount: state.bossItems.length,
-    memberBossCollectionCount: state.memberBossCollections.length,
-    bossItems: state.bossItems.map((item) => ({ id: item.id, name: item.name, display_order: item.display_order })),
-    memberBossCollections: state.memberBossCollections.map((entry) => ({
-      id: entry.id,
-      member_id: entry.member_id,
-      member_name: getBossDebugMemberName(entry.member_id),
-      boss_collection_id: entry.boss_collection_id,
-      owned: entry.owned
-    }))
-  });
+  state.memberBossCollections = allBossRows;
   syncDraftState();
 }
 
@@ -368,7 +358,6 @@ async function handleResetSearch() {
   closeSearchSelectModal();
 
   if (state.activeTab !== "special") {
-    resetBossAlertDebug();
     await loadActiveTabData();
   } else {
     syncDraftState();
@@ -745,22 +734,6 @@ function renderBossSummaryTable() {
       </tr>
     `;
     return;
-  }
-
-  const firstMember = filteredMembers[0];
-  const firstBossItem = state.bossItems[0];
-  if (firstMember && firstBossItem) {
-    const firstRecord = state.memberBossCollections.find(
-      (entry) => entry.member_id === firstMember.id && String(entry.boss_collection_id) === String(firstBossItem.id)
-    );
-    const firstMemberOwnedCount = state.memberBossCollections.filter(
-      (entry) => entry.member_id === firstMember.id && Boolean(entry.owned)
-    ).length;
-
-    showBossAlertOnce(
-      "renderBossSummaryTable",
-      `[renderBossSummaryTable]\nfirstMember=${firstMember.name} (${firstMember.id})\nfirstBossItem=${firstBossItem.name} (${firstBossItem.id})\nfirstRecord=${firstRecord ? `owned=${firstRecord.owned}` : "NOT_FOUND"}\nfirstMemberOwnedCount=${firstMemberOwnedCount}`
-    );
   }
 
   el.summaryTableBody.innerHTML = filteredMembers.map((member, index) => {
@@ -1261,12 +1234,6 @@ async function saveBossEditableRow(memberId) {
     updated_at: now
   }));
 
-  const savePreview = upsertPayload.slice(0, 10).map((entry) => `${entry.boss_collection_id}:${entry.owned}`).join(", ");
-  showBossAlertOnce(
-    `saveBossEditableRow_${memberId}`,
-    `[saveBossEditableRow]\nmemberId=${memberId}\npower=${Math.floor(power)}\npayload=${savePreview || "-"}`
-  );
-
   logBossDebug("saveBossEditableRow.payload", {
     memberId,
     memberName: getBossDebugMemberName(memberId),
@@ -1287,7 +1254,6 @@ async function saveBossEditableRow(memberId) {
   if (!state.overallEditMode) {
     resetSearchState();
   }
-  resetBossAlertDebug();
   await loadBossData();
   if (state.overallEditMode) {
     state.draftAllRows = {};
