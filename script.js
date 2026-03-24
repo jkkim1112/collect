@@ -13,6 +13,21 @@ const ACCESSORY_PARTS = [
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+const BOSS_ALERT_DEBUG_ENABLED = true;
+const bossAlertDebugState = { shownKeys: new Set() };
+
+function showBossAlertOnce(key, message) {
+  if (!BOSS_ALERT_DEBUG_ENABLED) return;
+  if (bossAlertDebugState.shownKeys.has(key)) return;
+  bossAlertDebugState.shownKeys.add(key);
+  alert(message);
+}
+
+function resetBossAlertDebug() {
+  bossAlertDebugState.shownKeys.clear();
+}
+
+
 const BOSS_DEBUG_ENABLED = true;
 
 function logBossDebug(label, payload) {
@@ -102,6 +117,7 @@ function bindEvents() {
 
       state.activeTab = nextTab;
       resetOverallEditMode();
+      resetBossAlertDebug();
       updateTabUi();
 
       if (nextTab === "special") {
@@ -352,6 +368,7 @@ async function handleResetSearch() {
   closeSearchSelectModal();
 
   if (state.activeTab !== "special") {
+    resetBossAlertDebug();
     await loadActiveTabData();
   } else {
     syncDraftState();
@@ -728,6 +745,22 @@ function renderBossSummaryTable() {
       </tr>
     `;
     return;
+  }
+
+  const firstMember = filteredMembers[0];
+  const firstBossItem = state.bossItems[0];
+  if (firstMember && firstBossItem) {
+    const firstRecord = state.memberBossCollections.find(
+      (entry) => entry.member_id === firstMember.id && String(entry.boss_collection_id) === String(firstBossItem.id)
+    );
+    const firstMemberOwnedCount = state.memberBossCollections.filter(
+      (entry) => entry.member_id === firstMember.id && Boolean(entry.owned)
+    ).length;
+
+    showBossAlertOnce(
+      "renderBossSummaryTable",
+      `[renderBossSummaryTable]\nfirstMember=${firstMember.name} (${firstMember.id})\nfirstBossItem=${firstBossItem.name} (${firstBossItem.id})\nfirstRecord=${firstRecord ? `owned=${firstRecord.owned}` : "NOT_FOUND"}\nfirstMemberOwnedCount=${firstMemberOwnedCount}`
+    );
   }
 
   el.summaryTableBody.innerHTML = filteredMembers.map((member, index) => {
@@ -1228,6 +1261,12 @@ async function saveBossEditableRow(memberId) {
     updated_at: now
   }));
 
+  const savePreview = upsertPayload.slice(0, 10).map((entry) => `${entry.boss_collection_id}:${entry.owned}`).join(", ");
+  showBossAlertOnce(
+    `saveBossEditableRow_${memberId}`,
+    `[saveBossEditableRow]\nmemberId=${memberId}\npower=${Math.floor(power)}\npayload=${savePreview || "-"}`
+  );
+
   logBossDebug("saveBossEditableRow.payload", {
     memberId,
     memberName: getBossDebugMemberName(memberId),
@@ -1248,6 +1287,7 @@ async function saveBossEditableRow(memberId) {
   if (!state.overallEditMode) {
     resetSearchState();
   }
+  resetBossAlertDebug();
   await loadBossData();
   if (state.overallEditMode) {
     state.draftAllRows = {};
