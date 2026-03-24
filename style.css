@@ -840,8 +840,20 @@ button {
 }
 
 .actions-below-table {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
   margin-top: 16px;
-  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.below-table-left-actions,
+.actions-below-table-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .btn-icon {
@@ -897,15 +909,24 @@ button {
     flex: 0 0 36px;
   }
 
-  .top-actions.actions-below-table {
+    .actions-below-table {
     width: 100%;
-    justify-content: center;
-    gap: 8px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
     margin-top: 12px;
     margin-bottom: 4px;
   }
 
-  .top-actions.actions-below-table .btn {
+  .below-table-left-actions,
+  .top-actions.actions-below-table-right {
+    width: 100%;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .below-table-left-actions .btn,
+  .top-actions.actions-below-table-right .btn {
     padding: 8px 12px;
     font-size: 13px;
     border-radius: 8px;

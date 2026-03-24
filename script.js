@@ -13,17 +13,6 @@ const ACCESSORY_PARTS = [
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const BOSS_DEBUG_ENABLED = true;
-
-function logBossDebug(label, payload) {
-  if (!BOSS_DEBUG_ENABLED) return;
-  console.log(`[BOSS_DEBUG] ${label}`, payload);
-}
-
-function getBossDebugMemberName(memberId) {
-  return state.members.find((member) => member.id === memberId)?.name ?? "";
-}
-
 const state = {
   activeTab: "mount",
   pendingManageType: null,
@@ -60,6 +49,8 @@ function bindElements() {
   el.tabs = Array.from(document.querySelectorAll(".tab"));
   el.guildManageBtn = document.getElementById("guildManageBtn");
   el.bulkEditBtn = document.getElementById("bulkEditBtn");
+  el.bulkSaveBtn = document.getElementById("bulkSaveBtn");
+  el.bulkCancelBtn = document.getElementById("bulkCancelBtn");
   el.itemManageBtn = document.getElementById("itemManageBtn");
   el.tableGuideText = document.getElementById("tableGuideText");
   el.searchInput = document.getElementById("searchInput");
@@ -134,6 +125,8 @@ function bindEvents() {
 
   el.guildManageBtn.addEventListener("click", () => openPasswordModal("guild"));
   el.bulkEditBtn.addEventListener("click", handleBulkEditButtonClick);
+  el.bulkSaveBtn.addEventListener("click", handleBulkSaveButtonClick);
+  el.bulkCancelBtn.addEventListener("click", handleBulkCancelButtonClick);
   el.itemManageBtn.addEventListener("click", () => openPasswordModal("item"));
 
   el.passwordCancelBtn.addEventListener("click", closePasswordModal);
@@ -176,7 +169,11 @@ function updateTabUi() {
 
   el.guildManageBtn.disabled = isSpecial;
   el.bulkEditBtn.disabled = isSpecial;
-  el.bulkEditBtn.textContent = state.overallEditMode ? "전체수정 종료" : "전체수정";
+  el.bulkEditBtn.classList.toggle("hidden", state.overallEditMode);
+  el.bulkSaveBtn.classList.toggle("hidden", !state.overallEditMode);
+  el.bulkCancelBtn.classList.toggle("hidden", !state.overallEditMode);
+  el.bulkSaveBtn.disabled = isSpecial;
+  el.bulkCancelBtn.disabled = isSpecial;
   el.itemManageBtn.disabled = isSpecial;
   el.itemManageBtn.textContent = isAccessory ? "악세사리 관리" : isBoss ? "보스컬렉 관리" : "탈것 관리";
   el.itemManageTitle.textContent = isAccessory ? "악세사리 관리" : isBoss ? "보스컬렉 관리" : "탈것 관리";
@@ -227,53 +224,34 @@ async function loadMountData() {
   syncDraftState();
 }
 async function loadBossData() {
-  const [membersRes, itemsRes] = await Promise.all([
+  const [membersRes, itemsRes, memberBossRes] = await Promise.all([
     supabase.from("guild_members").select("id, name, power, updated_at").order("name", { ascending: true }),
     supabase
       .from("boss_collections")
       .select("id, name, display_order")
       .order("display_order", { ascending: true })
-      .order("id", { ascending: true })
+      .order("id", { ascending: true }),
+    supabase.from("member_boss_collections").select("id, member_id, boss_collection_id, owned")
   ]);
 
   if (membersRes.error) {
-    alert(`길드원 조회 중 오류가 발생했습니다.
-${membersRes.error.message}`);
+    alert(`길드원 조회 중 오류가 발생했습니다.\n${membersRes.error.message}`);
     return;
   }
 
   if (itemsRes.error) {
-    alert(`보스컬렉 조회 중 오류가 발생했습니다.
-${itemsRes.error.message}`);
+    alert(`보스컬렉 조회 중 오류가 발생했습니다.\n${itemsRes.error.message}`);
     return;
   }
 
-  const allBossRows = [];
-  const pageSize = 1000;
-  let from = 0;
-
-  while (true) {
-    const memberBossRes = await supabase
-      .from("member_boss_collections")
-      .select("id, member_id, boss_collection_id, owned")
-      .range(from, from + pageSize - 1);
-
-    if (memberBossRes.error) {
-      alert(`보유 정보 조회 중 오류가 발생했습니다.
-${memberBossRes.error.message}`);
-      return;
-    }
-
-    const rows = memberBossRes.data ?? [];
-    allBossRows.push(...rows);
-
-    if (rows.length < pageSize) break;
-    from += pageSize;
+  if (memberBossRes.error) {
+    alert(`보유 정보 조회 중 오류가 발생했습니다.\n${memberBossRes.error.message}`);
+    return;
   }
 
   state.members = membersRes.data ?? [];
   state.bossItems = itemsRes.data ?? [];
-  state.memberBossCollections = allBossRows;
+  state.memberBossCollections = memberBossRes.data ?? [];
   syncDraftState();
 }
 
@@ -422,14 +400,7 @@ function syncDraftState() {
     return;
   }
 
-  if (state.draftMemberId === editableMember.id) {
-    logBossDebug("syncDraftState.skip_same_member", {
-      activeTab: state.activeTab,
-      memberId: editableMember.id,
-      memberName: editableMember.name
-    });
-    return;
-  }
+  if (state.draftMemberId === editableMember.id) return;
 
   state.draftMemberId = editableMember.id;
   state.draftPower = String(editableMember.power ?? 0);
@@ -460,21 +431,6 @@ function syncDraftState() {
     );
     state.draftOwnedMap[item.id] = Boolean(record?.owned);
   });
-
-  if (state.activeTab === "boss") {
-    logBossDebug("syncDraftState.boss_draft_map", {
-      memberId: editableMember.id,
-      memberName: editableMember.name,
-      draftOwnedMap: { ...state.draftOwnedMap },
-      matchedRecords: simpleRecords
-        .filter((entry) => entry.member_id === editableMember.id)
-        .map((entry) => ({
-          id: entry.id,
-          boss_collection_id: entry.boss_collection_id,
-          owned: entry.owned
-        }))
-    });
-  }
 }
 
 function ensureDraftRow(memberId) {
@@ -521,29 +477,9 @@ function getMemberDraftPower(member) {
 
 function getMemberDraftOwned(memberId, itemId) {
   if (state.overallEditMode) {
-    const value = Boolean(ensureDraftRow(memberId)?.ownedMap?.[itemId]);
-    if (state.activeTab === "boss") {
-      logBossDebug("getMemberDraftOwned.overall", {
-        memberId,
-        memberName: getBossDebugMemberName(memberId),
-        itemId,
-        value
-      });
-    }
-    return value;
+    return Boolean(ensureDraftRow(memberId)?.ownedMap?.[itemId]);
   }
-
-  const value = Boolean(state.draftOwnedMap[itemId]);
-  if (state.activeTab === "boss") {
-    logBossDebug("getMemberDraftOwned.single", {
-      memberId,
-      memberName: getBossDebugMemberName(memberId),
-      itemId,
-      value,
-      draftOwnedMap: { ...state.draftOwnedMap }
-    });
-  }
-  return value;
+  return Boolean(state.draftOwnedMap[itemId]);
 }
 
 function getMemberDraftAccessory(memberId, groupId, partKey) {
@@ -559,12 +495,16 @@ function resetOverallEditMode() {
 }
 
 function handleBulkEditButtonClick() {
-  if (state.overallEditMode) {
-    resetOverallEditMode();
-    renderAll();
-    return;
-  }
   openPasswordModal("bulk-edit");
+}
+
+async function handleBulkSaveButtonClick() {
+  await saveAllOverallEdits();
+}
+
+function handleBulkCancelButtonClick() {
+  resetOverallEditMode();
+  renderAll();
 }
 
 function renderAll() {
@@ -587,8 +527,8 @@ function renderGuideText() {
 
   if (state.overallEditMode) {
     el.tableGuideText.textContent = state.activeTab === "accessory"
-      ? "전체수정 모드입니다. 전체 목록에서 전투력과 악세사리 수량을 수정할 수 있습니다."
-      : "전체수정 모드입니다. 전체 목록에서 전투력과 보유 상태를 수정할 수 있습니다.";
+      ? "전체수정 모드입니다. 전체 목록에서 전투력과 악세사리 수량을 수정한 뒤 하단 저장 버튼으로 저장할 수 있습니다."
+      : "전체수정 모드입니다. 전체 목록에서 전투력과 보유 상태를 수정한 뒤 하단 저장 버튼으로 저장할 수 있습니다.";
     return;
   }
 
@@ -678,9 +618,11 @@ function renderMountSummaryTable() {
       return `<td><span class="badge ${currentOwned ? "badge-own" : "badge-not"}">${currentOwned ? "보유" : "미보유"}</span></td>`;
     }).join("");
 
-    const saveCell = isEditable
-      ? `<button class="btn btn-primary btn-sm" type="button" data-role="save-row-mount" data-member-id="${member.id}">저장</button>`
-      : `<span class="notice-text action-box">불가</span>`;
+    const saveCell = state.overallEditMode
+      ? `<span class="notice-text action-box">일괄</span>`
+      : isEditable
+        ? `<button class="btn btn-primary btn-sm" type="button" data-role="save-row-mount" data-member-id="${member.id}">저장</button>`
+        : `<span class="notice-text action-box">불가</span>`;
 
     const lastUpdatedCell = `<span class="last-updated-box">${formatUpdatedAt(member.updated_at)}</span>`;
 
@@ -698,16 +640,6 @@ function renderMountSummaryTable() {
 }
 
 function renderBossSummaryTable() {
-  logBossDebug("renderBossSummaryTable.start", {
-    searchTerm: state.searchTerm,
-    selectedMemberId: state.selectedMemberId,
-    draftMemberId: state.draftMemberId,
-    filteredMembers: getFilteredMembers().map((member) => ({
-      id: member.id,
-      name: member.name
-    }))
-  });
-
   const powerSortText = state.powerSortDirection === "asc"
     ? "▲"
     : state.powerSortDirection === "desc"
@@ -748,15 +680,6 @@ function renderBossSummaryTable() {
         ? getMemberDraftOwned(member.id, item.id)
         : getBossOwnedValue(member.id, item.id);
 
-      logBossDebug("renderBossSummaryTable.cell", {
-        memberId: member.id,
-        memberName: member.name,
-        itemId: item.id,
-        itemName: item.name,
-        isEditable,
-        currentOwned
-      });
-
       if (isEditable) {
         return `
           <td>
@@ -770,9 +693,11 @@ function renderBossSummaryTable() {
       return `<td><span class="badge ${currentOwned ? "badge-own" : "badge-not"}">${currentOwned ? "보유" : "미보유"}</span></td>`;
     }).join("");
 
-    const saveCell = isEditable
-      ? `<button class="btn btn-primary btn-sm" type="button" data-role="save-row-boss" data-member-id="${member.id}">저장</button>`
-      : `<span class="notice-text action-box">불가</span>`;
+    const saveCell = state.overallEditMode
+      ? `<span class="notice-text action-box">일괄</span>`
+      : isEditable
+        ? `<button class="btn btn-primary btn-sm" type="button" data-role="save-row-boss" data-member-id="${member.id}">저장</button>`
+        : `<span class="notice-text action-box">불가</span>`;
 
     const lastUpdatedCell = `<span class="last-updated-box">${formatUpdatedAt(member.updated_at)}</span>`;
 
@@ -883,9 +808,11 @@ function renderAccessorySummaryTable() {
       }).join("");
     }).join("");
 
-    const saveCell = isEditable
-      ? `<button class="btn btn-primary btn-sm" type="button" data-role="save-row-accessory" data-member-id="${member.id}">저장</button>`
-      : `<span class="notice-text action-box">불가</span>`;
+    const saveCell = state.overallEditMode
+      ? `<span class="notice-text action-box">일괄</span>`
+      : isEditable
+        ? `<button class="btn btn-primary btn-sm" type="button" data-role="save-row-accessory" data-member-id="${member.id}">저장</button>`
+        : `<span class="notice-text action-box">불가</span>`;
 
     const lastUpdatedCell = `<span class="last-updated-box">${formatUpdatedAt(getAccessoryLatestUpdatedAt(member.id))}</span>`;
 
@@ -1102,30 +1029,24 @@ function handleSummaryTableClick(event) {
   }
 }
 
-async function saveMountEditableRow(memberId) {
-  if (!state.overallEditMode && memberId !== state.draftMemberId) return;
-
-  const draftRow = state.overallEditMode ? ensureDraftRow(memberId) : null;
-  const power = Number(state.overallEditMode ? draftRow?.power : state.draftPower);
-  if (!Number.isFinite(power) || power < 0) {
-    alert("전투력을 올바르게 입력해주세요.");
-    return;
-  }
-
+async function updateMemberPower(memberId, power, updatedAt) {
   const updateMemberRes = await supabase
     .from("guild_members")
-    .update({ power: Math.floor(power), updated_at: new Date().toISOString() })
+    .update({ power: Math.floor(power), updated_at: updatedAt })
     .eq("id", memberId);
 
   if (updateMemberRes.error) {
-    alert(`전투력 저장 중 오류가 발생했습니다.\n${updateMemberRes.error.message}`);
-    return;
+    throw new Error(`전투력 저장 중 오류가 발생했습니다.\n${updateMemberRes.error.message}`);
   }
+}
+
+async function persistMountRow(memberId, draftRow, power) {
+  await updateMemberPower(memberId, power, new Date().toISOString());
 
   const upsertPayload = state.mountItems.map((item) => ({
     member_id: memberId,
     mount_id: item.id,
-    owned: Boolean(state.overallEditMode ? draftRow?.ownedMap?.[item.id] : state.draftOwnedMap[item.id])
+    owned: Boolean(draftRow?.ownedMap?.[item.id])
   }));
 
   const upsertRes = await supabase
@@ -1133,7 +1054,127 @@ async function saveMountEditableRow(memberId) {
     .upsert(upsertPayload, { onConflict: "member_id,mount_id" });
 
   if (upsertRes.error) {
-    alert(`보유 상태 저장 중 오류가 발생했습니다.\n${upsertRes.error.message}`);
+    throw new Error(`보유 상태 저장 중 오류가 발생했습니다.\n${upsertRes.error.message}`);
+  }
+}
+
+async function persistAccessoryRow(memberId, draftRow, power) {
+  const now = new Date().toISOString();
+  await updateMemberPower(memberId, power, now);
+
+  const upsertPayload = state.accessoryGroups.map((group) => {
+    const maxCount = Number(group.max_count ?? 0);
+    const normalizeCount = (value) => Math.min(maxCount, Math.max(0, Math.floor(Number(value) || 0)));
+
+    return {
+      member_id: memberId,
+      accessory_group_id: group.id,
+      ring_count: normalizeCount(draftRow?.accessoryMap?.[group.id]?.ring_count),
+      necklace_count: normalizeCount(draftRow?.accessoryMap?.[group.id]?.necklace_count),
+      earring_count: normalizeCount(draftRow?.accessoryMap?.[group.id]?.earring_count),
+      belt_count: normalizeCount(draftRow?.accessoryMap?.[group.id]?.belt_count),
+      bracelet_count: normalizeCount(draftRow?.accessoryMap?.[group.id]?.bracelet_count),
+      updated_at: now
+    };
+  });
+
+  const upsertRes = await supabase
+    .from("member_accessories")
+    .upsert(upsertPayload, { onConflict: "member_id,accessory_group_id" });
+
+  if (upsertRes.error) {
+    throw new Error(`악세사리 저장 중 오류가 발생했습니다.\n${upsertRes.error.message}`);
+  }
+}
+
+async function persistBossRow(memberId, draftRow, power) {
+  const now = new Date().toISOString();
+  await updateMemberPower(memberId, power, now);
+
+  const upsertPayload = state.bossItems.map((item) => ({
+    member_id: memberId,
+    boss_collection_id: item.id,
+    owned: Boolean(draftRow?.ownedMap?.[item.id]),
+    updated_at: now
+  }));
+
+  logBossDebug("saveBossEditableRow.payload", {
+    memberId,
+    memberName: getBossDebugMemberName(memberId),
+    overallEditMode: state.overallEditMode,
+    draftOwnedMap: { ...(draftRow?.ownedMap ?? {}) },
+    upsertPayload
+  });
+
+  const upsertRes = await supabase
+    .from("member_boss_collections")
+    .upsert(upsertPayload, { onConflict: "member_id,boss_collection_id" });
+
+  if (upsertRes.error) {
+    throw new Error(`보스컬렉 저장 중 오류가 발생했습니다.\n${upsertRes.error.message}`);
+  }
+}
+
+async function saveAllOverallEdits() {
+  if (!state.overallEditMode) return;
+
+  const memberIds = Object.keys(state.draftAllRows);
+  if (memberIds.length === 0) {
+    alert("저장할 변경사항이 없습니다.");
+    return;
+  }
+
+  try {
+    for (const memberId of memberIds) {
+      const draftRow = ensureDraftRow(memberId);
+      const power = Number(draftRow?.power);
+
+      if (!Number.isFinite(power) || power < 0) {
+        throw new Error("전투력을 올바르게 입력해주세요.");
+      }
+
+      if (state.activeTab === "accessory") {
+        await persistAccessoryRow(memberId, draftRow, power);
+      } else if (state.activeTab === "boss") {
+        await persistBossRow(memberId, draftRow, power);
+      } else {
+        await persistMountRow(memberId, draftRow, power);
+      }
+    }
+
+    resetOverallEditMode();
+
+    if (state.activeTab === "accessory") {
+      await loadAccessoryData();
+    } else if (state.activeTab === "boss") {
+      await loadBossData();
+    } else {
+      await loadMountData();
+    }
+
+    renderAll();
+    alert("저장되었습니다.");
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+async function saveMountEditableRow(memberId) {
+  if (!state.overallEditMode && memberId !== state.draftMemberId) return;
+
+  const draftRow = state.overallEditMode
+    ? ensureDraftRow(memberId)
+    : { power: state.draftPower, ownedMap: { ...state.draftOwnedMap } };
+  const power = Number(draftRow?.power);
+  if (!Number.isFinite(power) || power < 0) {
+    alert("전투력을 올바르게 입력해주세요.");
+    return;
+  }
+
+  try {
+    await persistMountRow(memberId, draftRow, power);
+  } catch (error) {
+    alert(error.message);
     return;
   }
 
@@ -1151,46 +1192,19 @@ async function saveMountEditableRow(memberId) {
 async function saveAccessoryEditableRow(memberId) {
   if (!state.overallEditMode && memberId !== state.draftMemberId) return;
 
-  const draftRow = state.overallEditMode ? ensureDraftRow(memberId) : null;
-  const power = Number(state.overallEditMode ? draftRow?.power : state.draftPower);
+  const draftRow = state.overallEditMode
+    ? ensureDraftRow(memberId)
+    : { power: state.draftPower, accessoryMap: structuredClone(state.draftAccessoryMap) };
+  const power = Number(draftRow?.power);
   if (!Number.isFinite(power) || power < 0) {
     alert("전투력을 올바르게 입력해주세요.");
     return;
   }
 
-  const updateMemberRes = await supabase
-    .from("guild_members")
-    .update({ power: Math.floor(power), updated_at: new Date().toISOString() })
-    .eq("id", memberId);
-
-  if (updateMemberRes.error) {
-    alert(`전투력 저장 중 오류가 발생했습니다.\n${updateMemberRes.error.message}`);
-    return;
-  }
-
-  const now = new Date().toISOString();
-  const upsertPayload = state.accessoryGroups.map((group) => {
-    const maxCount = Number(group.max_count ?? 0);
-    const normalizeCount = (value) => Math.min(maxCount, Math.max(0, Math.floor(Number(value) || 0)));
-
-    return {
-      member_id: memberId,
-      accessory_group_id: group.id,
-      ring_count: normalizeCount(state.overallEditMode ? draftRow?.accessoryMap?.[group.id]?.ring_count : state.draftAccessoryMap[group.id]?.ring_count),
-      necklace_count: normalizeCount(state.overallEditMode ? draftRow?.accessoryMap?.[group.id]?.necklace_count : state.draftAccessoryMap[group.id]?.necklace_count),
-      earring_count: normalizeCount(state.overallEditMode ? draftRow?.accessoryMap?.[group.id]?.earring_count : state.draftAccessoryMap[group.id]?.earring_count),
-      belt_count: normalizeCount(state.overallEditMode ? draftRow?.accessoryMap?.[group.id]?.belt_count : state.draftAccessoryMap[group.id]?.belt_count),
-      bracelet_count: normalizeCount(state.overallEditMode ? draftRow?.accessoryMap?.[group.id]?.bracelet_count : state.draftAccessoryMap[group.id]?.bracelet_count),
-      updated_at: now
-    };
-  });
-
-  const upsertRes = await supabase
-    .from("member_accessories")
-    .upsert(upsertPayload, { onConflict: "member_id,accessory_group_id" });
-
-  if (upsertRes.error) {
-    alert(`악세사리 저장 중 오류가 발생했습니다.\n${upsertRes.error.message}`);
+  try {
+    await persistAccessoryRow(memberId, draftRow, power);
+  } catch (error) {
+    alert(error.message);
     return;
   }
 
@@ -1208,46 +1222,19 @@ async function saveAccessoryEditableRow(memberId) {
 async function saveBossEditableRow(memberId) {
   if (!state.overallEditMode && memberId !== state.draftMemberId) return;
 
-  const draftRow = state.overallEditMode ? ensureDraftRow(memberId) : null;
-  const power = Number(state.overallEditMode ? draftRow?.power : state.draftPower);
+  const draftRow = state.overallEditMode
+    ? ensureDraftRow(memberId)
+    : { power: state.draftPower, ownedMap: { ...state.draftOwnedMap } };
+  const power = Number(draftRow?.power);
   if (!Number.isFinite(power) || power < 0) {
     alert("전투력을 올바르게 입력해주세요.");
     return;
   }
 
-  const now = new Date().toISOString();
-
-  const updateMemberRes = await supabase
-    .from("guild_members")
-    .update({ power: Math.floor(power), updated_at: now })
-    .eq("id", memberId);
-
-  if (updateMemberRes.error) {
-    alert(`전투력 저장 중 오류가 발생했습니다.\n${updateMemberRes.error.message}`);
-    return;
-  }
-
-  const upsertPayload = state.bossItems.map((item) => ({
-    member_id: memberId,
-    boss_collection_id: item.id,
-    owned: Boolean(state.overallEditMode ? draftRow?.ownedMap?.[item.id] : state.draftOwnedMap[item.id]),
-    updated_at: now
-  }));
-
-  logBossDebug("saveBossEditableRow.payload", {
-    memberId,
-    memberName: getBossDebugMemberName(memberId),
-    overallEditMode: state.overallEditMode,
-    draftOwnedMap: { ...state.draftOwnedMap },
-    upsertPayload
-  });
-
-  const upsertRes = await supabase
-    .from("member_boss_collections")
-    .upsert(upsertPayload, { onConflict: "member_id,boss_collection_id" });
-
-  if (upsertRes.error) {
-    alert(`보스컬렉 저장 중 오류가 발생했습니다.\n${upsertRes.error.message}`);
+  try {
+    await persistBossRow(memberId, draftRow, power);
+  } catch (error) {
+    alert(error.message);
     return;
   }
 
@@ -1887,21 +1874,7 @@ function getBossOwnedValue(memberId, itemId) {
   const record = state.memberBossCollections.find(
     (entry) => entry.member_id === memberId && String(entry.boss_collection_id) === String(itemId)
   );
-  const value = Boolean(record?.owned);
-  logBossDebug("getBossOwnedValue", {
-    memberId,
-    memberName: getBossDebugMemberName(memberId),
-    itemId,
-    matchedRecord: record
-      ? {
-          id: record.id,
-          boss_collection_id: record.boss_collection_id,
-          owned: record.owned
-        }
-      : null,
-    value
-  });
-  return value;
+  return Boolean(record?.owned);
 }
 
 function getSimpleItems() {
