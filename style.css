@@ -1211,6 +1211,12 @@ button {
     min-width: 980px;
   }
 
+  .summary-table,
+  .manage-table {
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
   .summary-table thead th,
   .manage-table thead th {
     position: sticky;
@@ -1226,6 +1232,9 @@ button {
     position: sticky;
     left: 0;
     z-index: 11;
+    width: 60px;
+    min-width: 60px;
+    max-width: 60px;
     background: #ffffff;
   }
 
@@ -1240,8 +1249,11 @@ button {
   .manage-table th:nth-child(2),
   .manage-table td:nth-child(2) {
     position: sticky;
-    left: 56px;
+    left: 60px;
     z-index: 12;
+    width: 140px;
+    min-width: 140px;
+    max-width: 140px;
     background: #ffffff;
   }
 
@@ -1261,11 +1273,7 @@ button {
   .summary-table th:nth-child(1),
   .summary-table td:nth-child(1),
   .manage-table th:nth-child(1),
-  .manage-table td:nth-child(1),
-  .summary-table th:nth-child(2),
-  .summary-table td:nth-child(2),
-  .manage-table th:nth-child(2),
-  .manage-table td:nth-child(2) {
+  .manage-table td:nth-child(1) {
     box-shadow: 1px 0 0 #e5e7eb;
   }
 
@@ -1273,7 +1281,7 @@ button {
   .summary-table td:nth-child(2),
   .manage-table th:nth-child(2),
   .manage-table td:nth-child(2) {
-    min-width: 120px;
+    box-shadow: 2px 0 0 #d1d5db;
   }
 }
 
