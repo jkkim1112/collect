@@ -13,6 +13,17 @@ const ACCESSORY_PARTS = [
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+const BOSS_DEBUG_ENABLED = true;
+
+function logBossDebug(label, payload) {
+  if (!BOSS_DEBUG_ENABLED) return;
+  console.log(`[BOSS_DEBUG] ${label}`, payload);
+}
+
+function getBossDebugMemberName(memberId) {
+  return state.members.find((member) => member.id === memberId)?.name ?? "";
+}
+
 const state = {
   activeTab: "mount",
   pendingManageType: null,
@@ -244,6 +255,19 @@ async function loadBossData() {
   state.members = membersRes.data ?? [];
   state.bossItems = itemsRes.data ?? [];
   state.memberBossCollections = memberBossRes.data ?? [];
+  logBossDebug("loadBossData.result", {
+    memberCount: state.members.length,
+    bossItemCount: state.bossItems.length,
+    memberBossCollectionCount: state.memberBossCollections.length,
+    bossItems: state.bossItems.map((item) => ({ id: item.id, name: item.name, display_order: item.display_order })),
+    memberBossCollections: state.memberBossCollections.map((entry) => ({
+      id: entry.id,
+      member_id: entry.member_id,
+      member_name: getBossDebugMemberName(entry.member_id),
+      boss_collection_id: entry.boss_collection_id,
+      owned: entry.owned
+    }))
+  });
   syncDraftState();
 }
 
@@ -392,7 +416,14 @@ function syncDraftState() {
     return;
   }
 
-  if (state.draftMemberId === editableMember.id) return;
+  if (state.draftMemberId === editableMember.id) {
+    logBossDebug("syncDraftState.skip_same_member", {
+      activeTab: state.activeTab,
+      memberId: editableMember.id,
+      memberName: editableMember.name
+    });
+    return;
+  }
 
   state.draftMemberId = editableMember.id;
   state.draftPower = String(editableMember.power ?? 0);
@@ -423,6 +454,21 @@ function syncDraftState() {
     );
     state.draftOwnedMap[item.id] = Boolean(record?.owned);
   });
+
+  if (state.activeTab === "boss") {
+    logBossDebug("syncDraftState.boss_draft_map", {
+      memberId: editableMember.id,
+      memberName: editableMember.name,
+      draftOwnedMap: { ...state.draftOwnedMap },
+      matchedRecords: simpleRecords
+        .filter((entry) => entry.member_id === editableMember.id)
+        .map((entry) => ({
+          id: entry.id,
+          boss_collection_id: entry.boss_collection_id,
+          owned: entry.owned
+        }))
+    });
+  }
 }
 
 function ensureDraftRow(memberId) {
@@ -469,9 +515,29 @@ function getMemberDraftPower(member) {
 
 function getMemberDraftOwned(memberId, itemId) {
   if (state.overallEditMode) {
-    return Boolean(ensureDraftRow(memberId)?.ownedMap?.[itemId]);
+    const value = Boolean(ensureDraftRow(memberId)?.ownedMap?.[itemId]);
+    if (state.activeTab === "boss") {
+      logBossDebug("getMemberDraftOwned.overall", {
+        memberId,
+        memberName: getBossDebugMemberName(memberId),
+        itemId,
+        value
+      });
+    }
+    return value;
   }
-  return Boolean(state.draftOwnedMap[itemId]);
+
+  const value = Boolean(state.draftOwnedMap[itemId]);
+  if (state.activeTab === "boss") {
+    logBossDebug("getMemberDraftOwned.single", {
+      memberId,
+      memberName: getBossDebugMemberName(memberId),
+      itemId,
+      value,
+      draftOwnedMap: { ...state.draftOwnedMap }
+    });
+  }
+  return value;
 }
 
 function getMemberDraftAccessory(memberId, groupId, partKey) {
@@ -626,6 +692,16 @@ function renderMountSummaryTable() {
 }
 
 function renderBossSummaryTable() {
+  logBossDebug("renderBossSummaryTable.start", {
+    searchTerm: state.searchTerm,
+    selectedMemberId: state.selectedMemberId,
+    draftMemberId: state.draftMemberId,
+    filteredMembers: getFilteredMembers().map((member) => ({
+      id: member.id,
+      name: member.name
+    }))
+  });
+
   const powerSortText = state.powerSortDirection === "asc"
     ? "▲"
     : state.powerSortDirection === "desc"
@@ -665,6 +741,15 @@ function renderBossSummaryTable() {
       const currentOwned = isEditable
         ? getMemberDraftOwned(member.id, item.id)
         : getBossOwnedValue(member.id, item.id);
+
+      logBossDebug("renderBossSummaryTable.cell", {
+        memberId: member.id,
+        memberName: member.name,
+        itemId: item.id,
+        itemName: item.name,
+        isEditable,
+        currentOwned
+      });
 
       if (isEditable) {
         return `
@@ -1142,6 +1227,14 @@ async function saveBossEditableRow(memberId) {
     owned: Boolean(state.overallEditMode ? draftRow?.ownedMap?.[item.id] : state.draftOwnedMap[item.id]),
     updated_at: now
   }));
+
+  logBossDebug("saveBossEditableRow.payload", {
+    memberId,
+    memberName: getBossDebugMemberName(memberId),
+    overallEditMode: state.overallEditMode,
+    draftOwnedMap: { ...state.draftOwnedMap },
+    upsertPayload
+  });
 
   const upsertRes = await supabase
     .from("member_boss_collections")
@@ -1788,7 +1881,21 @@ function getBossOwnedValue(memberId, itemId) {
   const record = state.memberBossCollections.find(
     (entry) => entry.member_id === memberId && String(entry.boss_collection_id) === String(itemId)
   );
-  return Boolean(record?.owned);
+  const value = Boolean(record?.owned);
+  logBossDebug("getBossOwnedValue", {
+    memberId,
+    memberName: getBossDebugMemberName(memberId),
+    itemId,
+    matchedRecord: record
+      ? {
+          id: record.id,
+          boss_collection_id: record.boss_collection_id,
+          owned: record.owned
+        }
+      : null,
+    value
+  });
+  return value;
 }
 
 function getSimpleItems() {
