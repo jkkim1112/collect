@@ -907,7 +907,7 @@ function renderAccessorySummaryTable() {
       const isHidden = Boolean(state.hiddenAccessoryGroupIds[group.id]);
 
       if (isHidden) {
-        return `<td class="accessory-collapsed-cell group-boundary-start group-boundary-end"><span class="accessory-collapsed-text">숨김</span></td>`;
+        return `<td class="accessory-collapsed-cell group-boundary-start group-boundary-end"${rowClass ? ` style="${getAccessoryZeroPowerCellStyle()}"` : ""}><span class="accessory-collapsed-text">숨김</span></td>`;
       }
 
       return ACCESSORY_PARTS.map((part, partIndex) => {
@@ -919,7 +919,7 @@ function renderAccessorySummaryTable() {
         if (partIndex === 0) tdClasses.push('group-boundary-start');
         if (partIndex === ACCESSORY_PARTS.length - 1) tdClasses.push('group-boundary-end');
         const tdClassAttr = ` class="${tdClasses.join(' ')}"`;
-        const tdStyleAttr = ` style="${getAccessoryHeatCellStyle(currentValue, maxCount)}"`;
+        const tdStyleAttr = ` style="${rowClass ? getAccessoryZeroPowerCellStyle() : getAccessoryHeatCellStyle(currentValue, maxCount)}"`;
 
         if (isEditable) {
           return `
@@ -2036,6 +2036,14 @@ function getSimpleMemberRecords() {
 
 function getSimpleItemForeignKey() {
   return state.activeTab === "boss" ? "boss_collection_id" : "mount_id";
+}
+
+function getAccessoryZeroPowerCellStyle() {
+  return "background-color: #fdecec;";
+}
+
+function getAccessoryZeroPowerHoverCellStyle() {
+  return "background-color: #f9dede;";
 }
 
 function getAccessoryHeatCellStyle(value, maxCount) {
