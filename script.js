@@ -26,7 +26,6 @@ const state = {
   searchTerm: "",
   selectedMemberId: null,
   draftMemberId: null,
-  draftTab: null,
   draftPower: "",
   draftOwnedMap: {},
   draftAccessoryMap: {},
@@ -170,6 +169,7 @@ function updateTabUi() {
   });
 
   const isSpecial = state.activeTab === "special";
+  const isPower = state.activeTab === "power";
   const isAccessory = state.activeTab === "accessory";
   const isBoss = state.activeTab === "boss";
 
@@ -180,12 +180,13 @@ function updateTabUi() {
   el.bulkCancelBtn.classList.toggle("hidden", !state.overallEditMode);
   el.bulkSaveBtn.disabled = isSpecial || state.isBulkSaving;
   el.bulkCancelBtn.disabled = isSpecial || state.isBulkSaving;
-  el.itemManageBtn.disabled = isSpecial || state.isBulkSaving;
+  el.itemManageBtn.disabled = isSpecial || isPower || state.isBulkSaving;
   el.guildManageBtn.disabled = isSpecial || state.isBulkSaving;
   el.bulkEditBtn.disabled = isSpecial || state.isBulkSaving;
   el.searchBtn.disabled = isSpecial || state.isBulkSaving;
   el.resetBtn.disabled = isSpecial || state.isBulkSaving;
   el.searchInput.disabled = isSpecial || state.isBulkSaving;
+  el.itemManageBtn.classList.toggle("hidden", isSpecial || isPower);
   el.itemManageBtn.textContent = isAccessory ? "악세사리 관리" : isBoss ? "보스컬렉 관리" : "탈것 관리";
   el.itemManageTitle.textContent = isAccessory ? "악세사리 관리" : isBoss ? "보스컬렉 관리" : "탈것 관리";
   el.itemNameHeader.textContent = isAccessory ? "악세사리명" : isBoss ? "보스컬렉명" : "탈것명";
@@ -194,6 +195,11 @@ function updateTabUi() {
 }
 
 async function loadActiveTabData() {
+  if (state.activeTab === "power") {
+    await loadPowerData();
+    return;
+  }
+
   if (state.activeTab === "accessory") {
     await loadAccessoryData();
     return;
@@ -205,6 +211,18 @@ async function loadActiveTabData() {
   }
 
   await loadMountData();
+}
+
+async function loadPowerData() {
+  const membersRes = await supabase.from("guild_members").select("id, name, power, updated_at").order("name", { ascending: true });
+
+  if (membersRes.error) {
+    alert(`길드원 조회 중 오류가 발생했습니다.\n${membersRes.error.message}`);
+    return;
+  }
+
+  state.members = membersRes.data ?? [];
+  syncDraftState();
 }
 
 async function loadMountData() {
@@ -421,17 +439,15 @@ function syncDraftState() {
 
   if (!editableMember) {
     state.draftMemberId = null;
-    state.draftTab = null;
     state.draftPower = "";
     state.draftOwnedMap = {};
     state.draftAccessoryMap = {};
     return;
   }
 
-  if (state.draftMemberId === editableMember.id && state.draftTab === state.activeTab) return;
+  if (state.draftMemberId === editableMember.id) return;
 
   state.draftMemberId = editableMember.id;
-  state.draftTab = state.activeTab;
   state.draftPower = String(editableMember.power ?? 0);
   state.draftOwnedMap = {};
   state.draftAccessoryMap = {};
@@ -447,6 +463,10 @@ function syncDraftState() {
         state.draftAccessoryMap[group.id][part.key] = Number(record?.[part.key] ?? 0);
       });
     });
+    return;
+  }
+
+  if (state.activeTab === "power") {
     return;
   }
 
@@ -476,7 +496,7 @@ function ensureDraftRow(memberId) {
           row.accessoryMap[group.id][part.key] = Number(record?.[part.key] ?? 0);
         });
       });
-    } else {
+    } else if (state.activeTab !== "power") {
       const simpleItems = getSimpleItems();
       const simpleRecords = getSimpleMemberRecords();
       const simpleItemKey = getSimpleItemForeignKey();
@@ -570,9 +590,11 @@ function renderGuideText() {
   const keyword = state.searchTerm.trim();
 
   if (state.overallEditMode) {
-    el.tableGuideText.textContent = state.activeTab === "accessory"
-      ? "전체수정 모드입니다. 전체 목록에서 전투력과 악세사리 수량을 수정한 뒤 하단 저장 버튼으로 저장할 수 있습니다."
-      : "전체수정 모드입니다. 전체 목록에서 전투력과 보유 상태를 수정한 뒤 하단 저장 버튼으로 저장할 수 있습니다.";
+    el.tableGuideText.textContent = state.activeTab === "power"
+      ? "전체수정 모드입니다. 전체 목록에서 최고 투력을 수정한 뒤 하단 저장 버튼으로 저장할 수 있습니다."
+      : state.activeTab === "accessory"
+        ? "전체수정 모드입니다. 전체 목록에서 악세사리 수량을 수정한 뒤 하단 저장 버튼으로 저장할 수 있습니다."
+        : "전체수정 모드입니다. 전체 목록에서 보유 상태를 수정한 뒤 하단 저장 버튼으로 저장할 수 있습니다.";
     return;
   }
 
@@ -589,12 +611,19 @@ function renderGuideText() {
     return;
   }
 
-  el.tableGuideText.textContent = state.activeTab === "accessory"
-    ? "선택된 길드원 1명만 표시됩니다. 이 행에서 전투력과 악세사리 수량을 수정할 수 있습니다."
-    : "선택된 길드원 1명만 표시됩니다. 이 행에서 전투력과 보유 상태를 수정할 수 있습니다.";
+  el.tableGuideText.textContent = state.activeTab === "power"
+    ? "선택된 길드원 1명만 표시됩니다. 이 행에서 최고 투력을 수정할 수 있습니다."
+    : state.activeTab === "accessory"
+      ? "선택된 길드원 1명만 표시됩니다. 이 행에서 악세사리 수량을 수정할 수 있습니다."
+      : "선택된 길드원 1명만 표시됩니다. 이 행에서 보유 상태를 수정할 수 있습니다.";
 }
 
 function renderSummaryTable() {
+  if (state.activeTab === "power") {
+    renderPowerSummaryTable();
+    return;
+  }
+
   if (state.activeTab === "accessory") {
     renderAccessorySummaryTable();
     return;
@@ -606,6 +635,59 @@ function renderSummaryTable() {
   }
 
   renderMountSummaryTable();
+}
+
+function renderPowerSummaryTable() {
+  const powerSortText = state.powerSortDirection === "asc"
+    ? "▲"
+    : state.powerSortDirection === "desc"
+      ? "▼"
+      : "↕";
+
+  const headers = [
+    `<th>no</th>`,
+    `<th>길드원</th>`,
+    `<th class="sortable-header ${state.powerSortDirection ? "active" : ""}" data-role="power-sort-header"><span class="sort-header-inner"><span>최고 투력</span><span class="sort-indicator">${powerSortText}</span></span></th>`,
+    `<th class="save-col">저장</th>`,
+    `<th class="last-updated-col">수정일</th>`
+  ];
+
+  el.summaryTableHead.innerHTML = `<tr>${headers.join("")}</tr>`;
+
+  const filteredMembers = getFilteredMembers();
+
+  if (filteredMembers.length === 0) {
+    el.summaryTableBody.innerHTML = `
+      <tr>
+        <td class="empty-row" colspan="5">표시할 길드원이 없습니다.</td>
+      </tr>
+    `;
+    return;
+  }
+
+  el.summaryTableBody.innerHTML = filteredMembers.map((member, index) => {
+    const isEditable = isMemberEditable(member.id);
+
+    const powerCell = `<span class="value-box">${member.power ?? 0}</span>`;
+
+    const saveCell = state.overallEditMode
+      ? `<span class="notice-text action-box">일괄</span>`
+      : isEditable
+        ? `<button class="btn btn-primary btn-sm" type="button" data-role="save-row-power" data-member-id="${member.id}">저장</button>`
+        : `<span class="notice-text action-box">불가</span>`;
+
+    const lastUpdatedCell = `<span class="last-updated-box">${formatUpdatedAt(member.updated_at)}</span>`;
+
+    return `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${escapeHtml(member.name)}</td>
+        <td>${powerCell}</td>
+        <td>${saveCell}</td>
+        <td>${lastUpdatedCell}</td>
+      </tr>
+    `;
+  }).join("");
 }
 
 function renderMountSummaryTable() {
@@ -640,9 +722,7 @@ function renderMountSummaryTable() {
   el.summaryTableBody.innerHTML = filteredMembers.map((member, index) => {
     const isEditable = isMemberEditable(member.id);
 
-    const powerCell = isEditable
-      ? `<input class="inline-power-input" type="number" min="0" step="1" data-role="power-input" data-member-id="${member.id}" value="${escapeAttr(getMemberDraftPower(member))}">`
-      : `<span class="value-box">${member.power ?? 0}</span>`;
+    const powerCell = `<span class="value-box">${member.power ?? 0}</span>`;
 
     const itemCells = state.mountItems.map((item) => {
       const currentOwned = isEditable
@@ -715,9 +795,7 @@ function renderBossSummaryTable() {
   el.summaryTableBody.innerHTML = filteredMembers.map((member, index) => {
     const isEditable = isMemberEditable(member.id);
 
-    const powerCell = isEditable
-      ? `<input class="inline-power-input" type="number" min="0" step="1" data-role="power-input" data-member-id="${member.id}" value="${escapeAttr(getMemberDraftPower(member))}">`
-      : `<span class="value-box">${member.power ?? 0}</span>`;
+    const powerCell = `<span class="value-box">${member.power ?? 0}</span>`;
 
     const itemCells = state.bossItems.map((item) => {
       const currentOwned = isEditable
@@ -950,8 +1028,8 @@ function renderGuildManageTable() {
 }
 
 function renderItemManageTable() {
-  const items = state.activeTab === "accessory" ? state.accessoryGroups : state.activeTab === "boss" ? state.bossItems : state.mountItems;
-  const emptyText = state.activeTab === "accessory" ? "등록된 악세사리가 없습니다." : state.activeTab === "boss" ? "등록된 보스컬렉이 없습니다." : "등록된 탈것이 없습니다.";
+  const items = state.activeTab === "accessory" ? state.accessoryGroups : state.activeTab === "boss" ? state.bossItems : state.activeTab === "power" ? [] : state.mountItems;
+  const emptyText = state.activeTab === "accessory" ? "등록된 악세사리가 없습니다." : state.activeTab === "boss" ? "등록된 보스컬렉이 없습니다." : state.activeTab === "power" ? "등록된 항목이 없습니다." : "등록된 탈것이 없습니다.";
 
   if (items.length === 0) {
     el.itemManageTableBody.innerHTML = `<tr><td colspan="${state.activeTab === "accessory" ? 4 : 3}">${emptyText}</td></tr>`;
@@ -1058,6 +1136,11 @@ function handleSummaryTableClick(event) {
     return;
   }
 
+  if (role === "save-row-power") {
+    savePowerEditableRow(button.dataset.memberId);
+    return;
+  }
+
   if (role === "save-row-mount") {
     saveMountEditableRow(button.dataset.memberId);
     return;
@@ -1084,9 +1167,11 @@ async function updateMemberPower(memberId, power, updatedAt) {
   }
 }
 
-async function persistMountRow(memberId, draftRow, power) {
+async function persistPowerRow(memberId, draftRow, power) {
   await updateMemberPower(memberId, power, new Date().toISOString());
+}
 
+async function persistMountRow(memberId, draftRow, power) {
   const upsertPayload = state.mountItems.map((item) => ({
     member_id: memberId,
     mount_id: item.id,
@@ -1104,7 +1189,6 @@ async function persistMountRow(memberId, draftRow, power) {
 
 async function persistAccessoryRow(memberId, draftRow, power) {
   const now = new Date().toISOString();
-  await updateMemberPower(memberId, power, now);
 
   const upsertPayload = state.accessoryGroups.map((group) => {
     const maxCount = Number(group.max_count ?? 0);
@@ -1133,7 +1217,6 @@ async function persistAccessoryRow(memberId, draftRow, power) {
 
 async function persistBossRow(memberId, draftRow, power) {
   const now = new Date().toISOString();
-  await updateMemberPower(memberId, power, now);
 
   const upsertPayload = state.bossItems.map((item) => ({
     member_id: memberId,
@@ -1174,7 +1257,9 @@ async function saveAllOverallEdits() {
         throw new Error("전투력을 올바르게 입력해주세요.");
       }
 
-      if (state.activeTab === "accessory") {
+      if (state.activeTab === "power") {
+        await persistPowerRow(memberId, draftRow, power);
+      } else if (state.activeTab === "accessory") {
         await persistAccessoryRow(memberId, draftRow, power);
       } else if (state.activeTab === "boss") {
         await persistBossRow(memberId, draftRow, power);
@@ -1187,7 +1272,9 @@ async function saveAllOverallEdits() {
 
     resetOverallEditMode();
 
-    if (state.activeTab === "accessory") {
+    if (state.activeTab === "power") {
+      await loadPowerData();
+    } else if (state.activeTab === "accessory") {
       await loadAccessoryData();
     } else if (state.activeTab === "boss") {
       await loadBossData();
@@ -1204,6 +1291,36 @@ async function saveAllOverallEdits() {
     state.isBulkSaving = false;
     renderAll();
   }
+}
+
+async function savePowerEditableRow(memberId) {
+  if (!state.overallEditMode && memberId !== state.draftMemberId) return;
+
+  const draftRow = state.overallEditMode
+    ? ensureDraftRow(memberId)
+    : { power: state.draftPower };
+  const power = Number(draftRow?.power);
+  if (!Number.isFinite(power) || power < 0) {
+    alert("전투력을 올바르게 입력해주세요.");
+    return;
+  }
+
+  try {
+    await persistPowerRow(memberId, draftRow, power);
+  } catch (error) {
+    alert(error.message);
+    return;
+  }
+
+  if (!state.overallEditMode) {
+    resetSearchState();
+  }
+  await loadPowerData();
+  if (state.overallEditMode) {
+    state.draftAllRows = {};
+  }
+  renderAll();
+  alert("저장되었습니다.");
 }
 
 async function saveMountEditableRow(memberId) {
@@ -1299,7 +1416,6 @@ async function saveBossEditableRow(memberId) {
 function resetSearchState() {
   state.searchTerm = "";
   state.selectedMemberId = null;
-  state.draftTab = null;
   el.searchInput.value = "";
 }
 
