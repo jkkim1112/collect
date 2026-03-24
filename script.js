@@ -828,7 +828,7 @@ function renderBossSummaryTable() {
     const lastUpdatedCell = `<span class="last-updated-box">${formatUpdatedAt(member.updated_at)}</span>`;
 
     return `
-      <tr>
+      <tr class="${rowClass}">
         <td>${index + 1}</td>
         <td>${escapeHtml(member.name)}</td>
         <td>${powerCell}</td>
@@ -942,7 +942,7 @@ function renderAccessorySummaryTable() {
     const lastUpdatedCell = `<span class="last-updated-box">${formatUpdatedAt(getAccessoryLatestUpdatedAt(member.id))}</span>`;
 
     return `
-      <tr>
+      <tr class="${rowClass}">
         <td>${index + 1}</td>
         <td>${escapeHtml(member.name)}</td>
         <td>${powerCell}</td>
