@@ -225,6 +225,26 @@ button {
   background: #f8fafc;
 }
 
+.summary-table tbody tr.power-zero-row,
+.manage-table tbody tr.power-zero-row {
+  background: #fef2f2;
+}
+
+.summary-table tbody tr.power-zero-row td,
+.manage-table tbody tr.power-zero-row td {
+  background: #fef2f2;
+}
+
+.summary-table tbody tr.power-zero-row:hover,
+.manage-table tbody tr.power-zero-row:hover {
+  background: #fee2e2;
+}
+
+.summary-table tbody tr.power-zero-row:hover td,
+.manage-table tbody tr.power-zero-row:hover td {
+  background: #fee2e2;
+}
+
 .badge {
   display: inline-flex;
   align-items: center;
@@ -1280,6 +1300,20 @@ button {
   .manage-table tbody tr:hover td:nth-child(1),
   .manage-table tbody tr:hover td:nth-child(2) {
     background: #f8fafc;
+  }
+
+  .summary-table tbody tr.power-zero-row td:nth-child(1),
+  .summary-table tbody tr.power-zero-row td:nth-child(2),
+  .manage-table tbody tr.power-zero-row td:nth-child(1),
+  .manage-table tbody tr.power-zero-row td:nth-child(2) {
+    background: #fef2f2;
+  }
+
+  .summary-table tbody tr.power-zero-row:hover td:nth-child(1),
+  .summary-table tbody tr.power-zero-row:hover td:nth-child(2),
+  .manage-table tbody tr.power-zero-row:hover td:nth-child(1),
+  .manage-table tbody tr.power-zero-row:hover td:nth-child(2) {
+    background: #fee2e2;
   }
 }
 

@@ -666,6 +666,7 @@ function renderPowerSummaryTable() {
 
   el.summaryTableBody.innerHTML = filteredMembers.map((member, index) => {
     const isEditable = isMemberEditable(member.id);
+    const rowClass = Number(member.power ?? 0) === 0 ? "power-zero-row" : "";
 
     const powerCell = isEditable
       ? `<input class="inline-power-input" type="number" min="0" step="1" data-role="power-input" data-member-id="${member.id}" value="${escapeAttr(getMemberDraftPower(member))}">`
@@ -680,7 +681,7 @@ function renderPowerSummaryTable() {
     const lastUpdatedCell = `<span class="last-updated-box">${formatUpdatedAt(member.updated_at)}</span>`;
 
     return `
-      <tr>
+      <tr class="${rowClass}">
         <td>${index + 1}</td>
         <td>${escapeHtml(member.name)}</td>
         <td>${powerCell}</td>
@@ -722,6 +723,7 @@ function renderMountSummaryTable() {
 
   el.summaryTableBody.innerHTML = filteredMembers.map((member, index) => {
     const isEditable = isMemberEditable(member.id);
+    const rowClass = Number(member.power ?? 0) === 0 ? "power-zero-row" : "";
 
     const powerCell = `<span class="value-box">${member.power ?? 0}</span>`;
 
@@ -752,7 +754,7 @@ function renderMountSummaryTable() {
     const lastUpdatedCell = `<span class="last-updated-box">${formatUpdatedAt(member.updated_at)}</span>`;
 
     return `
-      <tr>
+      <tr class="${rowClass}">
         <td>${index + 1}</td>
         <td>${escapeHtml(member.name)}</td>
         <td>${powerCell}</td>
@@ -795,6 +797,7 @@ function renderBossSummaryTable() {
 
   el.summaryTableBody.innerHTML = filteredMembers.map((member, index) => {
     const isEditable = isMemberEditable(member.id);
+    const rowClass = Number(member.power ?? 0) === 0 ? "power-zero-row" : "";
 
     const powerCell = `<span class="value-box">${member.power ?? 0}</span>`;
 
@@ -895,6 +898,7 @@ function renderAccessorySummaryTable() {
 
   el.summaryTableBody.innerHTML = filteredMembers.map((member, index) => {
     const isEditable = isMemberEditable(member.id);
+    const rowClass = Number(member.power ?? 0) === 0 ? "power-zero-row" : "";
 
     const powerCell = `<span class="value-box">${member.power ?? 0}</span>`;
 
