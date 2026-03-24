@@ -962,11 +962,12 @@ button {
 
   .actions-below-table {
     width: 100%;
-    align-items: flex-start;
-    gap: 8px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 12px;
     margin-top: 12px;
     margin-bottom: 4px;
-    flex-wrap: nowrap;
   }
 
   .below-table-left-actions {
@@ -974,14 +975,16 @@ button {
     flex: 0 0 auto;
     justify-content: flex-start;
     gap: 6px;
+    justify-self: start;
   }
 
   .top-actions.actions-below-table-right {
-    flex: 1 1 auto;
     width: auto;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 6px;
+    justify-self: end;
+    display: inline-flex;
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    gap: 5px;
   }
 
   .below-table-left-actions .btn {
@@ -992,10 +995,10 @@ button {
   }
 
   .top-actions.actions-below-table-right .btn {
-    width: 100%;
-    min-width: 0;
-    padding: 8px 8px;
-    font-size: 12px;
+    width: auto;
+    min-width: 58px;
+    padding: 7px 8px;
+    font-size: 11px;
     border-radius: 8px;
     white-space: nowrap;
   }
@@ -1034,7 +1037,8 @@ button {
   }
 
   .actions-below-table {
-    gap: 6px;
+    grid-template-columns: auto 1fr;
+    gap: 10px;
   }
 
   .below-table-left-actions .btn {
@@ -1044,13 +1048,14 @@ button {
   }
 
   .top-actions.actions-below-table-right {
-    gap: 5px;
+    gap: 4px;
   }
 
   .top-actions.actions-below-table-right .btn {
-    padding: 7px 6px;
-    font-size: 11px;
-    letter-spacing: -0.2px;
+    min-width: 54px;
+    padding: 6px 7px;
+    font-size: 10px;
+    letter-spacing: -0.3px;
   }
 }
 
