@@ -1098,14 +1098,6 @@ async function persistBossRow(memberId, draftRow, power) {
     updated_at: now
   }));
 
-  logBossDebug("saveBossEditableRow.payload", {
-    memberId,
-    memberName: getBossDebugMemberName(memberId),
-    overallEditMode: state.overallEditMode,
-    draftOwnedMap: { ...(draftRow?.ownedMap ?? {}) },
-    upsertPayload
-  });
-
   const upsertRes = await supabase
     .from("member_boss_collections")
     .upsert(upsertPayload, { onConflict: "member_id,boss_collection_id" });
