@@ -321,6 +321,57 @@ button {
   display: none;
 }
 
+.bulk-save-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.42);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 2000;
+}
+
+.bulk-save-overlay-card {
+  width: min(420px, calc(100vw - 40px));
+  background: #ffffff;
+  border-radius: 18px;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.22);
+  padding: 28px 24px;
+  text-align: center;
+}
+
+.bulk-save-title {
+  margin: 0 0 18px;
+  color: #111827;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.bulk-save-progress {
+  width: 100%;
+  height: 16px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  overflow: hidden;
+}
+
+.bulk-save-progress-fill {
+  width: 0%;
+  height: 100%;
+  border-radius: 999px;
+  background: #2563eb;
+  transition: width 0.18s ease;
+}
+
+.bulk-save-percent {
+  margin: 16px 0 0;
+  color: #2563eb;
+  font-size: 24px;
+  font-weight: 800;
+}
+
+
 .modal {
   width: 100%;
   max-width: 480px;
@@ -1073,4 +1124,25 @@ button {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+}
+
+
+@media (max-width: 768px) {
+  .bulk-save-overlay-card {
+    width: min(360px, calc(100vw - 32px));
+    border-radius: 16px;
+    padding: 24px 18px;
+  }
+
+  .bulk-save-title {
+    font-size: 18px;
+  }
+
+  .bulk-save-progress {
+    height: 14px;
+  }
+
+  .bulk-save-percent {
+    font-size: 22px;
+  }
 }

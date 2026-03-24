@@ -32,7 +32,9 @@ const state = {
   draftAllRows: {},
   overallEditMode: false,
   powerSortDirection: null,
-  hiddenAccessoryGroupIds: {}
+  hiddenAccessoryGroupIds: {},
+  isBulkSaving: false,
+  bulkSaveProgress: 0
 };
 
 const el = {};
@@ -83,6 +85,9 @@ function bindElements() {
   el.itemManageTableBody = document.getElementById("itemManageTableBody");
   el.addItemBtn = document.getElementById("addItemBtn");
   el.itemManageCloseBtn = document.getElementById("itemManageCloseBtn");
+  el.bulkSaveOverlay = document.getElementById("bulkSaveOverlay");
+  el.bulkSavePercent = document.getElementById("bulkSavePercent");
+  el.bulkSaveBarFill = document.getElementById("bulkSaveBarFill");
 }
 
 function bindEvents() {
@@ -172,9 +177,14 @@ function updateTabUi() {
   el.bulkEditBtn.classList.toggle("hidden", state.overallEditMode);
   el.bulkSaveBtn.classList.toggle("hidden", !state.overallEditMode);
   el.bulkCancelBtn.classList.toggle("hidden", !state.overallEditMode);
-  el.bulkSaveBtn.disabled = isSpecial;
-  el.bulkCancelBtn.disabled = isSpecial;
-  el.itemManageBtn.disabled = isSpecial;
+  el.bulkSaveBtn.disabled = isSpecial || state.isBulkSaving;
+  el.bulkCancelBtn.disabled = isSpecial || state.isBulkSaving;
+  el.itemManageBtn.disabled = isSpecial || state.isBulkSaving;
+  el.guildManageBtn.disabled = isSpecial || state.isBulkSaving;
+  el.bulkEditBtn.disabled = isSpecial || state.isBulkSaving;
+  el.searchBtn.disabled = isSpecial || state.isBulkSaving;
+  el.resetBtn.disabled = isSpecial || state.isBulkSaving;
+  el.searchInput.disabled = isSpecial || state.isBulkSaving;
   el.itemManageBtn.textContent = isAccessory ? "악세사리 관리" : isBoss ? "보스컬렉 관리" : "탈것 관리";
   el.itemManageTitle.textContent = isAccessory ? "악세사리 관리" : isBoss ? "보스컬렉 관리" : "탈것 관리";
   el.itemNameHeader.textContent = isAccessory ? "악세사리명" : isBoss ? "보스컬렉명" : "탈것명";
@@ -507,6 +517,20 @@ function handleBulkCancelButtonClick() {
   renderAll();
 }
 
+function setBulkSaveProgress(percent) {
+  const safePercent = Math.max(0, Math.min(100, Math.round(Number(percent) || 0)));
+  state.bulkSaveProgress = safePercent;
+  renderBulkSaveOverlay();
+}
+
+function renderBulkSaveOverlay() {
+  if (!el.bulkSaveOverlay || !el.bulkSavePercent || !el.bulkSaveBarFill) return;
+
+  el.bulkSaveOverlay.classList.toggle("hidden", !state.isBulkSaving);
+  el.bulkSavePercent.textContent = `${state.bulkSaveProgress}%`;
+  el.bulkSaveBarFill.style.width = `${state.bulkSaveProgress}%`;
+}
+
 function renderAll() {
   updateTabUi();
 
@@ -520,6 +544,7 @@ function renderAll() {
   renderSummaryTable();
   renderGuildManageTable();
   renderItemManageTable();
+  renderBulkSaveOverlay();
 }
 
 function renderGuideText() {
@@ -1108,7 +1133,7 @@ async function persistBossRow(memberId, draftRow, power) {
 }
 
 async function saveAllOverallEdits() {
-  if (!state.overallEditMode) return;
+  if (!state.overallEditMode || state.isBulkSaving) return;
 
   const memberIds = Object.keys(state.draftAllRows);
   if (memberIds.length === 0) {
@@ -1116,8 +1141,13 @@ async function saveAllOverallEdits() {
     return;
   }
 
+  state.isBulkSaving = true;
+  setBulkSaveProgress(0);
+  updateTabUi();
+
   try {
-    for (const memberId of memberIds) {
+    for (let index = 0; index < memberIds.length; index += 1) {
+      const memberId = memberIds[index];
       const draftRow = ensureDraftRow(memberId);
       const power = Number(draftRow?.power);
 
@@ -1132,6 +1162,8 @@ async function saveAllOverallEdits() {
       } else {
         await persistMountRow(memberId, draftRow, power);
       }
+
+      setBulkSaveProgress(((index + 1) / memberIds.length) * 100);
     }
 
     resetOverallEditMode();
@@ -1148,6 +1180,10 @@ async function saveAllOverallEdits() {
     alert("저장되었습니다.");
   } catch (error) {
     alert(error.message);
+  } finally {
+    setBulkSaveProgress(100);
+    state.isBulkSaving = false;
+    renderAll();
   }
 }
 
