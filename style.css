@@ -1235,6 +1235,8 @@ button {
     max-width: 60px;
     background: #ffffff;
     box-shadow: 1px 0 0 #e5e7eb;
+    overflow: hidden;
+    background-clip: padding-box;
   }
 
   .summary-table tbody td:nth-child(2),
@@ -1247,6 +1249,8 @@ button {
     max-width: 140px;
     background: #ffffff;
     box-shadow: 2px 0 0 #d1d5db;
+    overflow: hidden;
+    background-clip: padding-box;
   }
 
   .summary-table thead tr:first-child th:nth-child(1),
@@ -1259,6 +1263,8 @@ button {
     max-width: 60px;
     background: #f9fafb;
     box-shadow: 1px 0 0 #e5e7eb;
+    overflow: hidden;
+    background-clip: padding-box;
   }
 
   .summary-table thead tr:first-child th:nth-child(2),
@@ -1271,6 +1277,8 @@ button {
     max-width: 140px;
     background: #f9fafb;
     box-shadow: 2px 0 0 #d1d5db;
+    overflow: hidden;
+    background-clip: padding-box;
   }
 
   .summary-table tbody tr:hover td:nth-child(1),
