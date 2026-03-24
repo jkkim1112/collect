@@ -14,7 +14,7 @@ const ACCESSORY_PARTS = [
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const state = {
-  activeTab: "mount",
+  activeTab: "power",
   pendingManageType: null,
   members: [],
   mountItems: [],
@@ -26,6 +26,7 @@ const state = {
   searchTerm: "",
   selectedMemberId: null,
   draftMemberId: null,
+  draftTab: null,
   draftPower: "",
   draftOwnedMap: {},
   draftAccessoryMap: {},
@@ -169,9 +170,9 @@ function updateTabUi() {
   });
 
   const isSpecial = state.activeTab === "special";
-  const isPower = state.activeTab === "power";
   const isAccessory = state.activeTab === "accessory";
   const isBoss = state.activeTab === "boss";
+  const isPower = state.activeTab === "power";
 
   el.guildManageBtn.disabled = isSpecial;
   el.bulkEditBtn.disabled = isSpecial;
@@ -186,7 +187,7 @@ function updateTabUi() {
   el.searchBtn.disabled = isSpecial || state.isBulkSaving;
   el.resetBtn.disabled = isSpecial || state.isBulkSaving;
   el.searchInput.disabled = isSpecial || state.isBulkSaving;
-  el.itemManageBtn.classList.toggle("hidden", isSpecial || isPower);
+  el.itemManageBtn.classList.toggle("hidden", isPower);
   el.itemManageBtn.textContent = isAccessory ? "악세사리 관리" : isBoss ? "보스컬렉 관리" : "탈것 관리";
   el.itemManageTitle.textContent = isAccessory ? "악세사리 관리" : isBoss ? "보스컬렉 관리" : "탈것 관리";
   el.itemNameHeader.textContent = isAccessory ? "악세사리명" : isBoss ? "보스컬렉명" : "탈것명";
@@ -439,15 +440,17 @@ function syncDraftState() {
 
   if (!editableMember) {
     state.draftMemberId = null;
+    state.draftTab = null;
     state.draftPower = "";
     state.draftOwnedMap = {};
     state.draftAccessoryMap = {};
     return;
   }
 
-  if (state.draftMemberId === editableMember.id) return;
+  if (state.draftMemberId === editableMember.id && state.draftTab === state.activeTab) return;
 
   state.draftMemberId = editableMember.id;
+  state.draftTab = state.activeTab;
   state.draftPower = String(editableMember.power ?? 0);
   state.draftOwnedMap = {};
   state.draftAccessoryMap = {};
@@ -463,10 +466,6 @@ function syncDraftState() {
         state.draftAccessoryMap[group.id][part.key] = Number(record?.[part.key] ?? 0);
       });
     });
-    return;
-  }
-
-  if (state.activeTab === "power") {
     return;
   }
 
@@ -496,7 +495,7 @@ function ensureDraftRow(memberId) {
           row.accessoryMap[group.id][part.key] = Number(record?.[part.key] ?? 0);
         });
       });
-    } else if (state.activeTab !== "power") {
+    } else {
       const simpleItems = getSimpleItems();
       const simpleRecords = getSimpleMemberRecords();
       const simpleItemKey = getSimpleItemForeignKey();
@@ -668,7 +667,9 @@ function renderPowerSummaryTable() {
   el.summaryTableBody.innerHTML = filteredMembers.map((member, index) => {
     const isEditable = isMemberEditable(member.id);
 
-    const powerCell = `<span class="value-box">${member.power ?? 0}</span>`;
+    const powerCell = isEditable
+      ? `<input class="inline-power-input" type="number" min="0" step="1" data-role="power-input" data-member-id="${member.id}" value="${escapeAttr(getMemberDraftPower(member))}">`
+      : `<span class="value-box">${member.power ?? 0}</span>`;
 
     const saveCell = state.overallEditMode
       ? `<span class="notice-text action-box">일괄</span>`
@@ -895,9 +896,7 @@ function renderAccessorySummaryTable() {
   el.summaryTableBody.innerHTML = filteredMembers.map((member, index) => {
     const isEditable = isMemberEditable(member.id);
 
-    const powerCell = isEditable
-      ? `<input class="inline-power-input" type="number" min="0" step="1" data-role="power-input" data-member-id="${member.id}" value="${escapeAttr(getMemberDraftPower(member))}">`
-      : `<span class="value-box">${member.power ?? 0}</span>`;
+    const powerCell = `<span class="value-box">${member.power ?? 0}</span>`;
 
     const groupCells = state.accessoryGroups.map((group) => {
       const record = getAccessoryRecord(member.id, group.id);
@@ -1028,8 +1027,8 @@ function renderGuildManageTable() {
 }
 
 function renderItemManageTable() {
-  const items = state.activeTab === "accessory" ? state.accessoryGroups : state.activeTab === "boss" ? state.bossItems : state.activeTab === "power" ? [] : state.mountItems;
-  const emptyText = state.activeTab === "accessory" ? "등록된 악세사리가 없습니다." : state.activeTab === "boss" ? "등록된 보스컬렉이 없습니다." : state.activeTab === "power" ? "등록된 항목이 없습니다." : "등록된 탈것이 없습니다.";
+  const items = state.activeTab === "accessory" ? state.accessoryGroups : state.activeTab === "boss" ? state.bossItems : state.mountItems;
+  const emptyText = state.activeTab === "accessory" ? "등록된 악세사리가 없습니다." : state.activeTab === "boss" ? "등록된 보스컬렉이 없습니다." : "등록된 탈것이 없습니다.";
 
   if (items.length === 0) {
     el.itemManageTableBody.innerHTML = `<tr><td colspan="${state.activeTab === "accessory" ? 4 : 3}">${emptyText}</td></tr>`;
@@ -1171,7 +1170,7 @@ async function persistPowerRow(memberId, draftRow, power) {
   await updateMemberPower(memberId, power, new Date().toISOString());
 }
 
-async function persistMountRow(memberId, draftRow, power) {
+async function persistMountRow(memberId, draftRow) {
   const upsertPayload = state.mountItems.map((item) => ({
     member_id: memberId,
     mount_id: item.id,
@@ -1187,7 +1186,7 @@ async function persistMountRow(memberId, draftRow, power) {
   }
 }
 
-async function persistAccessoryRow(memberId, draftRow, power) {
+async function persistAccessoryRow(memberId, draftRow) {
   const now = new Date().toISOString();
 
   const upsertPayload = state.accessoryGroups.map((group) => {
@@ -1215,7 +1214,7 @@ async function persistAccessoryRow(memberId, draftRow, power) {
   }
 }
 
-async function persistBossRow(memberId, draftRow, power) {
+async function persistBossRow(memberId, draftRow) {
   const now = new Date().toISOString();
 
   const upsertPayload = state.bossItems.map((item) => ({
@@ -1253,18 +1252,17 @@ async function saveAllOverallEdits() {
       const draftRow = ensureDraftRow(memberId);
       const power = Number(draftRow?.power);
 
-      if (!Number.isFinite(power) || power < 0) {
-        throw new Error("전투력을 올바르게 입력해주세요.");
-      }
-
       if (state.activeTab === "power") {
+        if (!Number.isFinite(power) || power < 0) {
+          throw new Error("전투력을 올바르게 입력해주세요.");
+        }
         await persistPowerRow(memberId, draftRow, power);
       } else if (state.activeTab === "accessory") {
-        await persistAccessoryRow(memberId, draftRow, power);
+        await persistAccessoryRow(memberId, draftRow);
       } else if (state.activeTab === "boss") {
-        await persistBossRow(memberId, draftRow, power);
+        await persistBossRow(memberId, draftRow);
       } else {
-        await persistMountRow(memberId, draftRow, power);
+        await persistMountRow(memberId, draftRow);
       }
 
       setBulkSaveProgress(((index + 1) / memberIds.length) * 100);
@@ -1329,14 +1327,8 @@ async function saveMountEditableRow(memberId) {
   const draftRow = state.overallEditMode
     ? ensureDraftRow(memberId)
     : { power: state.draftPower, ownedMap: { ...state.draftOwnedMap } };
-  const power = Number(draftRow?.power);
-  if (!Number.isFinite(power) || power < 0) {
-    alert("전투력을 올바르게 입력해주세요.");
-    return;
-  }
-
   try {
-    await persistMountRow(memberId, draftRow, power);
+    await persistMountRow(memberId, draftRow);
   } catch (error) {
     alert(error.message);
     return;
@@ -1359,14 +1351,8 @@ async function saveAccessoryEditableRow(memberId) {
   const draftRow = state.overallEditMode
     ? ensureDraftRow(memberId)
     : { power: state.draftPower, accessoryMap: structuredClone(state.draftAccessoryMap) };
-  const power = Number(draftRow?.power);
-  if (!Number.isFinite(power) || power < 0) {
-    alert("전투력을 올바르게 입력해주세요.");
-    return;
-  }
-
   try {
-    await persistAccessoryRow(memberId, draftRow, power);
+    await persistAccessoryRow(memberId, draftRow);
   } catch (error) {
     alert(error.message);
     return;
@@ -1389,14 +1375,8 @@ async function saveBossEditableRow(memberId) {
   const draftRow = state.overallEditMode
     ? ensureDraftRow(memberId)
     : { power: state.draftPower, ownedMap: { ...state.draftOwnedMap } };
-  const power = Number(draftRow?.power);
-  if (!Number.isFinite(power) || power < 0) {
-    alert("전투력을 올바르게 입력해주세요.");
-    return;
-  }
-
   try {
-    await persistBossRow(memberId, draftRow, power);
+    await persistBossRow(memberId, draftRow);
   } catch (error) {
     alert(error.message);
     return;
@@ -1416,6 +1396,7 @@ async function saveBossEditableRow(memberId) {
 function resetSearchState() {
   state.searchTerm = "";
   state.selectedMemberId = null;
+  state.draftTab = null;
   el.searchInput.value = "";
 }
 
