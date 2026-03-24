@@ -1192,3 +1192,88 @@ button {
 .bulk-save-overlay.hidden {
   display: none;
 }
+
+
+@media (min-width: 769px) {
+  .app {
+    max-width: 1520px;
+  }
+
+  .table-wrap {
+    max-height: 68vh;
+  }
+
+  .summary-table {
+    min-width: 920px;
+  }
+
+  .manage-table {
+    min-width: 980px;
+  }
+
+  .summary-table thead th,
+  .manage-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: #f9fafb;
+  }
+
+  .summary-table th:nth-child(1),
+  .summary-table td:nth-child(1),
+  .manage-table th:nth-child(1),
+  .manage-table td:nth-child(1) {
+    position: sticky;
+    left: 0;
+    z-index: 11;
+    background: #ffffff;
+  }
+
+  .summary-table thead th:nth-child(1),
+  .manage-table thead th:nth-child(1) {
+    z-index: 31;
+    background: #f9fafb;
+  }
+
+  .summary-table th:nth-child(2),
+  .summary-table td:nth-child(2),
+  .manage-table th:nth-child(2),
+  .manage-table td:nth-child(2) {
+    position: sticky;
+    left: 56px;
+    z-index: 12;
+    background: #ffffff;
+  }
+
+  .summary-table thead th:nth-child(2),
+  .manage-table thead th:nth-child(2) {
+    z-index: 32;
+    background: #f9fafb;
+  }
+
+  .summary-table tbody tr:hover td:nth-child(1),
+  .summary-table tbody tr:hover td:nth-child(2),
+  .manage-table tbody tr:hover td:nth-child(1),
+  .manage-table tbody tr:hover td:nth-child(2) {
+    background: #f8fafc;
+  }
+
+  .summary-table th:nth-child(1),
+  .summary-table td:nth-child(1),
+  .manage-table th:nth-child(1),
+  .manage-table td:nth-child(1),
+  .summary-table th:nth-child(2),
+  .summary-table td:nth-child(2),
+  .manage-table th:nth-child(2),
+  .manage-table td:nth-child(2) {
+    box-shadow: 1px 0 0 #e5e7eb;
+  }
+
+  .summary-table th:nth-child(2),
+  .summary-table td:nth-child(2),
+  .manage-table th:nth-child(2),
+  .manage-table td:nth-child(2) {
+    min-width: 120px;
+  }
+}
+
