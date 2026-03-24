@@ -1200,21 +1200,7 @@ button {
   }
 
   .table-wrap {
-    position: relative;
     max-height: 68vh;
-  }
-
-  .table-wrap::before {
-    content: "";
-    position: sticky;
-    left: 0;
-    top: 0;
-    display: block;
-    width: 24px;
-    height: 100%;
-    background: #ffffff;
-    z-index: 35;
-    pointer-events: none;
   }
 
   .summary-table {
@@ -1243,48 +1229,56 @@ button {
   .manage-table tbody td:nth-child(1) {
     position: sticky;
     left: 0;
-    z-index: 40;
+    z-index: 11;
     width: 60px;
     min-width: 60px;
     max-width: 60px;
     background: #ffffff;
     box-shadow: 1px 0 0 #e5e7eb;
+    overflow: hidden;
+    background-clip: padding-box;
   }
 
   .summary-table tbody td:nth-child(2),
   .manage-table tbody td:nth-child(2) {
     position: sticky;
     left: 60px;
-    z-index: 41;
+    z-index: 12;
     width: 140px;
     min-width: 140px;
     max-width: 140px;
     background: #ffffff;
     box-shadow: 2px 0 0 #d1d5db;
+    overflow: hidden;
+    background-clip: padding-box;
   }
 
   .summary-table thead tr:first-child th:nth-child(1),
   .manage-table thead tr:first-child th:nth-child(1) {
     position: sticky;
     left: 0;
-    z-index: 50;
+    z-index: 31;
     width: 60px;
     min-width: 60px;
     max-width: 60px;
     background: #f9fafb;
     box-shadow: 1px 0 0 #e5e7eb;
+    overflow: hidden;
+    background-clip: padding-box;
   }
 
   .summary-table thead tr:first-child th:nth-child(2),
   .manage-table thead tr:first-child th:nth-child(2) {
     position: sticky;
     left: 60px;
-    z-index: 51;
+    z-index: 32;
     width: 140px;
     min-width: 140px;
     max-width: 140px;
     background: #f9fafb;
     box-shadow: 2px 0 0 #d1d5db;
+    overflow: hidden;
+    background-clip: padding-box;
   }
 
   .summary-table tbody tr:hover td:nth-child(1),
@@ -1295,3 +1289,33 @@ button {
   }
 }
 
+
+@media (min-width: 769px) {
+  .summary-table tbody td:nth-child(1),
+  .manage-table tbody td:nth-child(1),
+  .summary-table thead tr:first-child th:nth-child(1),
+  .manage-table thead tr:first-child th:nth-child(1) {
+    z-index: 60 !important;
+    position: sticky;
+    left: 0;
+  }
+
+  .summary-table tbody td:nth-child(1)::before,
+  .manage-table tbody td:nth-child(1)::before,
+  .summary-table thead tr:first-child th:nth-child(1)::before,
+  .manage-table thead tr:first-child th:nth-child(1)::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -24px;
+    width: 24px;
+    background: inherit;
+    pointer-events: none;
+  }
+
+  .summary-table thead tr:first-child th:nth-child(1)::before,
+  .manage-table thead tr:first-child th:nth-child(1)::before {
+    background: #f9fafb;
+  }
+}
