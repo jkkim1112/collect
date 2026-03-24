@@ -1200,7 +1200,21 @@ button {
   }
 
   .table-wrap {
+    position: relative;
     max-height: 68vh;
+  }
+
+  .table-wrap::before {
+    content: "";
+    position: sticky;
+    left: 0;
+    top: 0;
+    display: block;
+    width: 24px;
+    height: 100%;
+    background: #ffffff;
+    z-index: 35;
+    pointer-events: none;
   }
 
   .summary-table {
@@ -1229,7 +1243,7 @@ button {
   .manage-table tbody td:nth-child(1) {
     position: sticky;
     left: 0;
-    z-index: 11;
+    z-index: 40;
     width: 60px;
     min-width: 60px;
     max-width: 60px;
@@ -1241,7 +1255,7 @@ button {
   .manage-table tbody td:nth-child(2) {
     position: sticky;
     left: 60px;
-    z-index: 12;
+    z-index: 41;
     width: 140px;
     min-width: 140px;
     max-width: 140px;
@@ -1253,7 +1267,7 @@ button {
   .manage-table thead tr:first-child th:nth-child(1) {
     position: sticky;
     left: 0;
-    z-index: 31;
+    z-index: 50;
     width: 60px;
     min-width: 60px;
     max-width: 60px;
@@ -1265,7 +1279,7 @@ button {
   .manage-table thead tr:first-child th:nth-child(2) {
     position: sticky;
     left: 60px;
-    z-index: 32;
+    z-index: 51;
     width: 140px;
     min-width: 140px;
     max-width: 140px;
