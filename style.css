@@ -997,8 +997,8 @@ button {
   .top-actions.actions-below-table-right .btn {
     width: auto;
     min-width: 58px;
-    padding: 7px 8px;
-    font-size: 11px;
+    padding: 8px 10px;
+    font-size: 12px;
     border-radius: 8px;
     white-space: nowrap;
   }
@@ -1053,9 +1053,9 @@ button {
 
   .top-actions.actions-below-table-right .btn {
     min-width: 54px;
-    padding: 6px 7px;
-    font-size: 10px;
-    letter-spacing: -0.3px;
+    padding: 7px 9px;
+    font-size: 12px;
+    letter-spacing: 0;
   }
 }
 
