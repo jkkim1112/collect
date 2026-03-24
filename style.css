@@ -1146,3 +1146,7 @@ button {
     font-size: 22px;
   }
 }
+
+.bulk-save-overlay.hidden {
+  display: none;
+}
