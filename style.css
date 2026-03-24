@@ -1225,10 +1225,8 @@ button {
     background: #f9fafb;
   }
 
-  .summary-table th:nth-child(1),
-  .summary-table td:nth-child(1),
-  .manage-table th:nth-child(1),
-  .manage-table td:nth-child(1) {
+  .summary-table tbody td:nth-child(1),
+  .manage-table tbody td:nth-child(1) {
     position: sticky;
     left: 0;
     z-index: 11;
@@ -1236,18 +1234,11 @@ button {
     min-width: 60px;
     max-width: 60px;
     background: #ffffff;
+    box-shadow: 1px 0 0 #e5e7eb;
   }
 
-  .summary-table thead th:nth-child(1),
-  .manage-table thead th:nth-child(1) {
-    z-index: 31;
-    background: #f9fafb;
-  }
-
-  .summary-table th:nth-child(2),
-  .summary-table td:nth-child(2),
-  .manage-table th:nth-child(2),
-  .manage-table td:nth-child(2) {
+  .summary-table tbody td:nth-child(2),
+  .manage-table tbody td:nth-child(2) {
     position: sticky;
     left: 60px;
     z-index: 12;
@@ -1255,12 +1246,31 @@ button {
     min-width: 140px;
     max-width: 140px;
     background: #ffffff;
+    box-shadow: 2px 0 0 #d1d5db;
   }
 
-  .summary-table thead th:nth-child(2),
-  .manage-table thead th:nth-child(2) {
-    z-index: 32;
+  .summary-table thead tr:first-child th:nth-child(1),
+  .manage-table thead tr:first-child th:nth-child(1) {
+    position: sticky;
+    left: 0;
+    z-index: 31;
+    width: 60px;
+    min-width: 60px;
+    max-width: 60px;
     background: #f9fafb;
+    box-shadow: 1px 0 0 #e5e7eb;
+  }
+
+  .summary-table thead tr:first-child th:nth-child(2),
+  .manage-table thead tr:first-child th:nth-child(2) {
+    position: sticky;
+    left: 60px;
+    z-index: 32;
+    width: 140px;
+    min-width: 140px;
+    max-width: 140px;
+    background: #f9fafb;
+    box-shadow: 2px 0 0 #d1d5db;
   }
 
   .summary-table tbody tr:hover td:nth-child(1),
@@ -1268,20 +1278,6 @@ button {
   .manage-table tbody tr:hover td:nth-child(1),
   .manage-table tbody tr:hover td:nth-child(2) {
     background: #f8fafc;
-  }
-
-  .summary-table th:nth-child(1),
-  .summary-table td:nth-child(1),
-  .manage-table th:nth-child(1),
-  .manage-table td:nth-child(1) {
-    box-shadow: 1px 0 0 #e5e7eb;
-  }
-
-  .summary-table th:nth-child(2),
-  .summary-table td:nth-child(2),
-  .manage-table th:nth-child(2),
-  .manage-table td:nth-child(2) {
-    box-shadow: 2px 0 0 #d1d5db;
   }
 }
 
