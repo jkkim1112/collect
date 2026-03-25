@@ -35,8 +35,7 @@ const state = {
   powerSortDirection: "desc",
   hiddenAccessoryGroupIds: {},
   isBulkSaving: false,
-  bulkSaveProgress: 0,
-  importPreviewResult: null
+  bulkSaveProgress: 0
 };
 
 const el = {};
@@ -56,7 +55,6 @@ function bindElements() {
   el.bulkSaveBtn = document.getElementById("bulkSaveBtn");
   el.bulkCancelBtn = document.getElementById("bulkCancelBtn");
   el.itemManageBtn = document.getElementById("itemManageBtn");
-  el.importOpenBtn = document.getElementById("importOpenBtn");
   el.tableGuideText = document.getElementById("tableGuideText");
   el.searchInput = document.getElementById("searchInput");
   el.searchBtn = document.getElementById("searchBtn");
@@ -91,16 +89,6 @@ function bindElements() {
   el.bulkSaveOverlay = document.getElementById("bulkSaveOverlay");
   el.bulkSavePercent = document.getElementById("bulkSavePercent");
   el.bulkSaveBarFill = document.getElementById("bulkSaveBarFill");
-
-  el.importModalBackdrop = document.getElementById("importModalBackdrop");
-  el.importModalTitle = document.getElementById("importModalTitle");
-  el.importGuideText = document.getElementById("importGuideText");
-  el.importTextarea = document.getElementById("importTextarea");
-  el.importPreviewBox = document.getElementById("importPreviewBox");
-  el.importCloseBtn = document.getElementById("importCloseBtn");
-  el.importCancelBtn = document.getElementById("importCancelBtn");
-  el.importPreviewBtn = document.getElementById("importPreviewBtn");
-  el.importApplyBtn = document.getElementById("importApplyBtn");
 }
 
 function bindEvents() {
@@ -146,9 +134,6 @@ function bindEvents() {
   el.bulkSaveBtn.addEventListener("click", handleBulkSaveButtonClick);
   el.bulkCancelBtn.addEventListener("click", handleBulkCancelButtonClick);
   el.itemManageBtn.addEventListener("click", () => openPasswordModal("item"));
-  if (el.importOpenBtn) {
-    el.importOpenBtn.addEventListener("click", () => openPasswordModal("import"));
-  }
 
   el.passwordCancelBtn.addEventListener("click", closePasswordModal);
   el.passwordConfirmBtn.addEventListener("click", confirmPassword);
@@ -168,12 +153,7 @@ function bindEvents() {
   el.guildManageTableBody.addEventListener("click", handleGuildManageTableClick);
   el.itemManageTableBody.addEventListener("click", handleItemManageTableClick);
 
-  if (el.importPreviewBtn) el.importPreviewBtn.addEventListener("click", handleImportPreview);
-  if (el.importApplyBtn) el.importApplyBtn.addEventListener("click", handleImportApply);
-  if (el.importCancelBtn) el.importCancelBtn.addEventListener("click", closeImportModal);
-  if (el.importCloseBtn) el.importCloseBtn.addEventListener("click", closeImportModal);
-
-  [el.passwordModalBackdrop, el.guildManageModalBackdrop, el.itemManageModalBackdrop, el.searchSelectModalBackdrop, el.importModalBackdrop].filter(Boolean).forEach((backdrop) => {
+  [el.passwordModalBackdrop, el.guildManageModalBackdrop, el.itemManageModalBackdrop, el.searchSelectModalBackdrop].forEach((backdrop) => {
     backdrop.addEventListener("click", (event) => {
       if (event.target === backdrop) {
         closeModal(backdrop);
@@ -202,10 +182,6 @@ function updateTabUi() {
   el.bulkSaveBtn.disabled = isSpecial || state.isBulkSaving;
   el.bulkCancelBtn.disabled = isSpecial || state.isBulkSaving;
   el.itemManageBtn.disabled = isSpecial || isPower || state.isBulkSaving;
-  if (el.importOpenBtn) {
-    el.importOpenBtn.disabled = isSpecial || isPower || isAccessory || state.isBulkSaving;
-    el.importOpenBtn.classList.toggle("hidden", isPower || isAccessory);
-  }
   el.guildManageBtn.disabled = isSpecial || state.isBulkSaving;
   el.bulkEditBtn.disabled = isSpecial || state.isBulkSaving;
   el.searchBtn.disabled = isSpecial || state.isBulkSaving;
@@ -1469,10 +1445,6 @@ function confirmPassword() {
     renderAll();
   }
 
-  if (state.pendingManageType === "import") {
-    openImportModal();
-  }
-
   state.pendingManageType = null;
 }
 
@@ -2105,193 +2077,6 @@ function getAccessoryLatestUpdatedAt(memberId) {
   }, null);
 }
 
-function openImportModal() {
-  if (!el.importModalBackdrop || !el.importTextarea || !el.importPreviewBox || !el.importApplyBtn) return;
-  if (state.activeTab !== "mount" && state.activeTab !== "boss") {
-    alert("초기값 붙여넣기는 탈것 또는 보스컬렉 탭에서만 사용할 수 있습니다.");
-    return;
-  }
-
-  state.importPreviewResult = null;
-  el.importModalTitle.textContent = state.activeTab === "boss" ? "보스컬렉 초기값 붙여넣기" : "탈것 초기값 붙여넣기";
-  el.importGuideText.textContent = "첫 줄은 헤더, 첫 칸은 이름으로 붙여넣어주세요. 빈칸은 기존값을 유지합니다.";
-  el.importTextarea.value = "";
-  el.importPreviewBox.textContent = "미리보기를 눌러주세요.";
-  el.importPreviewBox.classList.remove("is-error");
-  el.importApplyBtn.disabled = true;
-  openModal(el.importModalBackdrop);
-  setTimeout(() => el.importTextarea.focus(), 0);
-}
-
-function closeImportModal() {
-  state.importPreviewResult = null;
-  if (el.importTextarea) el.importTextarea.value = "";
-  if (el.importPreviewBox) {
-    el.importPreviewBox.textContent = "미리보기를 눌러주세요.";
-    el.importPreviewBox.classList.remove("is-error");
-  }
-  if (el.importApplyBtn) el.importApplyBtn.disabled = true;
-  if (el.importModalBackdrop) closeModal(el.importModalBackdrop);
-}
-
-function parseOwnedImportValue(rawValue) {
-  const value = String(rawValue ?? "").trim();
-  if (!value) return { kind: "blank" };
-
-  const upper = value.toUpperCase();
-  if (["1", "TRUE", "보유", "O", "Y"].includes(upper) || ["보유"].includes(value)) return { kind: "value", owned: true };
-  if (["0", "FALSE", "미보유", "X", "N"].includes(upper) || ["미보유"].includes(value)) return { kind: "value", owned: false };
-
-  return { kind: "invalid", raw: value };
-}
-
-function getImportItemsForActiveTab() {
-  return state.activeTab === "boss" ? state.bossItems : state.mountItems;
-}
-
-function getImportRelationTableName() {
-  return state.activeTab === "boss" ? "member_boss_collections" : "member_mounts";
-}
-
-function getImportItemForeignKey() {
-  return state.activeTab === "boss" ? "boss_collection_id" : "mount_id";
-}
-
-function buildImportPreview() {
-  const rawText = String(el.importTextarea?.value ?? "").replace(//g, "").trim();
-  if (!rawText) {
-    return { ok: false, message: "붙여넣을 데이터를 입력해주세요." };
-  }
-
-  const lines = rawText.split("
-").map((line) => line.trimEnd()).filter((line) => line.trim() !== "");
-  if (lines.length < 2) {
-    return { ok: false, message: "헤더와 데이터 행을 함께 붙여넣어주세요." };
-  }
-
-  const headerCells = lines[0].split("	").map((cell) => cell.trim());
-  if (headerCells.length < 2) {
-    return { ok: false, message: "헤더에는 이름과 최소 1개 이상의 항목이 있어야 합니다." };
-  }
-
-  const itemMap = new Map(getImportItemsForActiveTab().map((item) => [String(item.name).trim(), item]));
-  const memberMap = new Map(state.members.map((member) => [String(member.name).trim(), member]));
-
-  const unknownHeaders = [];
-  const mappedHeaders = [];
-  for (let index = 1; index < headerCells.length; index += 1) {
-    const name = headerCells[index];
-    const item = itemMap.get(name) ?? null;
-    if (!item) unknownHeaders.push(name || `(빈 헤더 ${index + 1})`);
-    mappedHeaders.push(item);
-  }
-
-  const unknownMembers = [];
-  const invalidValues = [];
-  const upserts = [];
-  let appliedCellCount = 0;
-
-  for (let rowIndex = 1; rowIndex < lines.length; rowIndex += 1) {
-    const cells = lines[rowIndex].split("	");
-    const memberName = String(cells[0] ?? "").trim();
-    if (!memberName) continue;
-
-    const member = memberMap.get(memberName);
-    if (!member) {
-      unknownMembers.push(memberName);
-      continue;
-    }
-
-    for (let colIndex = 1; colIndex < headerCells.length; colIndex += 1) {
-      const item = mappedHeaders[colIndex - 1];
-      if (!item) continue;
-
-      const parsed = parseOwnedImportValue(cells[colIndex] ?? "");
-      if (parsed.kind === "blank") continue;
-
-      if (parsed.kind === "invalid") {
-        invalidValues.push(`${memberName} / ${headerCells[colIndex]} / ${parsed.raw}`);
-        continue;
-      }
-
-      const payload = { member_id: member.id, owned: parsed.owned, updated_at: new Date().toISOString() };
-      payload[getImportItemForeignKey()] = item.id;
-      upserts.push(payload);
-      appliedCellCount += 1;
-    }
-  }
-
-  const messages = [
-    `${state.activeTab === "boss" ? "보스컬렉" : "탈것"} 초기값 미리보기`,
-    `반영 예정 셀 수: ${appliedCellCount}건`,
-    `없는 항목 수: ${unknownHeaders.length}건`,
-    `없는 길드원 수: ${unknownMembers.length}건`,
-    `잘못된 값 수: ${invalidValues.length}건`
-  ];
-
-  if (unknownHeaders.length > 0) messages.push(`없는 항목: ${unknownHeaders.join(", ")}`);
-  if (unknownMembers.length > 0) messages.push(`없는 길드원: ${unknownMembers.join(", ")}`);
-  if (invalidValues.length > 0) messages.push(`잘못된 값: ${invalidValues.slice(0, 20).join(" | ")}`);
-  if (invalidValues.length > 20) messages.push(`잘못된 값이 더 있습니다: ${invalidValues.length - 20}건`);
-
-  if (appliedCellCount === 0) {
-    return { ok: false, message: messages.join("
-") + "
-적용할 값이 없습니다." };
-  }
-
-  if (invalidValues.length > 0) {
-    return { ok: false, message: messages.join("
-") + "
-잘못된 값을 수정한 뒤 다시 미리보기를 해주세요." };
-  }
-
-  return {
-    ok: true,
-    message: messages.join("
-"),
-    upserts
-  };
-}
-
-function handleImportPreview() {
-  if (!el.importPreviewBox || !el.importApplyBtn) return;
-
-  const preview = buildImportPreview();
-  state.importPreviewResult = preview.ok ? preview : null;
-  el.importPreviewBox.textContent = preview.message;
-  el.importPreviewBox.classList.toggle("is-error", !preview.ok);
-  el.importApplyBtn.disabled = !preview.ok;
-}
-
-async function handleImportApply() {
-  if (!state.importPreviewResult || !state.importPreviewResult.ok) {
-    alert("먼저 미리보기를 완료해주세요.");
-    return;
-  }
-
-  const upserts = state.importPreviewResult.upserts ?? [];
-  if (upserts.length === 0) {
-    alert("적용할 값이 없습니다.");
-    return;
-  }
-
-  const result = await supabase
-    .from(getImportRelationTableName())
-    .upsert(upserts, { onConflict: `member_id,${getImportItemForeignKey()}` });
-
-  if (result.error) {
-    alert(`초기값 적용 중 오류가 발생했습니다.
-${result.error.message}`);
-    return;
-  }
-
-  closeImportModal();
-  await loadActiveTabData();
-  renderAll();
-  alert("초기값이 적용되었습니다.");
-}
-
 function openModal(backdrop) {
   backdrop.classList.remove("hidden");
 }
@@ -2323,3 +2108,197 @@ function escapeHtml(value) {
 function escapeAttr(value) {
   return escapeHtml(value);
 }
+
+
+const importState = {
+  preview: null
+};
+
+document.addEventListener("DOMContentLoaded", () => {
+  initImportFeature();
+});
+
+function initImportFeature() {
+  const importBtn = document.getElementById("importInitBtn");
+  const importModalBackdrop = document.getElementById("importModalBackdrop");
+  const importModalTitle = document.getElementById("importModalTitle");
+  const importTextarea = document.getElementById("importTextarea");
+  const importPreviewBox = document.getElementById("importPreviewBox");
+  const importPreviewBtn = document.getElementById("importPreviewBtn");
+  const importApplyBtn = document.getElementById("importApplyBtn");
+  const importCancelBtn = document.getElementById("importCancelBtn");
+  const importCloseBtn = document.getElementById("importCloseBtn");
+
+  if (!importBtn || !importModalBackdrop || !importModalTitle || !importTextarea || !importPreviewBox || !importPreviewBtn || !importApplyBtn || !importCancelBtn || !importCloseBtn) {
+    return;
+  }
+
+  const syncImportButtonState = () => {
+    const visible = state.activeTab === "mount" || state.activeTab === "boss";
+    importBtn.classList.toggle("hidden", !visible);
+    importBtn.disabled = !visible || state.isBulkSaving;
+  };
+
+  const originalUpdateTabUi = updateTabUi;
+  updateTabUi = function () {
+    originalUpdateTabUi();
+    syncImportButtonState();
+  };
+  syncImportButtonState();
+
+  const closeImportModal = () => {
+    importState.preview = null;
+    importApplyBtn.disabled = true;
+    closeModal(importModalBackdrop);
+  };
+
+  const openImportModal = () => {
+    if (state.activeTab !== "mount" && state.activeTab !== "boss") {
+      alert("초기값 붙여넣기는 탈것 또는 보스컬렉 탭에서만 사용할 수 있습니다.");
+      return;
+    }
+
+    importState.preview = null;
+    importApplyBtn.disabled = true;
+    importModalTitle.textContent = state.activeTab === "boss" ? "보스컬렉 초기값 붙여넣기" : "탈것 초기값 붙여넣기";
+    importTextarea.value = "";
+    importPreviewBox.textContent = "미리보기 버튼을 누르면 반영 예정 내용을 확인할 수 있습니다.";
+    openModal(importModalBackdrop);
+    setTimeout(() => importTextarea.focus(), 0);
+  };
+
+  const parseImportOwnedValue = (raw) => {
+    const value = String(raw ?? "").trim();
+    if (!value) return { empty: true };
+
+    const normalized = value.toUpperCase();
+    if (value === "보유" || ["1", "TRUE", "O", "Y"].includes(normalized)) {
+      return { empty: false, valid: true, owned: true };
+    }
+    if (value === "미보유" || ["0", "FALSE", "X", "N"].includes(normalized)) {
+      return { empty: false, valid: true, owned: false };
+    }
+    return { empty: false, valid: false };
+  };
+
+  const buildImportPreview = () => {
+    const rawText = importTextarea.value.replace(/
+/g, "").trim();
+    if (!rawText) {
+      return { ok: false, message: "붙여넣은 내용이 없습니다." };
+    }
+
+    const lines = rawText.split("
+").map((line) => line.split("	"));
+    if (lines.length < 2) {
+      return { ok: false, message: "헤더와 데이터 행을 함께 붙여넣어주세요." };
+    }
+
+    const headers = lines[0].map((cell) => String(cell ?? "").trim());
+    if (headers.length < 2) {
+      return { ok: false, message: "항목 헤더가 부족합니다." };
+    }
+
+    const items = state.activeTab === "boss" ? state.bossItems : state.mountItems;
+    const itemIdKey = state.activeTab === "boss" ? "boss_collection_id" : "mount_id";
+    const tableName = state.activeTab === "boss" ? "member_boss_collections" : "member_mounts";
+    const itemMap = new Map(items.map((item) => [String(item.name ?? "").trim(), item]));
+    const memberMap = new Map(state.members.map((member) => [String(member.name ?? "").trim(), member]));
+
+    const headerItems = headers.slice(1);
+    const missingItems = [];
+    const mappedColumns = headerItems.map((name) => {
+      const item = itemMap.get(name);
+      if (!item) missingItems.push(name);
+      return item ?? null;
+    });
+
+    const missingMembers = [];
+    const invalidValues = [];
+    const upserts = [];
+
+    for (let rowIndex = 1; rowIndex < lines.length; rowIndex += 1) {
+      const row = lines[rowIndex];
+      const memberName = String(row[0] ?? "").trim();
+      if (!memberName) continue;
+
+      const member = memberMap.get(memberName);
+      if (!member) {
+        missingMembers.push(memberName);
+        continue;
+      }
+
+      for (let colIndex = 1; colIndex < headers.length; colIndex += 1) {
+        const item = mappedColumns[colIndex - 1];
+        const cellRaw = row[colIndex] ?? "";
+        const parsed = parseImportOwnedValue(cellRaw);
+
+        if (parsed.empty || !item) continue;
+        if (!parsed.valid) {
+          invalidValues.push(`${memberName} / ${headers[colIndex]} / ${String(cellRaw).trim()}`);
+          continue;
+        }
+
+        upserts.push({
+          member_id: member.id,
+          [itemIdKey]: item.id,
+          owned: parsed.owned
+        });
+      }
+    }
+
+    const linesOut = [
+      `반영 예정: ${upserts.length}건`,
+      `없는 항목: ${missingItems.length}건`,
+      `없는 길드원: ${missingMembers.length}건`,
+      `잘못된 값: ${invalidValues.length}건`
+    ];
+
+    if (missingItems.length > 0) linesOut.push(`없는 항목 목록: ${Array.from(new Set(missingItems)).join(", ")}`);
+    if (missingMembers.length > 0) linesOut.push(`없는 길드원 목록: ${Array.from(new Set(missingMembers)).join(", ")}`);
+    if (invalidValues.length > 0) linesOut.push(`잘못된 값 예시: ${invalidValues.slice(0, 10).join(" | ")}`);
+
+    return {
+      ok: invalidValues.length === 0 && upserts.length > 0,
+      message: linesOut.join("\n"),
+      upserts,
+      tableName,
+      conflictKeys: `member_id,${itemIdKey}`
+    };
+  };
+
+  importBtn.addEventListener("click", openImportModal);
+  importPreviewBtn.addEventListener("click", () => {
+    const preview = buildImportPreview();
+    importState.preview = preview.ok ? preview : null;
+    importPreviewBox.textContent = preview.message;
+    importApplyBtn.disabled = !preview.ok;
+  });
+
+  importApplyBtn.addEventListener("click", async () => {
+    if (!importState.preview || !Array.isArray(importState.preview.upserts) || importState.preview.upserts.length === 0) {
+      alert("먼저 미리보기를 확인해주세요.");
+      return;
+    }
+
+    const { error } = await supabase
+      .from(importState.preview.tableName)
+      .upsert(importState.preview.upserts, { onConflict: importState.preview.conflictKeys });
+
+    if (error) {
+      alert(`초기값 저장 중 오류가 발생했습니다.\n${error.message}`);
+      return;
+    }
+
+    closeImportModal();
+    await loadActiveTabData();
+    renderAll();
+    alert("초기값이 반영되었습니다.");
+  });
+
+  importCancelBtn.addEventListener("click", closeImportModal);
+  importCloseBtn.addEventListener("click", closeImportModal);
+  importModalBackdrop.addEventListener("click", (event) => {
+    if (event.target === importModalBackdrop) closeImportModal();
+  });
+};
