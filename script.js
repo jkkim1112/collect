@@ -36,7 +36,8 @@ const state = {
   hiddenAccessoryGroupIds: {},
   isBulkSaving: false,
   bulkSaveProgress: 0,
-  importPreviewResult: null
+  importPreviewResult: null,
+  importApplyPending: false
 };
 
 const el = {};
@@ -87,6 +88,10 @@ function bindElements() {
   el.itemManageTableBody = document.getElementById("itemManageTableBody");
   el.addItemBtn = document.getElementById("addItemBtn");
   el.itemManageCloseBtn = document.getElementById("itemManageCloseBtn");
+  el.bulkSaveOverlay = document.getElementById("bulkSaveOverlay");
+  el.bulkSavePercent = document.getElementById("bulkSavePercent");
+  el.bulkSaveBarFill = document.getElementById("bulkSaveBarFill");
+
   el.importOpenBtn = document.getElementById("importOpenBtn");
   el.importModalBackdrop = document.getElementById("importModalBackdrop");
   el.importCloseBtn = document.getElementById("importCloseBtn");
@@ -94,12 +99,8 @@ function bindElements() {
   el.importPreviewBtn = document.getElementById("importPreviewBtn");
   el.importApplyBtn = document.getElementById("importApplyBtn");
   el.importTextarea = document.getElementById("importTextarea");
-  el.importPreviewBox = document.getElementById("importPreviewBox");
+  el.importPreviewText = document.getElementById("importPreviewText");
   el.importGuideText = document.getElementById("importGuideText");
-  el.importTargetText = document.getElementById("importTargetText");
-  el.bulkSaveOverlay = document.getElementById("bulkSaveOverlay");
-  el.bulkSavePercent = document.getElementById("bulkSavePercent");
-  el.bulkSaveBarFill = document.getElementById("bulkSaveBarFill");
 }
 
 function bindEvents() {
@@ -145,7 +146,6 @@ function bindEvents() {
   el.bulkSaveBtn.addEventListener("click", handleBulkSaveButtonClick);
   el.bulkCancelBtn.addEventListener("click", handleBulkCancelButtonClick);
   el.itemManageBtn.addEventListener("click", () => openPasswordModal("item"));
-  el.importOpenBtn.addEventListener("click", () => openPasswordModal("import"));
 
   el.passwordCancelBtn.addEventListener("click", closePasswordModal);
   el.passwordConfirmBtn.addEventListener("click", confirmPassword);
@@ -158,10 +158,6 @@ function bindEvents() {
 
   el.guildManageCloseBtn.addEventListener("click", () => closeModal(el.guildManageModalBackdrop));
   el.itemManageCloseBtn.addEventListener("click", () => closeModal(el.itemManageModalBackdrop));
-  el.importCloseBtn.addEventListener("click", closeImportModal);
-  el.importCancelBtn.addEventListener("click", closeImportModal);
-  el.importPreviewBtn.addEventListener("click", handleImportPreview);
-  el.importApplyBtn.addEventListener("click", handleImportApply);
 
   el.addMemberBtn.addEventListener("click", addMember);
   el.addItemBtn.addEventListener("click", addItem);
@@ -169,7 +165,24 @@ function bindEvents() {
   el.guildManageTableBody.addEventListener("click", handleGuildManageTableClick);
   el.itemManageTableBody.addEventListener("click", handleItemManageTableClick);
 
-  [el.passwordModalBackdrop, el.guildManageModalBackdrop, el.itemManageModalBackdrop, el.searchSelectModalBackdrop, el.importModalBackdrop].forEach((backdrop) => {
+
+  if (el.importOpenBtn) {
+    el.importOpenBtn.addEventListener("click", handleImportOpenButtonClick);
+  }
+  if (el.importPreviewBtn) {
+    el.importPreviewBtn.addEventListener("click", handleImportPreview);
+  }
+  if (el.importApplyBtn) {
+    el.importApplyBtn.addEventListener("click", handleImportApply);
+  }
+  if (el.importCancelBtn) {
+    el.importCancelBtn.addEventListener("click", closeImportModal);
+  }
+  if (el.importCloseBtn) {
+    el.importCloseBtn.addEventListener("click", closeImportModal);
+  }
+
+  [el.passwordModalBackdrop, el.guildManageModalBackdrop, el.itemManageModalBackdrop, el.searchSelectModalBackdrop, el.importModalBackdrop].filter(Boolean).forEach((backdrop) => {
     backdrop.addEventListener("click", (event) => {
       if (event.target === backdrop) {
         closeModal(backdrop);
@@ -204,9 +217,12 @@ function updateTabUi() {
   el.resetBtn.disabled = isSpecial || state.isBulkSaving;
   el.searchInput.disabled = isSpecial || state.isBulkSaving;
   el.itemManageBtn.classList.toggle("hidden", isPower);
-  el.importOpenBtn.classList.toggle("hidden", isPower || isAccessory);
-  el.importOpenBtn.disabled = isSpecial || isPower || isAccessory || state.isBulkSaving;
   el.itemManageBtn.textContent = isAccessory ? "악세사리 관리" : isBoss ? "보스컬렉 관리" : "탈것 관리";
+  if (el.importOpenBtn) {
+    const canImport = !isSpecial && !isPower && !isAccessory;
+    el.importOpenBtn.disabled = !canImport || state.isBulkSaving;
+    el.importOpenBtn.classList.toggle("hidden", isPower || isAccessory);
+  }
   el.itemManageTitle.textContent = isAccessory ? "악세사리 관리" : isBoss ? "보스컬렉 관리" : "탈것 관리";
   el.itemNameHeader.textContent = isAccessory ? "악세사리명" : isBoss ? "보스컬렉명" : "탈것명";
   el.itemMaxHeader.classList.toggle("hidden", !isAccessory);
@@ -1415,6 +1431,168 @@ async function saveBossEditableRow(memberId) {
   alert("저장되었습니다.");
 }
 
+
+function handleImportOpenButtonClick() {
+  if (state.activeTab !== "mount" && state.activeTab !== "boss") {
+    alert("초기값 붙여넣기는 탈것/보스컬렉 탭에서만 사용할 수 있습니다.");
+    return;
+  }
+  openPasswordModal("import");
+}
+
+function openImportModal() {
+  state.importPreviewResult = null;
+  if (el.importTextarea) el.importTextarea.value = "";
+  renderImportPreviewText("아직 미리보기를 실행하지 않았습니다.");
+  openModal(el.importModalBackdrop);
+  setTimeout(() => { if (el.importTextarea) el.importTextarea.focus(); }, 0);
+}
+
+function closeImportModal() {
+  state.importPreviewResult = null;
+  state.importApplyPending = false;
+  closeModal(el.importModalBackdrop);
+}
+
+function renderImportPreviewText(text) {
+  if (!el.importPreviewText) return;
+  el.importPreviewText.textContent = text;
+}
+
+function parseImportOwnedValue(raw) {
+  const value = String(raw ?? "").trim();
+  if (!value) return { empty: true };
+  const upper = value.toUpperCase();
+  if (["1", "TRUE", "보유", "O", "Y"].includes(upper) || ["보유"].includes(value)) return { valid: true, owned: true };
+  if (["0", "FALSE", "미보유", "X", "N"].includes(upper) || ["미보유"].includes(value)) return { valid: true, owned: false };
+  return { valid: false, raw: value };
+}
+
+function buildImportPreview() {
+  if (state.activeTab !== "mount" && state.activeTab !== "boss") {
+    return { ok: false, text: "초기값 붙여넣기는 탈것/보스컬렉 탭에서만 사용할 수 있습니다." };
+  }
+
+  const raw = String(el.importTextarea?.value ?? "").replace(//g, "").trim();
+  if (!raw) {
+    return { ok: false, text: "붙여넣을 데이터를 입력해주세요." };
+  }
+
+  const lines = raw.split("
+").filter((line) => line.trim() !== "");
+  if (lines.length < 2) {
+    return { ok: false, text: "헤더 1줄과 데이터 1줄 이상이 필요합니다." };
+  }
+
+  const rows = lines.map((line) => line.split("	"));
+  const headers = rows[0].map((cell) => String(cell ?? "").trim());
+  if (headers.length < 2) {
+    return { ok: false, text: "헤더에는 이름 열과 최소 1개 이상의 항목 열이 필요합니다." };
+  }
+
+  const items = state.activeTab === "boss" ? state.bossItems : state.mountItems;
+  const itemKey = state.activeTab === "boss" ? "boss_collection_id" : "mount_id";
+  const sourceLabel = state.activeTab === "boss" ? "보스컬렉" : "탈것";
+  const memberMap = new Map(state.members.map((member) => [String(member.name).trim(), member]));
+  const itemMap = new Map(items.map((item) => [String(item.name).trim(), item]));
+
+  const unknownHeaders = [];
+  const columnItems = [];
+  for (let i = 1; i < headers.length; i += 1) {
+    const name = headers[i];
+    const item = itemMap.get(name);
+    columnItems.push(item ?? null);
+    if (!item) unknownHeaders.push(name || `(빈 헤더 ${i + 1})`);
+  }
+
+  const unknownMembers = [];
+  const invalidValues = [];
+  const payloadMap = new Map();
+  let changedCellCount = 0;
+
+  for (let rowIndex = 1; rowIndex < rows.length; rowIndex += 1) {
+    const row = rows[rowIndex];
+    const memberName = String(row[0] ?? "").trim();
+    if (!memberName) continue;
+    const member = memberMap.get(memberName);
+    if (!member) {
+      unknownMembers.push(memberName);
+      continue;
+    }
+
+    for (let colIndex = 1; colIndex < headers.length; colIndex += 1) {
+      const item = columnItems[colIndex - 1];
+      if (!item) continue;
+      const parsed = parseImportOwnedValue(row[colIndex] ?? "");
+      if (parsed.empty) continue;
+      if (!parsed.valid) {
+        invalidValues.push(`${memberName} / ${headers[colIndex]} / ${parsed.raw}`);
+        continue;
+      }
+      payloadMap.set(`${member.id}__${item.id}`, { member_id: member.id, [itemKey]: item.id, owned: parsed.owned });
+      changedCellCount += 1;
+    }
+  }
+
+  const previewLines = [
+    `대상: ${sourceLabel}`,
+    `헤더 항목 수: ${headers.length - 1}`,
+    `반영 예정 셀 수: ${changedCellCount}`,
+    `없는 항목 수: ${unknownHeaders.length}`,
+    `없는 길드원 수: ${unknownMembers.length}`,
+    `잘못된 값 수: ${invalidValues.length}`
+  ];
+
+  if (unknownHeaders.length) previewLines.push(`없는 항목: ${unknownHeaders.join(", ")}`);
+  if (unknownMembers.length) previewLines.push(`없는 길드원: ${unknownMembers.join(", ")}`);
+  if (invalidValues.length) previewLines.push(`잘못된 값: ${invalidValues.slice(0, 20).join(" | ")}${invalidValues.length > 20 ? " 외" : ""}`);
+
+  if (changedCellCount === 0) {
+    previewLines.push("반영할 값이 없습니다. 빈칸은 기존값을 유지합니다.");
+  }
+
+  return {
+    ok: unknownHeaders.length === 0 && invalidValues.length === 0 && changedCellCount > 0,
+    text: previewLines.join("
+"),
+    payload: Array.from(payloadMap.values()),
+    tableName: state.activeTab === "boss" ? "member_boss_collections" : "member_mounts",
+    onConflict: state.activeTab === "boss" ? "member_id,boss_collection_id" : "member_id,mount_id"
+  };
+}
+
+function handleImportPreview() {
+  const result = buildImportPreview();
+  state.importPreviewResult = result.ok ? result : null;
+  renderImportPreviewText(result.text);
+}
+
+async function handleImportApply() {
+  const result = buildImportPreview();
+  renderImportPreviewText(result.text);
+  if (!result.ok) return;
+  if (state.importApplyPending) return;
+
+  state.importApplyPending = true;
+  try {
+    const upsertRes = await supabase
+      .from(result.tableName)
+      .upsert(result.payload, { onConflict: result.onConflict });
+
+    if (upsertRes.error) {
+      alert(`초기값 적용 중 오류가 발생했습니다.\n${upsertRes.error.message}`);
+      return;
+    }
+
+    closeImportModal();
+    await loadActiveTabData();
+    renderAll();
+    alert("초기값이 적용되었습니다.");
+  } finally {
+    state.importApplyPending = false;
+  }
+}
+
 function resetSearchState() {
   state.searchTerm = "";
   state.selectedMemberId = null;
@@ -1468,231 +1646,6 @@ function confirmPassword() {
   }
 
   state.pendingManageType = null;
-}
-
-function openImportModal() {
-  if (!(state.activeTab === "mount" || state.activeTab === "boss")) {
-    alert("초기값 붙여넣기는 탈것 또는 보스컬렉 탭에서만 사용할 수 있습니다.");
-    return;
-  }
-
-  state.importPreviewResult = null;
-  el.importTextarea.value = "";
-  el.importTargetText.textContent = state.activeTab === "boss" ? "보스컬렉" : "탈것";
-  el.importGuideText.textContent = `${state.activeTab === "boss" ? "보스컬렉" : "탈것"} 탭 초기값을 붙여넣습니다. 첫 줄은 헤더, 첫 칸은 이름으로 붙여넣어주세요.`;
-  el.importPreviewBox.innerHTML = '<p class="notice-text">미리보기를 누르면 반영 예정 내용을 확인할 수 있습니다.</p>';
-  openModal(el.importModalBackdrop);
-  setTimeout(() => el.importTextarea.focus(), 0);
-}
-
-function closeImportModal() {
-  state.importPreviewResult = null;
-  closeModal(el.importModalBackdrop);
-}
-
-function normalizeImportOwnedValue(rawValue) {
-  const text = String(rawValue ?? "").trim();
-  if (!text) return { valid: true, empty: true, value: null };
-
-  const upper = text.toUpperCase();
-  if (["1", "TRUE", "O", "Y", "보유"].includes(upper) || text === "보유") {
-    return { valid: true, empty: false, value: true };
-  }
-
-  if (["0", "FALSE", "X", "N", "미보유"].includes(upper) || text === "미보유") {
-    return { valid: true, empty: false, value: false };
-  }
-
-  return { valid: false, empty: false, value: null };
-}
-
-function parseImportPreview() {
-  if (!(state.activeTab === "mount" || state.activeTab === "boss")) {
-    return { ok: false, message: "초기값 붙여넣기는 탈것 또는 보스컬렉 탭에서만 사용할 수 있습니다." };
-  }
-
-  const raw = String(el.importTextarea.value ?? "").replace(//g, "").trim();
-  if (!raw) {
-    return { ok: false, message: "붙여넣은 내용이 없습니다." };
-  }
-
-  const rows = raw.split("
-").map((line) => line.split("	"));
-  if (rows.length < 2) {
-    return { ok: false, message: "헤더와 데이터 행을 함께 붙여넣어주세요." };
-  }
-
-  const header = rows[0].map((cell) => String(cell ?? "").trim());
-  if (header.length < 2) {
-    return { ok: false, message: "헤더에 이름과 항목명이 필요합니다." };
-  }
-
-  const items = state.activeTab === "boss" ? state.bossItems : state.mountItems;
-  const memberMap = new Map(state.members.map((member) => [String(member.name).trim(), member]));
-  const itemMap = new Map(items.map((item) => [String(item.name).trim(), item]));
-
-  const missingHeaders = [];
-  const matchedColumns = [];
-
-  for (let col = 1; col < header.length; col += 1) {
-    const itemName = header[col];
-    if (!itemName) continue;
-    const item = itemMap.get(itemName);
-    if (!item) {
-      missingHeaders.push(itemName);
-      continue;
-    }
-    matchedColumns.push({ colIndex: col, itemId: item.id, itemName });
-  }
-
-  if (matchedColumns.length === 0) {
-    return { ok: false, message: "헤더에서 일치하는 항목명을 찾지 못했습니다." };
-  }
-
-  const missingMembers = [];
-  const invalidCells = [];
-  const updates = [];
-  const updateSummary = [];
-
-  for (let rowIndex = 1; rowIndex < rows.length; rowIndex += 1) {
-    const row = rows[rowIndex];
-    const memberName = String(row[0] ?? "").trim();
-    if (!memberName) continue;
-
-    const member = memberMap.get(memberName);
-    if (!member) {
-      missingMembers.push(memberName);
-      continue;
-    }
-
-    let memberChangeCount = 0;
-
-    matchedColumns.forEach((column) => {
-      const parsed = normalizeImportOwnedValue(row[column.colIndex]);
-      if (!parsed.valid) {
-        invalidCells.push(`${memberName} / ${column.itemName} / ${String(row[column.colIndex] ?? "").trim()}`);
-        return;
-      }
-
-      if (parsed.empty) return;
-
-      updates.push({ memberId: member.id, memberName, itemId: column.itemId, itemName: column.itemName, owned: parsed.value });
-      memberChangeCount += 1;
-    });
-
-    if (memberChangeCount > 0) {
-      updateSummary.push(`${memberName} (${memberChangeCount}건)`);
-    }
-  }
-
-  return {
-    ok: invalidCells.length === 0,
-    message: invalidCells.length === 0 ? "" : "지원하지 않는 값이 있습니다.",
-    tab: state.activeTab,
-    totalRows: Math.max(rows.length - 1, 0),
-    matchedColumnCount: matchedColumns.length,
-    missingHeaders,
-    missingMembers,
-    invalidCells,
-    updates,
-    updateSummary
-  };
-}
-
-function renderImportPreview(result) {
-  if (!result.ok) {
-    el.importPreviewBox.innerHTML = `<p class="preview-error">${escapeHtml(result.message)}</p>`;
-    return;
-  }
-
-  const summaryItems = result.updateSummary.slice(0, 20).map((text) => `<li>${escapeHtml(text)}</li>`).join("");
-  const moreSummary = result.updateSummary.length > 20 ? `<li>외 ${result.updateSummary.length - 20}명</li>` : "";
-  const missingHeaderItems = result.missingHeaders.length > 0 ? result.missingHeaders.map((text) => `<li>${escapeHtml(text)}</li>`).join("") : "";
-  const missingMemberItems = result.missingMembers.length > 0 ? result.missingMembers.slice(0, 20).map((text) => `<li>${escapeHtml(text)}</li>`).join("") : "";
-  const moreMissingMembers = result.missingMembers.length > 20 ? `<li>외 ${result.missingMembers.length - 20}명</li>` : "";
-  const invalidItems = result.invalidCells.length > 0 ? result.invalidCells.slice(0, 20).map((text) => `<li>${escapeHtml(text)}</li>`).join("") : "";
-  const moreInvalid = result.invalidCells.length > 20 ? `<li>외 ${result.invalidCells.length - 20}건</li>` : "";
-
-  el.importPreviewBox.innerHTML = `
-    <h4>미리보기</h4>
-    <p class="preview-ok">반영 예정 ${result.updates.length}건</p>
-    <p>데이터 행 수: ${result.totalRows}행</p>
-    <p>인식된 항목 수: ${result.matchedColumnCount}개</p>
-    <p>없는 항목 수: ${result.missingHeaders.length}개</p>
-    <p>없는 길드원 수: ${result.missingMembers.length}명</p>
-    <p>잘못된 값 수: ${result.invalidCells.length}건</p>
-    ${result.updateSummary.length > 0 ? `<p><strong>반영 대상</strong></p><ul>${summaryItems}${moreSummary}</ul>` : '<p class="preview-warn">반영할 값이 없습니다.</p>'}
-    ${result.missingHeaders.length > 0 ? `<p class="preview-warn"><strong>없는 항목</strong></p><ul>${missingHeaderItems}</ul>` : ''}
-    ${result.missingMembers.length > 0 ? `<p class="preview-warn"><strong>없는 길드원</strong></p><ul>${missingMemberItems}${moreMissingMembers}</ul>` : ''}
-    ${result.invalidCells.length > 0 ? `<p class="preview-error"><strong>잘못된 값</strong></p><ul>${invalidItems}${moreInvalid}</ul>` : ''}
-  `;
-}
-
-function handleImportPreview() {
-  const result = parseImportPreview();
-  state.importPreviewResult = result.ok ? result : null;
-  renderImportPreview(result);
-}
-
-async function handleImportApply() {
-  const result = parseImportPreview();
-  renderImportPreview(result);
-
-  if (!result.ok) {
-    state.importPreviewResult = null;
-    return;
-  }
-
-  if (result.updates.length === 0) {
-    alert("반영할 값이 없습니다.");
-    state.importPreviewResult = result;
-    return;
-  }
-
-  try {
-    if (result.tab === "boss") {
-      const payload = result.updates.map((entry) => ({
-        member_id: entry.memberId,
-        boss_collection_id: entry.itemId,
-        owned: entry.owned,
-        updated_at: new Date().toISOString()
-      }));
-
-      const upsertRes = await supabase
-        .from("member_boss_collections")
-        .upsert(payload, { onConflict: "member_id,boss_collection_id" });
-
-      if (upsertRes.error) {
-        alert(`초기값 적용 중 오류가 발생했습니다.\n${upsertRes.error.message}`);
-        return;
-      }
-
-      await loadBossData();
-    } else {
-      const payload = result.updates.map((entry) => ({
-        member_id: entry.memberId,
-        mount_id: entry.itemId,
-        owned: entry.owned
-      }));
-
-      const upsertRes = await supabase
-        .from("member_mounts")
-        .upsert(payload, { onConflict: "member_id,mount_id" });
-
-      if (upsertRes.error) {
-        alert(`초기값 적용 중 오류가 발생했습니다.\n${upsertRes.error.message}`);
-        return;
-      }
-
-      await loadMountData();
-    }
-
-    closeImportModal();
-    renderAll();
-    alert("초기값이 적용되었습니다.");
-  } catch (error) {
-    alert(error.message);
-  }
 }
 
 function handleGuildManageTableClick(event) {

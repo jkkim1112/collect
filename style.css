@@ -1320,22 +1320,11 @@ button {
 
 
 .import-modal {
-  max-width: 980px;
+  max-width: 860px;
 }
 
-.import-info-box {
-  margin-top: 14px;
-  padding: 12px 14px;
-  border: 1px solid #dbe3f0;
-  border-radius: 12px;
-  background: #f8fbff;
-  color: #475569;
-  font-size: 14px;
-  line-height: 1.6;
-}
-
-.import-textarea-row {
-  margin-top: 14px;
+.import-guide {
+  margin-bottom: 14px;
 }
 
 .import-textarea {
@@ -1343,67 +1332,30 @@ button {
   min-height: 220px;
   resize: vertical;
   border: 1px solid #d1d5db;
-  border-radius: 12px;
+  border-radius: 10px;
   padding: 12px;
+  background: #fff;
   font: inherit;
-  line-height: 1.5;
 }
 
-.import-preview-box {
-  margin-top: 16px;
-  min-height: 160px;
-  max-height: 320px;
-  overflow: auto;
+.import-preview {
+  margin-top: 14px;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
-  background: #ffffff;
-  padding: 14px;
+  background: #f9fafb;
 }
 
-.import-preview-box h4 {
-  margin: 0 0 10px;
-  font-size: 16px;
-}
-
-.import-preview-box p {
-  margin: 6px 0;
-}
-
-.import-preview-box ul {
-  margin: 8px 0 0;
-  padding-left: 18px;
-}
-
-.import-preview-box li {
-  margin: 4px 0;
-}
-
-.import-preview-box .preview-ok {
-  color: #047857;
+.import-preview-title {
+  padding: 12px 14px 8px;
   font-weight: 700;
 }
 
-.import-preview-box .preview-warn {
-  color: #b45309;
-  font-weight: 700;
-}
-
-.import-preview-box .preview-error {
-  color: #dc2626;
-  font-weight: 700;
-}
-
-@media (max-width: 768px) {
-  .import-modal {
-    max-width: 100%;
-  }
-
-  .import-textarea {
-    min-height: 180px;
-  }
-
-  .import-preview-box {
-    min-height: 140px;
-    max-height: 260px;
-  }
+.import-preview-body {
+  padding: 0 14px 14px;
+  white-space: pre-wrap;
+  color: #374151;
+  font-size: 14px;
+  line-height: 1.5;
+  max-height: 240px;
+  overflow: auto;
 }
