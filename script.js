@@ -2110,7 +2110,7 @@ function escapeAttr(value) {
 }
 
 
-const importState = {
+const importFeatureState = {
   preview: null
 };
 
@@ -2119,186 +2119,245 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function initImportFeature() {
-  const importBtn = document.getElementById("importInitBtn");
+  const importOpenBtn = document.getElementById("importOpenBtn");
   const importModalBackdrop = document.getElementById("importModalBackdrop");
   const importModalTitle = document.getElementById("importModalTitle");
+  const importGuideText = document.getElementById("importGuideText");
   const importTextarea = document.getElementById("importTextarea");
   const importPreviewBox = document.getElementById("importPreviewBox");
+  const importCloseBtn = document.getElementById("importCloseBtn");
+  const importCancelBtn = document.getElementById("importCancelBtn");
   const importPreviewBtn = document.getElementById("importPreviewBtn");
   const importApplyBtn = document.getElementById("importApplyBtn");
-  const importCancelBtn = document.getElementById("importCancelBtn");
-  const importCloseBtn = document.getElementById("importCloseBtn");
 
-  if (!importBtn || !importModalBackdrop || !importModalTitle || !importTextarea || !importPreviewBox || !importPreviewBtn || !importApplyBtn || !importCancelBtn || !importCloseBtn) {
+  if (!importOpenBtn || !importModalBackdrop || !importModalTitle || !importGuideText || !importTextarea || !importPreviewBox || !importCloseBtn || !importCancelBtn || !importPreviewBtn || !importApplyBtn) {
     return;
   }
 
-  const syncImportButtonState = () => {
+  const syncImportButton = () => {
     const visible = state.activeTab === "mount" || state.activeTab === "boss";
-    importBtn.classList.toggle("hidden", !visible);
-    importBtn.disabled = !visible || state.isBulkSaving;
+    importOpenBtn.classList.toggle("hidden", !visible);
+    importOpenBtn.disabled = !visible || state.isBulkSaving;
   };
-
-  const originalUpdateTabUi = updateTabUi;
-  updateTabUi = function () {
-    originalUpdateTabUi();
-    syncImportButtonState();
-  };
-  syncImportButtonState();
 
   const closeImportModal = () => {
-    importState.preview = null;
-    importApplyBtn.disabled = true;
-    closeModal(importModalBackdrop);
+    importFeatureState.preview = null;
+    importModalBackdrop.classList.add("hidden");
   };
 
   const openImportModal = () => {
-    if (state.activeTab !== "mount" && state.activeTab !== "boss") {
-      alert("초기값 붙여넣기는 탈것 또는 보스컬렉 탭에서만 사용할 수 있습니다.");
+    if (!(state.activeTab === "mount" || state.activeTab === "boss")) {
+      alert("탈것 또는 보스컬렉 탭에서만 사용할 수 있습니다.");
       return;
     }
 
-    importState.preview = null;
-    importApplyBtn.disabled = true;
+    const password = window.prompt("비밀번호를 입력해주세요.");
+    if (password === null) return;
+    if (password !== ADMIN_PASSWORD) {
+      alert("비밀번호가 올바르지 않습니다.");
+      return;
+    }
+
+    importFeatureState.preview = null;
     importModalTitle.textContent = state.activeTab === "boss" ? "보스컬렉 초기값 붙여넣기" : "탈것 초기값 붙여넣기";
-    importTextarea.value = "";
-    importPreviewBox.textContent = "미리보기 버튼을 누르면 반영 예정 내용을 확인할 수 있습니다.";
-    openModal(importModalBackdrop);
+    importGuideText.textContent = state.activeTab === "boss"
+      ? "첫 줄은 헤더, 첫 칸은 이름으로 붙여넣어주세요. 없는 보스컬렉명은 반영되지 않습니다."
+      : "첫 줄은 헤더, 첫 칸은 이름으로 붙여넣어주세요. 없는 탈것명은 반영되지 않습니다.";
+    importPreviewBox.textContent = "미리보기를 눌러 확인해주세요.";
+    importModalBackdrop.classList.remove("hidden");
     setTimeout(() => importTextarea.focus(), 0);
   };
 
-  const parseImportOwnedValue = (raw) => {
-    const value = String(raw ?? "").trim();
-    if (!value) return { empty: true };
-
-    const normalized = value.toUpperCase();
-    if (value === "보유" || ["1", "TRUE", "O", "Y"].includes(normalized)) {
-      return { empty: false, valid: true, owned: true };
-    }
-    if (value === "미보유" || ["0", "FALSE", "X", "N"].includes(normalized)) {
-      return { empty: false, valid: true, owned: false };
-    }
-    return { empty: false, valid: false };
-  };
-
   const buildImportPreview = () => {
-    const rawText = importTextarea.value.replace(/
+    const rawText = String(importTextarea.value || "").replace(/
 /g, "").trim();
     if (!rawText) {
-      return { ok: false, message: "붙여넣은 내용이 없습니다." };
+      alert("붙여넣을 내용을 입력해주세요.");
+      return null;
     }
 
     const lines = rawText.split("
-").map((line) => line.split("	"));
+").filter((line) => line.trim() !== "");
     if (lines.length < 2) {
-      return { ok: false, message: "헤더와 데이터 행을 함께 붙여넣어주세요." };
+      alert("헤더 포함 2줄 이상 붙여넣어주세요.");
+      return null;
     }
 
-    const headers = lines[0].map((cell) => String(cell ?? "").trim());
+    const rows = lines.map((line) => line.split("	"));
+    const headers = rows[0].map((value) => String(value || "").trim());
     if (headers.length < 2) {
-      return { ok: false, message: "항목 헤더가 부족합니다." };
+      alert("항목 헤더를 포함해서 붙여넣어주세요.");
+      return null;
     }
 
     const items = state.activeTab === "boss" ? state.bossItems : state.mountItems;
-    const itemIdKey = state.activeTab === "boss" ? "boss_collection_id" : "mount_id";
+    const itemKey = state.activeTab === "boss" ? "boss_collection_id" : "mount_id";
     const tableName = state.activeTab === "boss" ? "member_boss_collections" : "member_mounts";
-    const itemMap = new Map(items.map((item) => [String(item.name ?? "").trim(), item]));
-    const memberMap = new Map(state.members.map((member) => [String(member.name ?? "").trim(), member]));
+    const conflictKey = state.activeTab === "boss" ? "member_id,boss_collection_id" : "member_id,mount_id";
 
-    const headerItems = headers.slice(1);
-    const missingItems = [];
-    const mappedColumns = headerItems.map((name) => {
-      const item = itemMap.get(name);
-      if (!item) missingItems.push(name);
-      return item ?? null;
-    });
+    const normalize = (value) => String(value || "").trim().replace(/\s+/g, " ").toLowerCase();
+    const memberMap = new Map(state.members.map((member) => [normalize(member.name), member]));
+    const itemMap = new Map(items.map((item) => [normalize(item.name), item]));
 
-    const missingMembers = [];
+    const missingMembers = new Set();
+    const missingItems = new Set();
     const invalidValues = [];
-    const upserts = [];
+    const appliedMap = new Map();
 
-    for (let rowIndex = 1; rowIndex < lines.length; rowIndex += 1) {
-      const row = lines[rowIndex];
-      const memberName = String(row[0] ?? "").trim();
+    for (let rowIndex = 1; rowIndex < rows.length; rowIndex += 1) {
+      const cells = rows[rowIndex];
+      const memberName = String(cells[0] || "").trim();
       if (!memberName) continue;
 
-      const member = memberMap.get(memberName);
+      const member = memberMap.get(normalize(memberName));
       if (!member) {
-        missingMembers.push(memberName);
+        missingMembers.add(memberName);
         continue;
       }
 
       for (let colIndex = 1; colIndex < headers.length; colIndex += 1) {
-        const item = mappedColumns[colIndex - 1];
-        const cellRaw = row[colIndex] ?? "";
-        const parsed = parseImportOwnedValue(cellRaw);
+        const headerName = String(headers[colIndex] || "").trim();
+        if (!headerName) continue;
 
-        if (parsed.empty || !item) continue;
-        if (!parsed.valid) {
-          invalidValues.push(`${memberName} / ${headers[colIndex]} / ${String(cellRaw).trim()}`);
+        const item = itemMap.get(normalize(headerName));
+        if (!item) {
+          missingItems.add(headerName);
           continue;
         }
 
-        upserts.push({
+        const rawValue = String(cells[colIndex] || "").trim();
+        if (rawValue === "") continue;
+
+        const owned = parseImportOwnedValue(rawValue);
+        if (owned === null) {
+          invalidValues.push(`${memberName} / ${headerName} / ${rawValue}`);
+          continue;
+        }
+
+        appliedMap.set(`${member.id}::${item.id}`, {
           member_id: member.id,
-          [itemIdKey]: item.id,
-          owned: parsed.owned
+          [itemKey]: item.id,
+          owned
         });
       }
     }
 
-    const linesOut = [
-      `반영 예정: ${upserts.length}건`,
-      `없는 항목: ${missingItems.length}건`,
-      `없는 길드원: ${missingMembers.length}건`,
+    const updates = Array.from(appliedMap.values());
+    const previewLines = [
+      `대상 탭: ${state.activeTab === "boss" ? "보스컬렉" : "탈것"}`,
+      `반영 예정 건수: ${updates.length}건`,
+      `없는 길드원: ${missingMembers.size}건`,
+      `없는 항목: ${missingItems.size}건`,
       `잘못된 값: ${invalidValues.length}건`
     ];
 
-    if (missingItems.length > 0) linesOut.push(`없는 항목 목록: ${Array.from(new Set(missingItems)).join(", ")}`);
-    if (missingMembers.length > 0) linesOut.push(`없는 길드원 목록: ${Array.from(new Set(missingMembers)).join(", ")}`);
-    if (invalidValues.length > 0) linesOut.push(`잘못된 값 예시: ${invalidValues.slice(0, 10).join(" | ")}`);
+    if (missingMembers.size > 0) {
+      previewLines.push("", `[없는 길드원] ${Array.from(missingMembers).join(", ")}`);
+    }
+
+    if (missingItems.size > 0) {
+      previewLines.push("", `[없는 항목] ${Array.from(missingItems).join(", ")}`);
+    }
+
+    if (invalidValues.length > 0) {
+      previewLines.push("", `[잘못된 값] ${invalidValues.slice(0, 20).join("\n")}`);
+      if (invalidValues.length > 20) {
+        previewLines.push(`외 ${invalidValues.length - 20}건`);
+      }
+    }
 
     return {
-      ok: invalidValues.length === 0 && upserts.length > 0,
-      message: linesOut.join("\n"),
-      upserts,
       tableName,
-      conflictKeys: `member_id,${itemIdKey}`
+      conflictKey,
+      updates,
+      missingMembers: Array.from(missingMembers),
+      missingItems: Array.from(missingItems),
+      invalidValues,
+      previewText: previewLines.join("\n")
     };
   };
 
-  importBtn.addEventListener("click", openImportModal);
+  importOpenBtn.addEventListener("click", openImportModal);
+  importCloseBtn.addEventListener("click", closeImportModal);
+  importCancelBtn.addEventListener("click", closeImportModal);
   importPreviewBtn.addEventListener("click", () => {
     const preview = buildImportPreview();
-    importState.preview = preview.ok ? preview : null;
-    importPreviewBox.textContent = preview.message;
-    importApplyBtn.disabled = !preview.ok;
+    if (!preview) return;
+    importFeatureState.preview = preview;
+    importPreviewBox.textContent = preview.previewText;
   });
-
   importApplyBtn.addEventListener("click", async () => {
-    if (!importState.preview || !Array.isArray(importState.preview.upserts) || importState.preview.upserts.length === 0) {
-      alert("먼저 미리보기를 확인해주세요.");
+    const preview = buildImportPreview();
+    if (!preview) return;
+
+    importFeatureState.preview = preview;
+    importPreviewBox.textContent = preview.previewText;
+
+    if (preview.invalidValues.length > 0) {
+      alert("잘못된 값이 있어 적용할 수 없습니다. 미리보기 내용을 확인해주세요.");
       return;
     }
 
-    const { error } = await supabase
-      .from(importState.preview.tableName)
-      .upsert(importState.preview.upserts, { onConflict: importState.preview.conflictKeys });
-
-    if (error) {
-      alert(`초기값 저장 중 오류가 발생했습니다.\n${error.message}`);
+    if (preview.updates.length === 0) {
+      alert("반영할 값이 없습니다.");
       return;
     }
 
-    closeImportModal();
-    await loadActiveTabData();
-    renderAll();
-    alert("초기값이 반영되었습니다.");
+    try {
+      importApplyBtn.disabled = true;
+      importPreviewBtn.disabled = true;
+      importOpenBtn.disabled = true;
+
+      for (let index = 0; index < preview.updates.length; index += 500) {
+        const chunk = preview.updates.slice(index, index + 500);
+        const { error } = await supabase
+          .from(preview.tableName)
+          .upsert(chunk, { onConflict: preview.conflictKey });
+
+        if (error) {
+          alert(`초기값 적용 중 오류가 발생했습니다.
+${error.message}`);
+          return;
+        }
+      }
+
+      await loadActiveTabData();
+      renderAll();
+      syncImportButton();
+      closeImportModal();
+      alert("초기값이 적용되었습니다.");
+    } finally {
+      importApplyBtn.disabled = false;
+      importPreviewBtn.disabled = false;
+      syncImportButton();
+    }
   });
 
-  importCancelBtn.addEventListener("click", closeImportModal);
-  importCloseBtn.addEventListener("click", closeImportModal);
   importModalBackdrop.addEventListener("click", (event) => {
-    if (event.target === importModalBackdrop) closeImportModal();
+    if (event.target === importModalBackdrop) {
+      closeImportModal();
+    }
   });
-};
+
+  el.tabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      setTimeout(syncImportButton, 0);
+    });
+  });
+
+  syncImportButton();
+}
+
+function parseImportOwnedValue(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+
+  if (["1", "true", "보유", "o", "y", "yes"].includes(normalized)) {
+    return true;
+  }
+
+  if (["0", "false", "미보유", "x", "n", "no"].includes(normalized)) {
+    return false;
+  }
+
+  return null;
+}
