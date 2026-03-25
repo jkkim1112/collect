@@ -1343,3 +1343,37 @@ button {
   }
 
 }
+
+
+@media (max-width: 768px) {
+  .table-search:has(#bossSearchInput:not(.hidden)) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "boss . ."
+      "input search reset";
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  .table-search:has(#bossSearchInput:not(.hidden)) #bossSearchInput {
+    grid-area: boss;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .table-search:has(#bossSearchInput:not(.hidden)) #searchInput {
+    grid-area: input;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .table-search:has(#bossSearchInput:not(.hidden)) #searchBtn {
+    grid-area: search;
+  }
+
+  .table-search:has(#bossSearchInput:not(.hidden)) #resetBtn {
+    grid-area: reset;
+    width: auto;
+  }
+}
