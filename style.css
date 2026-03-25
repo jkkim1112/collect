@@ -225,6 +225,26 @@ button {
   background: #f8fafc;
 }
 
+.summary-table tbody tr.power-zero-row,
+.manage-table tbody tr.power-zero-row {
+  background: #fef2f2;
+}
+
+.summary-table tbody tr.power-zero-row td,
+.manage-table tbody tr.power-zero-row td {
+  background: #fef2f2;
+}
+
+.summary-table tbody tr.power-zero-row:hover,
+.manage-table tbody tr.power-zero-row:hover {
+  background: #fee2e2;
+}
+
+.summary-table tbody tr.power-zero-row:hover td,
+.manage-table tbody tr.power-zero-row:hover td {
+  background: #fee2e2;
+}
+
 .badge {
   display: inline-flex;
   align-items: center;
@@ -1281,21 +1301,19 @@ button {
   .manage-table tbody tr:hover td:nth-child(2) {
     background: #f8fafc;
   }
-}
 
-
-@media (min-width: 769px) {
-  .summary-table thead tr:first-child th {
-    border-bottom: 0;
+  .summary-table tbody tr.power-zero-row td:nth-child(1),
+  .summary-table tbody tr.power-zero-row td:nth-child(2),
+  .manage-table tbody tr.power-zero-row td:nth-child(1),
+  .manage-table tbody tr.power-zero-row td:nth-child(2) {
+    background: #fef2f2;
   }
 
-  .summary-table thead tr:nth-child(2) th {
-    top: 47px;
-    box-shadow: inset 0 1px 0 #d1d5db;
-    background: #f9fafb;
-  }
-
-  .summary-table thead tr:first-child th[rowspan="2"] {
-    z-index: 33;
+  .summary-table tbody tr.power-zero-row:hover td:nth-child(1),
+  .summary-table tbody tr.power-zero-row:hover td:nth-child(2),
+  .manage-table tbody tr.power-zero-row:hover td:nth-child(1),
+  .manage-table tbody tr.power-zero-row:hover td:nth-child(2) {
+    background: #fee2e2;
   }
 }
+
