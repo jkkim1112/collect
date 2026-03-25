@@ -56,7 +56,7 @@
       <div class="top-actions actions-below-table-right">
         <button class="btn btn-outline" id="guildManageBtn" type="button">길드원 관리</button>
         <button class="btn btn-primary" id="itemManageBtn" type="button">탈것 관리</button>
-        <button class="btn btn-outline hidden" id="importOpenBtn" type="button">초기값 붙여넣기</button>
+        <button class="btn btn-outline hidden" id="importOpenBtn" type="button">Excel 붙여넣기</button>
       </div>
     </div>
   </div>
@@ -160,15 +160,16 @@
   <div class="modal-backdrop hidden" id="importModalBackdrop">
     <div class="modal modal-lg import-modal">
       <div class="modal-header">
-        <h3 id="importModalTitle">초기값 붙여넣기</h3>
+        <h3 id="importModalTitle">Excel 붙여넣기</h3>
         <button class="icon-btn" id="importCloseBtn" type="button">×</button>
       </div>
       <p class="card-subtitle import-modal-subtitle" id="importModalGuideText">첫 줄에는 헤더를 포함해서 붙여넣어주세요. 첫 칸은 이름, 나머지 칸은 항목명입니다.</p>
       <div class="form-row">
-        <label for="importTextarea">엑셀 데이터</label>
-        <textarea id="importTextarea" class="import-textarea" placeholder="이름	천마	백호
-홍길동	1	0
-김철수		1"></textarea>
+        <label for="importTextarea">Excel 데이터</label>
+        <textarea id="importTextarea" class="import-textarea" placeholder="길드원	델폰	램폰
+길드원1	보유	미보유
+길드원2	미보유	보유
+길드원3	미보유	미보유"></textarea>
       </div>
       <div class="import-preview-box" id="importPreviewBox">미리보기를 누르면 반영 예정 내용을 보여드립니다.</div>
       <div class="modal-buttons">
