@@ -55,8 +55,8 @@
       </div>
       <div class="top-actions actions-below-table-right">
         <button class="btn btn-outline" id="guildManageBtn" type="button">길드원 관리</button>
+        <button class="btn btn-gray" id="importOpenBtn" type="button">초기값 붙여넣기</button>
         <button class="btn btn-primary" id="itemManageBtn" type="button">탈것 관리</button>
-        <button class="btn btn-outline" id="importOpenBtn" type="button">초기값 붙여넣기</button>
       </div>
     </div>
   </div>
@@ -131,6 +131,27 @@
   </div>
 
 
+  <div class="modal-backdrop hidden" id="importModalBackdrop">
+    <div class="modal modal-xl">
+      <div class="modal-header">
+        <h3 id="importModalTitle">초기값 붙여넣기</h3>
+        <button class="icon-btn" id="importCloseBtn" type="button">×</button>
+      </div>
+      <p class="card-subtitle import-guide" id="importGuideText">첫 줄은 헤더, 첫 칸은 이름으로 붙여넣어주세요. 빈칸은 기존값을 유지합니다.</p>
+      <div class="form-row">
+        <label for="importTextarea">붙여넣기 데이터</label>
+        <textarea id="importTextarea" class="import-textarea" placeholder="이름&#9;항목1&#9;항목2
+홍길동&#9;1&#9;0"></textarea>
+      </div>
+      <div class="import-preview-box" id="importPreviewBox">미리보기를 눌러주세요.</div>
+      <div class="modal-buttons">
+        <button class="btn btn-gray" id="importCancelBtn" type="button">취소</button>
+        <button class="btn btn-outline" id="importPreviewBtn" type="button">미리보기</button>
+        <button class="btn btn-primary" id="importApplyBtn" type="button" disabled>적용</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-backdrop hidden" id="searchSelectModalBackdrop">
     <div class="modal">
       <div class="modal-header">
@@ -145,30 +166,6 @@
     </div>
   </div>
 
-
-  <div class="modal-backdrop hidden" id="importModalBackdrop">
-    <div class="modal modal-lg import-modal">
-      <div class="modal-header">
-        <h3>초기값 붙여넣기</h3>
-        <button class="icon-btn" id="importCloseBtn" type="button">×</button>
-      </div>
-      <p class="card-subtitle import-guide" id="importGuideText">탈것/보스컬렉 탭에서만 사용할 수 있습니다. 첫 줄은 헤더, 첫 칸은 이름으로 붙여넣어주세요.</p>
-      <div class="form-row">
-        <label for="importTextarea">엑셀 데이터</label>
-        <textarea id="importTextarea" class="import-textarea" placeholder="이름	항목1	항목2
-홍길동	1	0"></textarea>
-      </div>
-      <div class="import-preview" id="importPreviewBox">
-        <div class="import-preview-title">미리보기</div>
-        <div class="import-preview-body" id="importPreviewText">아직 미리보기를 실행하지 않았습니다.</div>
-      </div>
-      <div class="modal-buttons">
-        <button class="btn btn-gray" id="importCancelBtn" type="button">취소</button>
-        <button class="btn btn-outline" id="importPreviewBtn" type="button">미리보기</button>
-        <button class="btn btn-primary" id="importApplyBtn" type="button">적용</button>
-      </div>
-    </div>
-  </div>
 
   <div class="bulk-save-overlay hidden" id="bulkSaveOverlay">
     <div class="bulk-save-overlay-card">

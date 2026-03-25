@@ -1319,12 +1319,12 @@ button {
 
 
 
-.import-modal {
-  max-width: 860px;
+.modal-xl {
+  width: min(880px, calc(100vw - 32px));
 }
 
 .import-guide {
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 
 .import-textarea {
@@ -1335,27 +1335,23 @@ button {
   border-radius: 10px;
   padding: 12px;
   background: #fff;
-  font: inherit;
+  line-height: 1.45;
 }
 
-.import-preview {
+.import-preview-box {
   margin-top: 14px;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
   background: #f9fafb;
-}
-
-.import-preview-title {
-  padding: 12px 14px 8px;
-  font-weight: 700;
-}
-
-.import-preview-body {
-  padding: 0 14px 14px;
-  white-space: pre-wrap;
-  color: #374151;
+  padding: 14px;
   font-size: 14px;
-  line-height: 1.5;
-  max-height: 240px;
-  overflow: auto;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.import-preview-box.is-error {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
 }
