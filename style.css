@@ -137,6 +137,10 @@ button {
   background: #fff;
 }
 
+#bossSearchInput {
+  width: 220px;
+}
+
 .btn {
   border: 0;
   border-radius: 10px;

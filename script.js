@@ -24,6 +24,7 @@ const state = {
   accessoryGroups: [],
   memberAccessories: [],
   searchTerm: "",
+  bossSearchTerm: "",
   selectedMemberId: null,
   draftMemberId: null,
   draftTab: null,
@@ -59,6 +60,7 @@ function bindElements() {
   el.importOpenBtn = document.getElementById("importOpenBtn");
   el.tableGuideText = document.getElementById("tableGuideText");
   el.searchInput = document.getElementById("searchInput");
+  el.bossSearchInput = document.getElementById("bossSearchInput");
   el.searchBtn = document.getElementById("searchBtn");
   el.resetBtn = document.getElementById("resetBtn");
   el.summaryTableHead = document.getElementById("summaryTableHead");
@@ -129,6 +131,14 @@ function bindEvents() {
     if (event.key === "Enter") {
       event.preventDefault();
       handleSearch();
+    }
+  });
+
+  el.bossSearchInput.addEventListener("input", handleBossSearchInput);
+  el.bossSearchInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      handleBossSearchInput();
     }
   });
 
@@ -203,6 +213,8 @@ function updateTabUi() {
   el.searchBtn.disabled = isSpecial || state.isBulkSaving;
   el.resetBtn.disabled = isSpecial || state.isBulkSaving;
   el.searchInput.disabled = isSpecial || state.isBulkSaving;
+  el.bossSearchInput.disabled = !isBoss || isSpecial || state.isBulkSaving;
+  el.bossSearchInput.classList.toggle("hidden", !isBoss);
   el.itemManageBtn.classList.toggle("hidden", isPower);
   el.importOpenBtn.classList.toggle("hidden", !(state.activeTab === "mount" || state.activeTab === "boss"));
   el.importOpenBtn.disabled = isSpecial || isPower || isAccessory || state.isBulkSaving;
@@ -363,6 +375,12 @@ function toggleAccessoryGroupHidden(groupId) {
   renderSummaryTable();
 }
 
+
+function handleBossSearchInput() {
+  state.bossSearchTerm = el.bossSearchInput.value.trim();
+  renderSummaryTable();
+}
+
 function handleSearch() {
   const keyword = el.searchInput.value.trim();
   state.searchTerm = keyword;
@@ -395,8 +413,10 @@ function handleSearch() {
 
 async function handleResetSearch() {
   state.searchTerm = "";
+  state.bossSearchTerm = "";
   state.selectedMemberId = null;
   el.searchInput.value = "";
+  el.bossSearchInput.value = "";
   closeSearchSelectModal();
 
   if (state.activeTab !== "special") {
@@ -784,6 +804,13 @@ function renderMountSummaryTable() {
   }).join("");
 }
 
+
+function getFilteredBossItems() {
+  const keyword = state.bossSearchTerm.trim();
+  if (!keyword) return state.bossItems;
+  return state.bossItems.filter((item) => item.name.includes(keyword));
+}
+
 function renderBossSummaryTable() {
   const powerSortText = state.powerSortDirection === "asc"
     ? "▲"
@@ -791,11 +818,13 @@ function renderBossSummaryTable() {
       ? "▼"
       : "↕";
 
+  const filteredBossItems = getFilteredBossItems();
+
   const headers = [
     `<th>no</th>`,
     `<th>길드원</th>`,
     `<th class="sortable-header ${state.powerSortDirection ? "active" : ""}" data-role="power-sort-header"><span class="sort-header-inner"><span>전투력</span><span class="sort-indicator">${powerSortText}</span></span></th>`,
-    ...state.bossItems.map((item) => `<th class="item-col-header">${escapeHtml(item.name)}</th>`),
+    ...filteredBossItems.map((item) => `<th class="item-col-header">${escapeHtml(item.name)}</th>`),
     `<th class="save-col">저장</th>`,
     `<th class="last-updated-col">수정일</th>`
   ];
@@ -807,7 +836,7 @@ function renderBossSummaryTable() {
   if (filteredMembers.length === 0) {
     el.summaryTableBody.innerHTML = `
       <tr>
-        <td class="empty-row" colspan="${state.bossItems.length + 5}">표시할 길드원이 없습니다.</td>
+        <td class="empty-row" colspan="${filteredBossItems.length + 5}">표시할 길드원이 없습니다.</td>
       </tr>
     `;
     return;
@@ -819,7 +848,7 @@ function renderBossSummaryTable() {
 
     const powerCell = `<span class="value-box">${member.power ?? 0}</span>`;
 
-    const itemCells = state.bossItems.map((item) => {
+    const itemCells = filteredBossItems.map((item) => {
       const currentOwned = isEditable
         ? getMemberDraftOwned(member.id, item.id)
         : getBossOwnedValue(member.id, item.id);
