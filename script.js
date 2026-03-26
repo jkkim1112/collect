@@ -1446,6 +1446,20 @@ function normalizeNonNegativeNumber(value, errorMessage) {
   return Math.floor(number);
 }
 
+function parseInteger(value) {
+  const number = Number(String(value ?? "").trim());
+  if (!Number.isFinite(number) || number < 0) return 0;
+  return Math.floor(number);
+}
+
+function parsePercent(value) {
+  const trimmed = String(value ?? "").trim();
+  if (!trimmed) return 0;
+  const number = Number(trimmed);
+  if (!Number.isFinite(number) || number < 0) return 0;
+  return number;
+}
+
 async function readDistributionWorkbookRows() {
   const file = el.distributionFileInput.files?.[0];
   if (!file) {
