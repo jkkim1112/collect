@@ -1281,44 +1281,110 @@ function handleDistributionSaveResult() {
   }
 
   const workbook = XLSX.utils.book_new();
-
-  const summaryRows = [
-    { 항목: "대상 기간", 값: state.distribution.summary.periodText },
-    { 항목: "총 다이아", 값: Number(state.distribution.totalDiamond || 0) },
-    { 항목: "운영비 공제", 값: state.distribution.deduction.guildFeeAmount },
-    { 항목: "길드장 공제", 값: state.distribution.deduction.guildMasterAmount },
-    { 항목: "총무 공제", 값: state.distribution.deduction.managerAmount },
-    { 항목: "실제 분배 다이아", 값: state.distribution.summary.actualDiamond },
-    { 항목: "전체 참여점수", 값: state.distribution.summary.totalPoints },
-    { 항목: "1점당 다이아", 값: state.distribution.summary.diamondPerPoint },
-    { 항목: "남은 다이아", 값: state.distribution.summary.remainingDiamond }
-  ];
-
-  const memberRows = state.distribution.memberResults.map((row, index) => ({
-    No: index + 1,
-    길드원: row.memberName,
-    참여점수: row.points,
-    참여비율: formatPercent(row.ratio),
-    계산다이아: Number(row.rawDiamond.toFixed(2)),
-    최종분배다이아: row.finalDiamond,
-    비고: row.note || "-"
-  }));
-
-  const logRows = state.distribution.usedLogs.map((row, index) => ({
-    No: index + 1,
-    날짜: row.date,
-    시간: row.time,
-    보스: row.boss,
-    컷자: row.cutter,
-    참여자: row.participants.join(", ")
-  }));
-
-  XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(summaryRows), "요약");
-  XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(memberRows), "분배결과");
-  XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(logRows), "보스로그");
+  const worksheet = buildDistributionExportSheet();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "분배결과");
 
   const fileName = `분배결과_${state.distribution.startDate || "시작일"}_${state.distribution.endDate || "종료일"}.xlsx`;
   XLSX.writeFile(workbook, fileName);
+}
+
+function buildDistributionExportSheet() {
+  const summary = state.distribution.summary;
+  const deduction = state.distribution.deduction;
+  const totalDiamond = parseInteger(state.distribution.totalDiamond);
+  const memberRows = state.distribution.memberResults;
+  const logRows = state.distribution.usedLogs;
+
+  const rows = [
+    ["분배 결과"],
+    [],
+    ["공제 설정", "값", "", "분배 요약", "값", "", ""],
+    ["대상 기간", summary.periodText, "", "총 다이아", totalDiamond, "", ""],
+    ["길드 운영비 %", parsePercent(state.distribution.guildFeePercent), "", "운영비 공제", deduction.guildFeeAmount, "", ""],
+    ["길드장 %", parsePercent(state.distribution.guildMasterPercent), "", "길드장 공제", deduction.guildMasterAmount, "", ""],
+    ["총무 %", parsePercent(state.distribution.managerPercent), "", "총무 공제", deduction.managerAmount, "", ""],
+    ["실제 분배 다이아", summary.actualDiamond, "", "전체 참여점수", summary.totalPoints, "", ""],
+    ["1점당 다이아", Number(summary.diamondPerPoint.toFixed(4)), "", "남은 다이아", summary.remainingDiamond, "", ""],
+    [],
+    ["길드원별 분배 결과"],
+    ["No", "길드원", "참여점수", "참여비율", "계산 다이아", "최종 분배 다이아", "비고"]
+  ];
+
+  memberRows.forEach((row, index) => {
+    rows.push([
+      index + 1,
+      row.memberName,
+      row.points,
+      row.ratio,
+      Number(row.rawDiamond.toFixed(2)),
+      row.finalDiamond,
+      row.note || "-"
+    ]);
+  });
+
+  rows.push([]);
+  const logTitleRowNumber = rows.length + 1;
+  rows.push(["사용된 보스로그"]);
+  const logHeaderRowNumber = rows.length + 1;
+  rows.push(["No", "날짜", "시간", "보스", "컷자", "참여자"]);
+
+  logRows.forEach((row, index) => {
+    rows.push([
+      index + 1,
+      row.date,
+      row.time,
+      row.boss,
+      row.cutter,
+      row.participants.join(", ")
+    ]);
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws["!cols"] = [
+    { wch: 8 },
+    { wch: 22 },
+    { wch: 12 },
+    { wch: 14 },
+    { wch: 16 },
+    { wch: 44 },
+    { wch: 18 }
+  ];
+  ws["!merges"] = [
+    XLSX.utils.decode_range("A1:G1"),
+    XLSX.utils.decode_range("A11:G11"),
+    XLSX.utils.decode_range(`A${logTitleRowNumber}:F${logTitleRowNumber}`)
+  ];
+
+  applyDistributionExportFormats(ws, memberRows.length, logHeaderRowNumber, rows.length);
+  return ws;
+}
+
+function applyDistributionExportFormats(ws, memberCount, logHeaderRowNumber, totalRowCount) {
+  const summaryPercentAddresses = ["B5", "B6", "B7"];
+  const summaryNumberAddresses = ["E4", "E5", "E6", "E7", "B8", "E8", "B9", "E9"];
+
+  setCellFormat(ws, "B4", "@");
+  summaryPercentAddresses.forEach((address) => setCellFormat(ws, address, "0.00"));
+  summaryNumberAddresses.forEach((address) => setCellFormat(ws, address, "#,##0.####"));
+
+  const memberStartRow = 13;
+  const memberEndRow = memberStartRow + memberCount - 1;
+  for (let row = memberStartRow; row <= memberEndRow; row += 1) {
+    setCellFormat(ws, `A${row}`, "0");
+    setCellFormat(ws, `C${row}`, "#,##0");
+    setCellFormat(ws, `D${row}`, "0.00%");
+    setCellFormat(ws, `E${row}`, "#,##0.00");
+    setCellFormat(ws, `F${row}`, "#,##0");
+  }
+
+  for (let row = logHeaderRowNumber + 1; row <= totalRowCount; row += 1) {
+    setCellFormat(ws, `A${row}`, "0");
+  }
+}
+
+function setCellFormat(ws, address, format) {
+  if (!ws[address]) return;
+  ws[address].z = format;
 }
 
 function resetDistributionStateAndRender() {
