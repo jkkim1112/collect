@@ -1537,6 +1537,11 @@ function buildDistributionResult(workbookRows) {
 
   const actualDiamond = state.distribution.deduction.actualDiamond;
   const pointMap = new Map();
+  const activeMemberNameSet = new Set(
+    (state.members || [])
+      .map((member) => String(member?.name ?? "").trim())
+      .filter(Boolean)
+  );
 
   usedLogs.forEach((row) => {
     row.participants.forEach((memberName) => {
@@ -1544,23 +1549,36 @@ function buildDistributionResult(workbookRows) {
     });
   });
 
-  const totalPoints = Array.from(pointMap.values()).reduce((sum, value) => sum + value, 0);
+  const memberEntries = Array.from(pointMap.entries()).map(([memberName, points]) => {
+    const isRetired = !activeMemberNameSet.has(memberName);
+    return {
+      memberName,
+      points,
+      isRetired
+    };
+  });
+
+  const totalPoints = memberEntries
+    .filter((entry) => !entry.isRetired)
+    .reduce((sum, entry) => sum + entry.points, 0);
   const diamondPerPoint = totalPoints > 0 ? actualDiamond / totalPoints : 0;
 
-  const memberResults = Array.from(pointMap.entries())
-    .map(([memberName, points]) => {
-      const rawDiamond = points * diamondPerPoint;
+  const memberResults = memberEntries
+    .map((entry) => {
+      const rawDiamond = entry.isRetired ? 0 : entry.points * diamondPerPoint;
       const finalDiamond = Math.floor(rawDiamond);
       return {
-        memberName,
-        points,
-        ratio: totalPoints > 0 ? points / totalPoints : 0,
+        memberName: entry.memberName,
+        points: entry.points,
+        ratio: totalPoints > 0 && !entry.isRetired ? entry.points / totalPoints : 0,
         rawDiamond,
         finalDiamond,
-        note: ""
+        note: entry.isRetired ? "탈퇴한 길드원" : ""
       };
     })
     .sort((left, right) => {
+      if (left.note && !right.note) return 1;
+      if (!left.note && right.note) return -1;
       if (right.points !== left.points) return right.points - left.points;
       return left.memberName.localeCompare(right.memberName, "ko");
     });
