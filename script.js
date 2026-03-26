@@ -1851,12 +1851,8 @@ ${historyRes.error.message}`);
   state.history.items = nextItems;
   state.history.detailCache = nextCache;
 
-  if (!state.history.selectedId || !visibleIds.has(state.history.selectedId)) {
-    state.history.selectedId = nextItems[0]?.id ?? null;
-  }
-
-  if (state.history.selectedId) {
-    await loadHistoryDetail(state.history.selectedId);
+  if (state.history.selectedId && !visibleIds.has(state.history.selectedId)) {
+    state.history.selectedId = null;
   }
 }
 
@@ -1991,8 +1987,8 @@ function renderHistoryListTable() {
     return;
   }
 
-  if (!items.some((item) => item.id === state.history.selectedId)) {
-    state.history.selectedId = items[0].id;
+  if (state.history.selectedId && !items.some((item) => item.id === state.history.selectedId)) {
+    state.history.selectedId = null;
   }
 
   el.historyListTableBody.innerHTML = items.map((item, index) => `
@@ -2009,7 +2005,8 @@ function renderHistoryListTable() {
 
 function getSelectedHistoryItem() {
   const items = getFilteredHistoryItems();
-  return items.find((item) => item.id === state.history.selectedId) || items[0] || null;
+  if (!state.history.selectedId) return null;
+  return items.find((item) => item.id === state.history.selectedId) || null;
 }
 
 function renderHistoryDetail() {
