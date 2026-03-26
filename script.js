@@ -1538,7 +1538,7 @@ function buildDistributionResult(workbookRows) {
   const actualDiamond = state.distribution.deduction.actualDiamond;
   const pointMap = new Map();
   const activeMemberNameSet = new Set(
-    (state.guildMembers || [])
+    (state.members || [])
       .map((member) => String(member?.name ?? "").trim())
       .filter(Boolean)
   );
