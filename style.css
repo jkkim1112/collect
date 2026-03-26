@@ -1589,6 +1589,17 @@ button {
 
 
 
+
+.distribution-header-actions.hidden {
+  display: none;
+}
+
+.distribution-header-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .history-header-actions.hidden {
   display: none;
 }
@@ -1645,10 +1656,12 @@ button {
     grid-template-columns: 1fr;
   }
 
+  .distribution-header-actions,
   .history-header-actions {
     width: 100%;
   }
 
+  .distribution-header-actions .btn,
   .history-header-actions .btn {
     flex: 1 1 0;
   }
