@@ -1528,6 +1528,14 @@ button {
   background: #f8fafc;
 }
 
+.distribution-table tbody tr.distribution-retired-row td {
+  background: #fef2f2;
+}
+
+.distribution-table tbody tr.distribution-retired-row:hover td {
+  background: #fee2e2;
+}
+
 .distribution-table tbody tr:last-child td {
   border-bottom: 0;
 }
@@ -1580,7 +1588,20 @@ button {
 }
 
 
-.distribution-select {
+.history-header-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.history-filter-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.history-select {
   width: 100%;
   height: 40px;
   padding: 0 12px;
@@ -1590,27 +1611,41 @@ button {
   background: #fff;
 }
 
-.distribution-history-toolbar {
+.history-list-table-wrap {
+  max-height: 360px;
+}
+
+.history-info-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr auto;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
-  align-items: end;
 }
 
-.distribution-history-list-table-wrap {
-  max-height: 260px;
+.history-info-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
 }
 
-.distribution-history-selected-row td {
-  background: #eef4ff;
+.distribution-table tbody tr.history-selected-row td {
+  background: #eff6ff;
 }
 
-.distribution-history-selected-row:hover td {
-  background: #e3edff;
+.distribution-table tbody tr.history-selected-row:hover td {
+  background: #dbeafe;
 }
 
 @media (max-width: 900px) {
-  .distribution-history-toolbar {
+  .history-filter-grid,
+  .history-info-grid {
     grid-template-columns: 1fr;
+  }
+
+  .history-header-actions {
+    width: 100%;
+  }
+
+  .history-header-actions .btn {
+    flex: 1 1 0;
   }
 }

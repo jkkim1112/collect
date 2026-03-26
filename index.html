@@ -23,33 +23,39 @@
         <button class="tab" type="button" data-tab="accessory">악세사리</button>
         <button class="tab" type="button" data-tab="boss">보스컬렉</button>
         <button class="tab" type="button" data-tab="distribution">분배</button>
-        <button class="tab" type="button" data-tab="distribution-history">분배 이력</button>
+        <button class="tab" type="button" data-tab="history">분배 이력</button>
       </div>
 
-      <div class="distribution-content hidden" id="distributionHistoryContent">
+      <div class="history-content hidden" id="historyContent">
         <div class="distribution-section">
-          <h3 class="distribution-section-title">분배 이력 목록</h3>
-          <div class="distribution-history-toolbar">
+          <h3 class="distribution-section-title">분배 이력 조회</h3>
+          <div class="history-filter-grid">
             <div class="distribution-field">
-              <label for="distributionHistoryDateInput">포함 날짜</label>
-              <input type="date" id="distributionHistoryDateInput">
+              <label for="historyDateInput">포함 날짜</label>
+              <input type="date" id="historyDateInput">
             </div>
             <div class="distribution-field">
-              <label for="distributionHistorySortSelect">정렬</label>
-              <select id="distributionHistorySortSelect" class="distribution-select">
+              <label for="historySortSelect">정렬</label>
+              <select id="historySortSelect" class="history-select">
                 <option value="saved_desc">최근 저장순</option>
-                <option value="period_desc">대상 기간순</option>
-                <option value="diamond_desc">실제 분배 다이아순</option>
+                <option value="saved_asc">오래된 저장순</option>
+                <option value="period_desc">대상 기간 최신순</option>
+                <option value="period_asc">대상 기간 오래된순</option>
               </select>
             </div>
             <div class="distribution-button-row">
-              <button class="btn btn-primary" id="distributionHistorySearchBtn" type="button">조회</button>
+              <button class="btn btn-primary" id="historySearchBtn" type="button">조회</button>
             </div>
           </div>
-          <div class="distribution-table-wrap distribution-history-list-table-wrap">
+          <p class="distribution-muted">날짜를 입력하지 않으면 전체 이력을 조회하는 형태로 사용할 예정입니다.</p>
+        </div>
+
+        <div class="distribution-section">
+          <h3 class="distribution-section-title">분배 이력 목록</h3>
+          <div class="distribution-table-wrap history-list-table-wrap">
             <table class="distribution-table">
-              <thead id="distributionHistoryListTableHead"></thead>
-              <tbody id="distributionHistoryListTableBody"></tbody>
+              <thead id="historyListTableHead"></thead>
+              <tbody id="historyListTableBody"></tbody>
             </table>
           </div>
         </div>
@@ -59,45 +65,49 @@
           <div class="distribution-summary-grid">
             <div class="distribution-summary-card">
               <div class="distribution-summary-label">대상 기간</div>
-              <div class="distribution-summary-value" id="distributionHistorySummaryPeriod">-</div>
+              <div class="distribution-summary-value" id="historySummaryPeriod">2026-03-16 ~ 2026-03-26</div>
             </div>
             <div class="distribution-summary-card">
               <div class="distribution-summary-label">실제 분배 다이아</div>
-              <div class="distribution-summary-value" id="distributionHistorySummaryActualDiamond">0</div>
+              <div class="distribution-summary-value" id="historySummaryActualDiamond">82,000</div>
             </div>
             <div class="distribution-summary-card">
               <div class="distribution-summary-label">전체 참여점수</div>
-              <div class="distribution-summary-value" id="distributionHistorySummaryTotalPoints">0</div>
+              <div class="distribution-summary-value" id="historySummaryTotalPoints">120</div>
             </div>
             <div class="distribution-summary-card">
               <div class="distribution-summary-label">1점당 다이아</div>
-              <div class="distribution-summary-value" id="distributionHistorySummaryPerPoint">0</div>
+              <div class="distribution-summary-value" id="historySummaryPerPoint">683.3333</div>
             </div>
             <div class="distribution-summary-card">
               <div class="distribution-summary-label">남은 다이아</div>
-              <div class="distribution-summary-value" id="distributionHistorySummaryRemaining">0</div>
+              <div class="distribution-summary-value" id="historySummaryRemaining">40</div>
             </div>
           </div>
         </div>
 
         <div class="distribution-section">
           <h3 class="distribution-section-title">저장 정보</h3>
-          <div class="distribution-deduction-summary distribution-history-meta-grid">
-            <div class="distribution-summary-chip">
-              <div class="distribution-summary-chip-label">저장일시</div>
-              <div class="distribution-summary-chip-value" id="distributionHistorySavedAt">-</div>
+          <div class="history-info-grid">
+            <div class="distribution-summary-card">
+              <div class="distribution-summary-label">저장일시</div>
+              <div class="history-info-value" id="historySavedAt">2026-03-26 21:15:10</div>
             </div>
-            <div class="distribution-summary-chip">
-              <div class="distribution-summary-chip-label">길드 운영비 %</div>
-              <div class="distribution-summary-chip-value" id="distributionHistoryGuildFeePercent">0%</div>
+            <div class="distribution-summary-card">
+              <div class="distribution-summary-label">총 다이아</div>
+              <div class="history-info-value" id="historyTotalDiamond">100,000</div>
             </div>
-            <div class="distribution-summary-chip">
-              <div class="distribution-summary-chip-label">길드장 %</div>
-              <div class="distribution-summary-chip-value" id="distributionHistoryGuildMasterPercent">0%</div>
+            <div class="distribution-summary-card">
+              <div class="distribution-summary-label">길드 운영비 %</div>
+              <div class="history-info-value" id="historyGuildFeePercent">10</div>
             </div>
-            <div class="distribution-summary-chip">
-              <div class="distribution-summary-chip-label">총무 %</div>
-              <div class="distribution-summary-chip-value" id="distributionHistoryManagerPercent">0%</div>
+            <div class="distribution-summary-card">
+              <div class="distribution-summary-label">길드장 %</div>
+              <div class="history-info-value" id="historyGuildMasterPercent">5</div>
+            </div>
+            <div class="distribution-summary-card">
+              <div class="distribution-summary-label">총무 %</div>
+              <div class="history-info-value" id="historyManagerPercent">3</div>
             </div>
           </div>
         </div>
@@ -106,8 +116,8 @@
           <h3 class="distribution-section-title">길드원별 분배 결과</h3>
           <div class="distribution-table-wrap distribution-member-table-wrap">
             <table class="distribution-table">
-              <thead id="distributionHistoryMemberTableHead"></thead>
-              <tbody id="distributionHistoryMemberTableBody"></tbody>
+              <thead id="historyMemberTableHead"></thead>
+              <tbody id="historyMemberTableBody"></tbody>
             </table>
           </div>
         </div>
@@ -115,9 +125,9 @@
         <div class="distribution-section">
           <h3 class="distribution-section-title">사용된 보스로그</h3>
           <div class="distribution-table-wrap distribution-log-table-wrap">
-            <table class="distribution-table distribution-log-table">
-              <thead id="distributionHistoryLogTableHead"></thead>
-              <tbody id="distributionHistoryLogTableBody"></tbody>
+            <table class="distribution-table">
+              <thead id="historyLogTableHead"></thead>
+              <tbody id="historyLogTableBody"></tbody>
             </table>
           </div>
         </div>
@@ -143,9 +153,9 @@
         <div class="distribution-header-actions hidden" id="distributionHeaderActions">
           <button class="btn btn-primary" id="distributionSaveBtn" type="button">분배 결과 저장</button>
         </div>
-        <div class="distribution-header-actions hidden" id="distributionHistoryHeaderActions">
-          <button class="btn btn-outline" id="distributionHistoryDeleteBtn" type="button">이력 삭제</button>
-          <button class="btn btn-primary" id="distributionHistoryExcelBtn" type="button">엑셀 저장</button>
+        <div class="history-header-actions hidden" id="historyHeaderActions">
+          <button class="btn btn-gray" id="historyDeleteBtn" type="button">이력 삭제</button>
+          <button class="btn btn-primary" id="historyExportBtn" type="button">엑셀 저장</button>
         </div>
       </div>
 
@@ -267,6 +277,113 @@
             <table class="distribution-table distribution-log-table">
               <thead id="distributionLogTableHead"></thead>
               <tbody id="distributionLogTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="history-content hidden" id="historyContent">
+        <div class="distribution-section">
+          <h3 class="distribution-section-title">분배 이력 조회</h3>
+          <div class="history-filter-grid">
+            <div class="distribution-field">
+              <label for="historyDateInput">포함 날짜</label>
+              <input type="date" id="historyDateInput">
+            </div>
+            <div class="distribution-field">
+              <label for="historySortSelect">정렬</label>
+              <select id="historySortSelect" class="history-select">
+                <option value="saved_desc">최근 저장순</option>
+                <option value="saved_asc">오래된 저장순</option>
+                <option value="period_desc">대상 기간 최신순</option>
+                <option value="period_asc">대상 기간 오래된순</option>
+              </select>
+            </div>
+            <div class="distribution-button-row">
+              <button class="btn btn-primary" id="historySearchBtn" type="button">조회</button>
+            </div>
+          </div>
+          <p class="distribution-muted">날짜를 입력하지 않으면 전체 이력을 조회하는 형태로 사용할 예정입니다.</p>
+        </div>
+
+        <div class="distribution-section">
+          <h3 class="distribution-section-title">분배 이력 목록</h3>
+          <div class="distribution-table-wrap history-list-table-wrap">
+            <table class="distribution-table">
+              <thead id="historyListTableHead"></thead>
+              <tbody id="historyListTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="distribution-section">
+          <h3 class="distribution-section-title">분배 요약</h3>
+          <div class="distribution-summary-grid">
+            <div class="distribution-summary-card">
+              <div class="distribution-summary-label">대상 기간</div>
+              <div class="distribution-summary-value" id="historySummaryPeriod">2026-03-16 ~ 2026-03-26</div>
+            </div>
+            <div class="distribution-summary-card">
+              <div class="distribution-summary-label">실제 분배 다이아</div>
+              <div class="distribution-summary-value" id="historySummaryActualDiamond">82,000</div>
+            </div>
+            <div class="distribution-summary-card">
+              <div class="distribution-summary-label">전체 참여점수</div>
+              <div class="distribution-summary-value" id="historySummaryTotalPoints">120</div>
+            </div>
+            <div class="distribution-summary-card">
+              <div class="distribution-summary-label">1점당 다이아</div>
+              <div class="distribution-summary-value" id="historySummaryPerPoint">683.3333</div>
+            </div>
+            <div class="distribution-summary-card">
+              <div class="distribution-summary-label">남은 다이아</div>
+              <div class="distribution-summary-value" id="historySummaryRemaining">40</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="distribution-section">
+          <h3 class="distribution-section-title">저장 정보</h3>
+          <div class="history-info-grid">
+            <div class="distribution-summary-card">
+              <div class="distribution-summary-label">저장일시</div>
+              <div class="history-info-value" id="historySavedAt">2026-03-26 21:15:10</div>
+            </div>
+            <div class="distribution-summary-card">
+              <div class="distribution-summary-label">총 다이아</div>
+              <div class="history-info-value" id="historyTotalDiamond">100,000</div>
+            </div>
+            <div class="distribution-summary-card">
+              <div class="distribution-summary-label">길드 운영비 %</div>
+              <div class="history-info-value" id="historyGuildFeePercent">10</div>
+            </div>
+            <div class="distribution-summary-card">
+              <div class="distribution-summary-label">길드장 %</div>
+              <div class="history-info-value" id="historyGuildMasterPercent">5</div>
+            </div>
+            <div class="distribution-summary-card">
+              <div class="distribution-summary-label">총무 %</div>
+              <div class="history-info-value" id="historyManagerPercent">3</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="distribution-section">
+          <h3 class="distribution-section-title">길드원별 분배 결과</h3>
+          <div class="distribution-table-wrap distribution-member-table-wrap">
+            <table class="distribution-table">
+              <thead id="historyMemberTableHead"></thead>
+              <tbody id="historyMemberTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="distribution-section">
+          <h3 class="distribution-section-title">사용된 보스로그</h3>
+          <div class="distribution-table-wrap distribution-log-table-wrap">
+            <table class="distribution-table">
+              <thead id="historyLogTableHead"></thead>
+              <tbody id="historyLogTableBody"></tbody>
             </table>
           </div>
         </div>
