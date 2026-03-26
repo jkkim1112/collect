@@ -1528,6 +1528,14 @@ button {
   background: #f8fafc;
 }
 
+.distribution-table tbody tr.distribution-retired-row td {
+  background: #fef2f2;
+}
+
+.distribution-table tbody tr.distribution-retired-row:hover td {
+  background: #fee2e2;
+}
+
 .distribution-table tbody tr:last-child td {
   border-bottom: 0;
 }
