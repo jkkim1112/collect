@@ -23,7 +23,104 @@
         <button class="tab" type="button" data-tab="accessory">악세사리</button>
         <button class="tab" type="button" data-tab="boss">보스컬렉</button>
         <button class="tab" type="button" data-tab="distribution">분배</button>
-        <button class="tab" type="button" data-tab="special">특수</button>
+        <button class="tab" type="button" data-tab="distribution-history">분배 이력</button>
+      </div>
+
+      <div class="distribution-content hidden" id="distributionHistoryContent">
+        <div class="distribution-section">
+          <h3 class="distribution-section-title">분배 이력 목록</h3>
+          <div class="distribution-history-toolbar">
+            <div class="distribution-field">
+              <label for="distributionHistoryDateInput">포함 날짜</label>
+              <input type="date" id="distributionHistoryDateInput">
+            </div>
+            <div class="distribution-field">
+              <label for="distributionHistorySortSelect">정렬</label>
+              <select id="distributionHistorySortSelect" class="distribution-select">
+                <option value="saved_desc">최근 저장순</option>
+                <option value="period_desc">대상 기간순</option>
+                <option value="diamond_desc">실제 분배 다이아순</option>
+              </select>
+            </div>
+            <div class="distribution-button-row">
+              <button class="btn btn-primary" id="distributionHistorySearchBtn" type="button">조회</button>
+            </div>
+          </div>
+          <div class="distribution-table-wrap distribution-history-list-table-wrap">
+            <table class="distribution-table">
+              <thead id="distributionHistoryListTableHead"></thead>
+              <tbody id="distributionHistoryListTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="distribution-section">
+          <h3 class="distribution-section-title">분배 요약</h3>
+          <div class="distribution-summary-grid">
+            <div class="distribution-summary-card">
+              <div class="distribution-summary-label">대상 기간</div>
+              <div class="distribution-summary-value" id="distributionHistorySummaryPeriod">-</div>
+            </div>
+            <div class="distribution-summary-card">
+              <div class="distribution-summary-label">실제 분배 다이아</div>
+              <div class="distribution-summary-value" id="distributionHistorySummaryActualDiamond">0</div>
+            </div>
+            <div class="distribution-summary-card">
+              <div class="distribution-summary-label">전체 참여점수</div>
+              <div class="distribution-summary-value" id="distributionHistorySummaryTotalPoints">0</div>
+            </div>
+            <div class="distribution-summary-card">
+              <div class="distribution-summary-label">1점당 다이아</div>
+              <div class="distribution-summary-value" id="distributionHistorySummaryPerPoint">0</div>
+            </div>
+            <div class="distribution-summary-card">
+              <div class="distribution-summary-label">남은 다이아</div>
+              <div class="distribution-summary-value" id="distributionHistorySummaryRemaining">0</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="distribution-section">
+          <h3 class="distribution-section-title">저장 정보</h3>
+          <div class="distribution-deduction-summary distribution-history-meta-grid">
+            <div class="distribution-summary-chip">
+              <div class="distribution-summary-chip-label">저장일시</div>
+              <div class="distribution-summary-chip-value" id="distributionHistorySavedAt">-</div>
+            </div>
+            <div class="distribution-summary-chip">
+              <div class="distribution-summary-chip-label">길드 운영비 %</div>
+              <div class="distribution-summary-chip-value" id="distributionHistoryGuildFeePercent">0%</div>
+            </div>
+            <div class="distribution-summary-chip">
+              <div class="distribution-summary-chip-label">길드장 %</div>
+              <div class="distribution-summary-chip-value" id="distributionHistoryGuildMasterPercent">0%</div>
+            </div>
+            <div class="distribution-summary-chip">
+              <div class="distribution-summary-chip-label">총무 %</div>
+              <div class="distribution-summary-chip-value" id="distributionHistoryManagerPercent">0%</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="distribution-section">
+          <h3 class="distribution-section-title">길드원별 분배 결과</h3>
+          <div class="distribution-table-wrap distribution-member-table-wrap">
+            <table class="distribution-table">
+              <thead id="distributionHistoryMemberTableHead"></thead>
+              <tbody id="distributionHistoryMemberTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="distribution-section">
+          <h3 class="distribution-section-title">사용된 보스로그</h3>
+          <div class="distribution-table-wrap distribution-log-table-wrap">
+            <table class="distribution-table distribution-log-table">
+              <thead id="distributionHistoryLogTableHead"></thead>
+              <tbody id="distributionHistoryLogTableBody"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -45,6 +142,10 @@
         </div>
         <div class="distribution-header-actions hidden" id="distributionHeaderActions">
           <button class="btn btn-primary" id="distributionSaveBtn" type="button">분배 결과 저장</button>
+        </div>
+        <div class="distribution-header-actions hidden" id="distributionHistoryHeaderActions">
+          <button class="btn btn-outline" id="distributionHistoryDeleteBtn" type="button">이력 삭제</button>
+          <button class="btn btn-primary" id="distributionHistoryExcelBtn" type="button">엑셀 저장</button>
         </div>
       </div>
 
