@@ -1824,73 +1824,7 @@ ${historyRes.error.message}`);
   }
 
   const historyRows = historyRes.data ?? [];
-  const historyIds = historyRows.map((row) => row.id).filter(Boolean);
-
-  let memberRows = [];
-  let logRows = [];
-
-  if (historyIds.length > 0) {
-    const [memberRes, logRes] = await Promise.all([
-      supabase
-        .from("distribution_history_members")
-        .select("distribution_history_id, member_id, member_name, points, ratio, raw_diamond, final_diamond, note, is_retired, display_order")
-        .in("distribution_history_id", historyIds)
-        .order("display_order", { ascending: true }),
-      supabase
-        .from("distribution_history_logs")
-        .select("distribution_history_id, log_date, log_time, boss_name, cutter_name, participants_text, participants, display_order")
-        .in("distribution_history_id", historyIds)
-        .order("display_order", { ascending: true })
-    ]);
-
-    if (memberRes.error) {
-      alert(`분배 이력 길드원 결과 조회 중 오류가 발생했습니다.
-${memberRes.error.message}`);
-      return;
-    }
-
-    if (logRes.error) {
-      alert(`분배 이력 보스로그 조회 중 오류가 발생했습니다.
-${logRes.error.message}`);
-      return;
-    }
-
-    memberRows = memberRes.data ?? [];
-    logRows = logRes.data ?? [];
-  }
-
-  const memberMap = new Map();
-  const logMap = new Map();
-
-  memberRows.forEach((row) => {
-    const key = row.distribution_history_id;
-    if (!memberMap.has(key)) memberMap.set(key, []);
-    memberMap.get(key).push({
-      memberId: row.member_id ?? null,
-      memberName: row.member_name,
-      points: Number(row.points ?? 0),
-      ratio: Number(row.ratio ?? 0),
-      rawDiamond: Number(row.raw_diamond ?? 0),
-      finalDiamond: Number(row.final_diamond ?? 0),
-      note: row.note || (row.is_retired ? "탈퇴한 길드원" : "")
-    });
-  });
-
-  logRows.forEach((row) => {
-    const key = row.distribution_history_id;
-    if (!logMap.has(key)) logMap.set(key, []);
-    logMap.get(key).push({
-      date: row.log_date || "",
-      time: row.log_time || "",
-      boss: row.boss_name || "",
-      cutter: row.cutter_name || "",
-      participants: Array.isArray(row.participants)
-        ? row.participants.map((item) => String(item).trim()).filter(Boolean)
-        : String(row.participants_text || "").split(",").map((item) => item.trim()).filter(Boolean)
-    });
-  });
-
-  state.history.items = historyRows.map((row) => ({
+  const nextItems = historyRows.map((row) => ({
     id: row.id,
     savedAt: formatDateTime(row.saved_at),
     startDate: row.period_start,
@@ -1903,15 +1837,99 @@ ${logRes.error.message}`);
     totalPoints: Number(row.total_points ?? 0),
     diamondPerPoint: Number(row.diamond_per_point ?? 0),
     remainingDiamond: Number(row.remaining_diamond ?? 0),
-    workbookName: row.workbook_name || "",
-    memberRows: memberMap.get(row.id) ?? [],
-    logRows: logMap.get(row.id) ?? []
+    workbookName: row.workbook_name || ""
   }));
 
-  const visibleIds = new Set(state.history.items.map((item) => item.id));
+  const visibleIds = new Set(nextItems.map((item) => item.id));
+  const nextCache = {};
+  Object.entries(state.history?.detailCache || {}).forEach(([historyId, detail]) => {
+    if (visibleIds.has(historyId)) {
+      nextCache[historyId] = detail;
+    }
+  });
+
+  state.history.items = nextItems;
+  state.history.detailCache = nextCache;
+
   if (!state.history.selectedId || !visibleIds.has(state.history.selectedId)) {
-    state.history.selectedId = state.history.items[0]?.id ?? null;
+    state.history.selectedId = nextItems[0]?.id ?? null;
   }
+
+  if (state.history.selectedId) {
+    await loadHistoryDetail(state.history.selectedId);
+  }
+}
+
+async function loadHistoryDetail(historyId, forceReload = false) {
+  const targetId = String(historyId || "").trim();
+  if (!targetId) return null;
+
+  if (!forceReload && state.history?.detailCache?.[targetId]) {
+    return state.history.detailCache[targetId];
+  }
+
+  state.history.loadingDetailId = targetId;
+  renderHistoryDetail();
+
+  const [memberRes, logRes] = await Promise.all([
+    supabase
+      .from("distribution_history_members")
+      .select("distribution_history_id, member_id, member_name, points, ratio, raw_diamond, final_diamond, note, is_retired, display_order")
+      .eq("distribution_history_id", targetId)
+      .order("display_order", { ascending: true }),
+    supabase
+      .from("distribution_history_logs")
+      .select("distribution_history_id, log_date, log_time, boss_name, cutter_name, participants_text, participants, display_order")
+      .eq("distribution_history_id", targetId)
+      .order("display_order", { ascending: true })
+  ]);
+
+  if (memberRes.error) {
+    state.history.loadingDetailId = null;
+    alert(`분배 이력 길드원 결과 조회 중 오류가 발생했습니다.
+${memberRes.error.message}`);
+    return null;
+  }
+
+  if (logRes.error) {
+    state.history.loadingDetailId = null;
+    alert(`분배 이력 보스로그 조회 중 오류가 발생했습니다.
+${logRes.error.message}`);
+    return null;
+  }
+
+  const detail = {
+    memberRows: (memberRes.data ?? []).map((row) => ({
+      memberId: row.member_id ?? null,
+      memberName: row.member_name,
+      points: Number(row.points ?? 0),
+      ratio: Number(row.ratio ?? 0),
+      rawDiamond: Number(row.raw_diamond ?? 0),
+      finalDiamond: Number(row.final_diamond ?? 0),
+      note: row.note || (row.is_retired ? "탈퇴한 길드원" : "")
+    })),
+    logRows: (logRes.data ?? []).map((row) => ({
+      date: row.log_date || "",
+      time: row.log_time || "",
+      boss: row.boss_name || "",
+      cutter: row.cutter_name || "",
+      participants: Array.isArray(row.participants)
+        ? row.participants.map((item) => String(item).trim()).filter(Boolean)
+        : String(row.participants_text || "").split(",").map((item) => item.trim()).filter(Boolean)
+    }))
+  };
+
+  state.history.detailCache[targetId] = detail;
+  if (state.history.loadingDetailId === targetId) {
+    state.history.loadingDetailId = null;
+  }
+  return detail;
+}
+
+function getSelectedHistoryDetail() {
+  const selectedId = String(state.history?.selectedId || "").trim();
+  if (!selectedId) return null;
+  return state.history?.detailCache?.[selectedId] ?? null;
 }
 
 function initializeHistoryState() {
@@ -1919,7 +1937,9 @@ function initializeHistoryState() {
     filterDate: "",
     sortKey: "saved_desc",
     selectedId: null,
-    items: []
+    items: [],
+    detailCache: {},
+    loadingDetailId: null
   };
 }
 
@@ -2022,8 +2042,17 @@ function renderHistoryDetail() {
   el.historyGuildMasterPercent.textContent = String(item.guildMasterPercent);
   el.historyManagerPercent.textContent = String(item.managerPercent);
 
-  renderHistoryMemberTable(item.memberRows || []);
-  renderHistoryLogTable(item.logRows || []);
+  const detail = getSelectedHistoryDetail();
+  const isLoading = state.history?.loadingDetailId === item.id && !detail;
+
+  if (isLoading) {
+    renderHistoryMemberTable(null);
+    renderHistoryLogTable(null);
+    return;
+  }
+
+  renderHistoryMemberTable(detail?.memberRows || []);
+  renderHistoryLogTable(detail?.logRows || []);
 }
 
 function renderHistoryMemberTable(rows) {
@@ -2038,6 +2067,11 @@ function renderHistoryMemberTable(rows) {
       <th>비고</th>
     </tr>
   `;
+
+  if (rows === null) {
+    el.historyMemberTableBody.innerHTML = `<tr><td class="distribution-empty-row" colspan="7">상세 데이터를 불러오는 중입니다.</td></tr>`;
+    return;
+  }
 
   if (!rows.length) {
     el.historyMemberTableBody.innerHTML = `<tr><td class="distribution-empty-row" colspan="7">표시할 길드원별 분배 결과가 없습니다.</td></tr>`;
@@ -2069,6 +2103,11 @@ function renderHistoryLogTable(rows) {
     </tr>
   `;
 
+  if (rows === null) {
+    el.historyLogTableBody.innerHTML = `<tr><td class="distribution-empty-row" colspan="6">상세 데이터를 불러오는 중입니다.</td></tr>`;
+    return;
+  }
+
   if (!rows.length) {
     el.historyLogTableBody.innerHTML = `<tr><td class="distribution-empty-row" colspan="6">표시할 보스로그가 없습니다.</td></tr>`;
     return;
@@ -2086,10 +2125,15 @@ function renderHistoryLogTable(rows) {
   `).join("");
 }
 
-function handleHistoryListClick(event) {
+async function handleHistoryListClick(event) {
   const row = event.target.closest('[data-role="history-select-row"]');
   if (!row) return;
-  state.history.selectedId = row.dataset.historyId;
+  const historyId = row.dataset.historyId;
+  if (!historyId) return;
+
+  state.history.selectedId = historyId;
+  renderHistoryTab();
+  await loadHistoryDetail(historyId);
   renderHistoryTab();
 }
 
