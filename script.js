@@ -15,6 +15,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const state = {
   activeTab: "power",
+  distribution: null,
   pendingManageType: null,
   members: [],
   mountItems: [],
@@ -45,6 +46,7 @@ const el = {};
 document.addEventListener("DOMContentLoaded", async () => {
   bindElements();
   bindEvents();
+  initializeDistributionState();
   updateTabUi();
   await loadActiveTabData();
   renderAll();
@@ -99,6 +101,33 @@ function bindElements() {
   el.importPreviewBtn = document.getElementById("importPreviewBtn");
   el.importApplyBtn = document.getElementById("importApplyBtn");
   el.importCloseBtn = document.getElementById("importCloseBtn");
+  el.distributionSection = document.getElementById("distributionSection");
+  el.mainCard = document.getElementById("mainCard");
+  el.mainActions = document.getElementById("mainActions");
+  el.distributionSaveBtn = document.getElementById("distributionSaveBtn");
+  el.distributionTotalDiamondInput = document.getElementById("distributionTotalDiamondInput");
+  el.distributionGuildFeePercentInput = document.getElementById("distributionGuildFeePercentInput");
+  el.distributionGuildMasterPercentInput = document.getElementById("distributionGuildMasterPercentInput");
+  el.distributionManagerPercentInput = document.getElementById("distributionManagerPercentInput");
+  el.distributionDeductionCalcBtn = document.getElementById("distributionDeductionCalcBtn");
+  el.distributionGuildFeeAmount = document.getElementById("distributionGuildFeeAmount");
+  el.distributionGuildMasterAmount = document.getElementById("distributionGuildMasterAmount");
+  el.distributionManagerAmount = document.getElementById("distributionManagerAmount");
+  el.distributionActualDiamondAmount = document.getElementById("distributionActualDiamondAmount");
+  el.distributionStartDateInput = document.getElementById("distributionStartDateInput");
+  el.distributionEndDateInput = document.getElementById("distributionEndDateInput");
+  el.distributionFileInput = document.getElementById("distributionFileInput");
+  el.distributionCalculateBtn = document.getElementById("distributionCalculateBtn");
+  el.distributionResetBtn = document.getElementById("distributionResetBtn");
+  el.distributionSummaryPeriod = document.getElementById("distributionSummaryPeriod");
+  el.distributionSummaryActualDiamond = document.getElementById("distributionSummaryActualDiamond");
+  el.distributionSummaryTotalPoints = document.getElementById("distributionSummaryTotalPoints");
+  el.distributionSummaryPerPoint = document.getElementById("distributionSummaryPerPoint");
+  el.distributionSummaryRemaining = document.getElementById("distributionSummaryRemaining");
+  el.distributionMemberTableHead = document.getElementById("distributionMemberTableHead");
+  el.distributionMemberTableBody = document.getElementById("distributionMemberTableBody");
+  el.distributionLogTableHead = document.getElementById("distributionLogTableHead");
+  el.distributionLogTableBody = document.getElementById("distributionLogTableBody");
   el.bulkSaveOverlay = document.getElementById("bulkSaveOverlay");
   el.bulkSavePercent = document.getElementById("bulkSavePercent");
   el.bulkSaveBarFill = document.getElementById("bulkSaveBarFill");
@@ -114,7 +143,7 @@ function bindEvents() {
       resetOverallEditMode();
       updateTabUi();
 
-      if (nextTab === "special") {
+      if (nextTab === "special" || nextTab === "distribution") {
         renderAll();
         return;
       }
@@ -172,6 +201,10 @@ function bindEvents() {
   el.importCancelBtn.addEventListener("click", closeImportModal);
   el.importPreviewBtn.addEventListener("click", handleImportPreview);
   el.importApplyBtn.addEventListener("click", handleImportApply);
+  el.distributionDeductionCalcBtn.addEventListener("click", handleDistributionDeductionCalculate);
+  el.distributionCalculateBtn.addEventListener("click", handleDistributionCalculate);
+  el.distributionResetBtn.addEventListener("click", resetDistributionStateAndRender);
+  el.distributionSaveBtn.addEventListener("click", handleDistributionSaveResult);
 
   el.addMemberBtn.addEventListener("click", addMember);
   el.addItemBtn.addEventListener("click", addItem);
@@ -196,28 +229,33 @@ function updateTabUi() {
   });
 
   const isSpecial = state.activeTab === "special";
+  const isDistribution = state.activeTab === "distribution";
   const isAccessory = state.activeTab === "accessory";
   const isBoss = state.activeTab === "boss";
   const isPower = state.activeTab === "power";
 
-  el.guildManageBtn.disabled = isSpecial;
+  el.mainCard.classList.toggle("hidden", isDistribution);
+  el.mainActions.classList.toggle("hidden", isDistribution);
+  el.distributionSection.classList.toggle("hidden", !isDistribution);
+
+  el.guildManageBtn.disabled = isSpecial || isDistribution;
   el.bulkEditBtn.disabled = isSpecial;
   el.bulkEditBtn.classList.toggle("hidden", state.overallEditMode);
   el.bulkSaveBtn.classList.toggle("hidden", !state.overallEditMode);
   el.bulkCancelBtn.classList.toggle("hidden", !state.overallEditMode);
   el.bulkSaveBtn.disabled = isSpecial || state.isBulkSaving;
   el.bulkCancelBtn.disabled = isSpecial || state.isBulkSaving;
-  el.itemManageBtn.disabled = isSpecial || isPower || state.isBulkSaving;
-  el.guildManageBtn.disabled = isSpecial || state.isBulkSaving;
-  el.bulkEditBtn.disabled = isSpecial || state.isBulkSaving;
-  el.searchBtn.disabled = isSpecial || state.isBulkSaving;
-  el.resetBtn.disabled = isSpecial || state.isBulkSaving;
-  el.searchInput.disabled = isSpecial || state.isBulkSaving;
-  el.bossSearchInput.disabled = !isBoss || isSpecial || state.isBulkSaving;
+  el.itemManageBtn.disabled = isSpecial || isDistribution || isPower || state.isBulkSaving;
+  el.guildManageBtn.disabled = isSpecial || isDistribution || state.isBulkSaving;
+  el.bulkEditBtn.disabled = isSpecial || isDistribution || state.isBulkSaving;
+  el.searchBtn.disabled = isSpecial || isDistribution || state.isBulkSaving;
+  el.resetBtn.disabled = isSpecial || isDistribution || state.isBulkSaving;
+  el.searchInput.disabled = isSpecial || isDistribution || state.isBulkSaving;
+  el.bossSearchInput.disabled = !isBoss || isSpecial || isDistribution || state.isBulkSaving;
   el.bossSearchInput.classList.toggle("hidden", !isBoss);
-  el.itemManageBtn.classList.toggle("hidden", isPower);
+  el.itemManageBtn.classList.toggle("hidden", isPower || isDistribution);
   el.importOpenBtn.classList.toggle("hidden", !(state.activeTab === "mount" || state.activeTab === "boss"));
-  el.importOpenBtn.disabled = isSpecial || isPower || isAccessory || state.isBulkSaving;
+  el.importOpenBtn.disabled = isSpecial || isDistribution || isPower || isAccessory || state.isBulkSaving;
   el.itemManageBtn.textContent = isAccessory ? "악세사리 관리" : isBoss ? "보스컬렉 관리" : "탈것 관리";
   el.itemManageTitle.textContent = isAccessory ? "악세사리 관리" : isBoss ? "보스컬렉 관리" : "탈것 관리";
   el.itemNameHeader.textContent = isAccessory ? "악세사리명" : isBoss ? "보스컬렉명" : "탈것명";
@@ -612,6 +650,11 @@ function renderAll() {
 
   if (state.activeTab === "special") {
     renderPlaceholderTable();
+    return;
+  }
+
+  if (state.activeTab === "distribution") {
+    renderDistributionTab();
     return;
   }
 
@@ -1036,6 +1079,432 @@ function selectMemberFromSearch(memberId) {
 
 function closeSearchSelectModal() {
   closeModal(el.searchSelectModalBackdrop);
+}
+
+
+function initializeDistributionState() {
+  state.distribution = createEmptyDistributionState();
+  setDistributionDefaultDates();
+}
+
+function createEmptyDistributionState() {
+  return {
+    totalDiamond: "",
+    guildFeePercent: "",
+    guildMasterPercent: "",
+    managerPercent: "",
+    deduction: {
+      guildFeeAmount: 0,
+      guildMasterAmount: 0,
+      managerAmount: 0,
+      actualDiamond: 0
+    },
+    startDate: "",
+    endDate: "",
+    workbookName: "",
+    rawRows: [],
+    usedLogs: [],
+    memberResults: [],
+    summary: {
+      periodText: "-",
+      actualDiamond: 0,
+      totalPoints: 0,
+      diamondPerPoint: 0,
+      remainingDiamond: 0
+    }
+  };
+}
+
+function setDistributionDefaultDates() {
+  const today = new Date();
+  const endDate = formatDateToInputValue(today);
+  const startDate = formatDateToInputValue(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 6));
+  state.distribution.startDate = startDate;
+  state.distribution.endDate = endDate;
+}
+
+function renderDistributionTab() {
+  renderDistributionInputs();
+  renderDistributionSummary();
+  renderDistributionMemberTable();
+  renderDistributionLogTable();
+}
+
+function renderDistributionInputs() {
+  const distribution = state.distribution;
+  el.distributionTotalDiamondInput.value = distribution.totalDiamond;
+  el.distributionGuildFeePercentInput.value = distribution.guildFeePercent;
+  el.distributionGuildMasterPercentInput.value = distribution.guildMasterPercent;
+  el.distributionManagerPercentInput.value = distribution.managerPercent;
+  el.distributionStartDateInput.value = distribution.startDate;
+  el.distributionEndDateInput.value = distribution.endDate;
+
+  el.distributionGuildFeeAmount.textContent = formatNumber(distribution.deduction.guildFeeAmount);
+  el.distributionGuildMasterAmount.textContent = formatNumber(distribution.deduction.guildMasterAmount);
+  el.distributionManagerAmount.textContent = formatNumber(distribution.deduction.managerAmount);
+  el.distributionActualDiamondAmount.textContent = formatNumber(distribution.deduction.actualDiamond);
+}
+
+function renderDistributionSummary() {
+  const summary = state.distribution.summary;
+  el.distributionSummaryPeriod.textContent = summary.periodText;
+  el.distributionSummaryActualDiamond.textContent = formatNumber(summary.actualDiamond);
+  el.distributionSummaryTotalPoints.textContent = formatNumber(summary.totalPoints);
+  el.distributionSummaryPerPoint.textContent = summary.totalPoints > 0 ? formatDecimal(summary.diamondPerPoint, 4) : "0";
+  el.distributionSummaryRemaining.textContent = formatNumber(summary.remainingDiamond);
+}
+
+function renderDistributionMemberTable() {
+  el.distributionMemberTableHead.innerHTML = `
+    <tr>
+      <th class="is-center">No</th>
+      <th>길드원</th>
+      <th class="is-right">참여점수</th>
+      <th class="is-right">참여비율</th>
+      <th class="is-right">계산 다이아</th>
+      <th class="is-right">최종 분배 다이아</th>
+      <th>비고</th>
+    </tr>
+  `;
+
+  const rows = state.distribution.memberResults;
+  if (rows.length === 0) {
+    el.distributionMemberTableBody.innerHTML = `
+      <tr>
+        <td class="distribution-empty-row" colspan="7">계산된 분배 결과가 없습니다.</td>
+      </tr>
+    `;
+    return;
+  }
+
+  el.distributionMemberTableBody.innerHTML = rows.map((row, index) => `
+    <tr>
+      <td class="is-center">${index + 1}</td>
+      <td>${escapeHtml(row.memberName)}</td>
+      <td class="is-right">${formatNumber(row.points)}</td>
+      <td class="is-right">${formatPercent(row.ratio)}</td>
+      <td class="is-right">${formatDecimal(row.rawDiamond, 2)}</td>
+      <td class="is-right">${formatNumber(row.finalDiamond)}</td>
+      <td>${escapeHtml(row.note || "-")}</td>
+    </tr>
+  `).join("");
+}
+
+function renderDistributionLogTable() {
+  el.distributionLogTableHead.innerHTML = `
+    <tr>
+      <th class="is-center">No</th>
+      <th>날짜</th>
+      <th>시간</th>
+      <th>보스</th>
+      <th>컷자</th>
+      <th>참여자</th>
+    </tr>
+  `;
+
+  const logs = state.distribution.usedLogs;
+  if (logs.length === 0) {
+    el.distributionLogTableBody.innerHTML = `
+      <tr>
+        <td class="distribution-empty-row" colspan="6">사용된 보스로그가 없습니다.</td>
+      </tr>
+    `;
+    return;
+  }
+
+  el.distributionLogTableBody.innerHTML = logs.map((row, index) => `
+    <tr>
+      <td class="is-center">${index + 1}</td>
+      <td>${escapeHtml(row.date)}</td>
+      <td>${escapeHtml(row.time)}</td>
+      <td>${escapeHtml(row.boss)}</td>
+      <td>${escapeHtml(row.cutter)}</td>
+      <td>${escapeHtml(row.participants.join(", "))}</td>
+    </tr>
+  `).join("");
+}
+
+function handleDistributionDeductionCalculate() {
+  syncDistributionInputs();
+  try {
+    state.distribution.deduction = calculateDistributionDeduction();
+    renderDistributionTab();
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+async function handleDistributionCalculate() {
+  syncDistributionInputs();
+
+  try {
+    state.distribution.deduction = calculateDistributionDeduction();
+    const workbookRows = await readDistributionWorkbookRows();
+    const result = buildDistributionResult(workbookRows);
+    state.distribution.workbookName = el.distributionFileInput.files?.[0]?.name ?? "";
+    state.distribution.rawRows = workbookRows;
+    state.distribution.usedLogs = result.usedLogs;
+    state.distribution.memberResults = result.memberResults;
+    state.distribution.summary = result.summary;
+    renderDistributionTab();
+    alert("분배 계산이 완료되었습니다.");
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+function handleDistributionSaveResult() {
+  if (!state.distribution.memberResults.length) {
+    alert("먼저 분배 계산을 진행해주세요.");
+    return;
+  }
+
+  if (typeof XLSX === "undefined") {
+    alert("엑셀 저장 기능을 사용할 수 없습니다.");
+    return;
+  }
+
+  const workbook = XLSX.utils.book_new();
+
+  const summaryRows = [
+    { 항목: "대상 기간", 값: state.distribution.summary.periodText },
+    { 항목: "총 다이아", 값: Number(state.distribution.totalDiamond || 0) },
+    { 항목: "운영비 공제", 값: state.distribution.deduction.guildFeeAmount },
+    { 항목: "길드장 공제", 값: state.distribution.deduction.guildMasterAmount },
+    { 항목: "총무 공제", 값: state.distribution.deduction.managerAmount },
+    { 항목: "실제 분배 다이아", 값: state.distribution.summary.actualDiamond },
+    { 항목: "전체 참여점수", 값: state.distribution.summary.totalPoints },
+    { 항목: "1점당 다이아", 값: state.distribution.summary.diamondPerPoint },
+    { 항목: "남은 다이아", 값: state.distribution.summary.remainingDiamond }
+  ];
+
+  const memberRows = state.distribution.memberResults.map((row, index) => ({
+    No: index + 1,
+    길드원: row.memberName,
+    참여점수: row.points,
+    참여비율: formatPercent(row.ratio),
+    계산다이아: Number(row.rawDiamond.toFixed(2)),
+    최종분배다이아: row.finalDiamond,
+    비고: row.note || "-"
+  }));
+
+  const logRows = state.distribution.usedLogs.map((row, index) => ({
+    No: index + 1,
+    날짜: row.date,
+    시간: row.time,
+    보스: row.boss,
+    컷자: row.cutter,
+    참여자: row.participants.join(", ")
+  }));
+
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(summaryRows), "요약");
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(memberRows), "분배결과");
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(logRows), "보스로그");
+
+  const fileName = `분배결과_${state.distribution.startDate || "시작일"}_${state.distribution.endDate || "종료일"}.xlsx`;
+  XLSX.writeFile(workbook, fileName);
+}
+
+function resetDistributionStateAndRender() {
+  state.distribution = createEmptyDistributionState();
+  setDistributionDefaultDates();
+  if (el.distributionFileInput) {
+    el.distributionFileInput.value = "";
+  }
+  renderDistributionTab();
+}
+
+function syncDistributionInputs() {
+  state.distribution.totalDiamond = String(el.distributionTotalDiamondInput.value ?? "").trim();
+  state.distribution.guildFeePercent = String(el.distributionGuildFeePercentInput.value ?? "").trim();
+  state.distribution.guildMasterPercent = String(el.distributionGuildMasterPercentInput.value ?? "").trim();
+  state.distribution.managerPercent = String(el.distributionManagerPercentInput.value ?? "").trim();
+  state.distribution.startDate = String(el.distributionStartDateInput.value ?? "").trim();
+  state.distribution.endDate = String(el.distributionEndDateInput.value ?? "").trim();
+}
+
+function calculateDistributionDeduction() {
+  const totalDiamond = normalizeNonNegativeNumber(state.distribution.totalDiamond, "총 다이아를 올바르게 입력해주세요.");
+  const guildFeePercent = normalizePercentValue(state.distribution.guildFeePercent);
+  const guildMasterPercent = normalizePercentValue(state.distribution.guildMasterPercent);
+  const managerPercent = normalizePercentValue(state.distribution.managerPercent);
+
+  const guildFeeAmount = Math.floor(totalDiamond * (guildFeePercent / 100));
+  const guildMasterAmount = Math.floor(totalDiamond * (guildMasterPercent / 100));
+  const managerAmount = Math.floor(totalDiamond * (managerPercent / 100));
+  const actualDiamond = totalDiamond - guildFeeAmount - guildMasterAmount - managerAmount;
+
+  if (actualDiamond < 0) {
+    throw new Error("공제 합계가 총 다이아보다 클 수 없습니다.");
+  }
+
+  return {
+    guildFeeAmount,
+    guildMasterAmount,
+    managerAmount,
+    actualDiamond
+  };
+}
+
+function normalizePercentValue(value) {
+  const trimmed = String(value ?? "").trim();
+  if (!trimmed) return 0;
+  const number = Number(trimmed);
+  if (!Number.isFinite(number) || number < 0) {
+    throw new Error("퍼센트 값을 올바르게 입력해주세요.");
+  }
+  return number;
+}
+
+function normalizeNonNegativeNumber(value, errorMessage) {
+  const number = Number(String(value ?? "").trim());
+  if (!Number.isFinite(number) || number < 0) {
+    throw new Error(errorMessage);
+  }
+  return Math.floor(number);
+}
+
+async function readDistributionWorkbookRows() {
+  const file = el.distributionFileInput.files?.[0];
+  if (!file) {
+    throw new Error("보스로그 엑셀 파일을 선택해주세요.");
+  }
+
+  if (typeof XLSX === "undefined") {
+    throw new Error("엑셀 처리 기능을 사용할 수 없습니다.");
+  }
+
+  const buffer = await file.arrayBuffer();
+  const workbook = XLSX.read(buffer, { type: "array" });
+  const sheet = workbook.Sheets["보스로그"];
+  if (!sheet) {
+    throw new Error("보스로그 시트를 찾을 수 없습니다.");
+  }
+
+  const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+  return rows.map((row) => normalizeDistributionLogRow(row)).filter((row) => row.date || row.time || row.boss || row.cutter || row.participants.length > 0);
+}
+
+function normalizeDistributionLogRow(row) {
+  const participants = String(row["참여자"] ?? "")
+    .split(",")
+    .map((name) => name.trim())
+    .filter(Boolean);
+
+  return {
+    date: normalizeDistributionDate(row["날짜"]),
+    time: normalizeDistributionTime(row["시간"]),
+    boss: String(row["보스"] ?? "").trim(),
+    cutter: String(row["컷자"] ?? "").trim(),
+    participants
+  };
+}
+
+function normalizeDistributionDate(value) {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return formatDateToInputValue(value);
+  }
+
+  const text = String(value ?? "").trim();
+  if (!text) return "";
+  const match = text.match(/^(\d{4})[-./](\d{1,2})[-./](\d{1,2})$/);
+  if (!match) return text;
+  const [, year, month, day] = match;
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function normalizeDistributionTime(value) {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return `${String(value.getHours()).padStart(2, "0")}:${String(value.getMinutes()).padStart(2, "0")}:${String(value.getSeconds()).padStart(2, "0")}`;
+  }
+
+  const text = String(value ?? "").trim();
+  if (!text) return "";
+  const match = text.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (!match) return text;
+  const [, hour, minute, second] = match;
+  return `${String(hour).padStart(2, "0")}:${minute}:${String(second ?? "00").padStart(2, "0")}`;
+}
+
+function buildDistributionResult(workbookRows) {
+  if (!state.distribution.startDate || !state.distribution.endDate) {
+    throw new Error("시작일과 종료일을 입력해주세요.");
+  }
+
+  if (state.distribution.startDate > state.distribution.endDate) {
+    throw new Error("시작일은 종료일보다 클 수 없습니다.");
+  }
+
+  const usedLogs = workbookRows.filter((row) => {
+    return row.date && row.date >= state.distribution.startDate && row.date <= state.distribution.endDate && row.participants.length > 0;
+  });
+
+  const actualDiamond = state.distribution.deduction.actualDiamond;
+  const pointMap = new Map();
+
+  usedLogs.forEach((row) => {
+    row.participants.forEach((memberName) => {
+      pointMap.set(memberName, (pointMap.get(memberName) ?? 0) + 1);
+    });
+  });
+
+  const totalPoints = Array.from(pointMap.values()).reduce((sum, value) => sum + value, 0);
+  const diamondPerPoint = totalPoints > 0 ? actualDiamond / totalPoints : 0;
+
+  const memberResults = Array.from(pointMap.entries())
+    .map(([memberName, points]) => {
+      const rawDiamond = points * diamondPerPoint;
+      const finalDiamond = Math.floor(rawDiamond);
+      return {
+        memberName,
+        points,
+        ratio: totalPoints > 0 ? points / totalPoints : 0,
+        rawDiamond,
+        finalDiamond,
+        note: ""
+      };
+    })
+    .sort((left, right) => {
+      if (right.points !== left.points) return right.points - left.points;
+      return left.memberName.localeCompare(right.memberName, "ko");
+    });
+
+  const distributedDiamond = memberResults.reduce((sum, row) => sum + row.finalDiamond, 0);
+  const remainingDiamond = actualDiamond - distributedDiamond;
+
+  return {
+    usedLogs,
+    memberResults,
+    summary: {
+      periodText: `${state.distribution.startDate} ~ ${state.distribution.endDate}`,
+      actualDiamond,
+      totalPoints,
+      diamondPerPoint,
+      remainingDiamond
+    }
+  };
+}
+
+function formatDateToInputValue(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function formatNumber(value) {
+  return Number(value || 0).toLocaleString("ko-KR");
+}
+
+function formatDecimal(value, digits) {
+  return Number(value || 0).toLocaleString("ko-KR", {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits
+  });
+}
+
+function formatPercent(value) {
+  return `${(Number(value || 0) * 100).toFixed(2)}%`;
 }
 
 function renderPlaceholderTable() {
