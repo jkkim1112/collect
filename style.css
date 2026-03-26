@@ -1345,16 +1345,6 @@ button {
 }
 
 
-
-.distribution-content {
-  display: block;
-}
-
-.distribution-header-actions {
-  display: flex;
-  align-items: center;
-}
-
 .distribution-card {
   margin-top: 0;
 }
@@ -1466,7 +1456,7 @@ button {
 
 .distribution-summary-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: minmax(260px, 1.4fr) repeat(3, minmax(0, 0.95fr)) minmax(0, 0.85fr);
   gap: 12px;
 }
 
