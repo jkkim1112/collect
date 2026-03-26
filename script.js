@@ -173,7 +173,13 @@ function bindEvents() {
       resetOverallEditMode();
       updateTabUi();
 
-      if (nextTab === "history" || nextTab === "distribution") {
+      if (nextTab === "distribution") {
+        renderAll();
+        return;
+      }
+
+      if (nextTab === "history") {
+        await loadHistoryData();
         renderAll();
         return;
       }
@@ -1380,6 +1386,7 @@ async function handleDistributionFinalSave() {
       }
     }
 
+    await loadHistoryData();
     alert("최종 저장이 완료되었습니다.");
   } catch (error) {
     if (distributionHistoryId) {
@@ -1785,59 +1792,134 @@ function formatPercent(value) {
 }
 
 
+
+async function loadHistoryData() {
+  const sortKey = state.history?.sortKey || "saved_desc";
+  const filterDate = String(state.history?.filterDate || "").trim();
+
+  let query = supabase
+    .from("distribution_histories")
+    .select("id, period_start, period_end, total_diamond, guild_fee_percent, guild_master_percent, manager_percent, guild_fee_amount, guild_master_amount, manager_amount, actual_diamond, total_points, diamond_per_point, remaining_diamond, workbook_name, saved_at, created_at, updated_at")
+    .limit(2000);
+
+  if (filterDate) {
+    query = query.lte("period_start", filterDate).gte("period_end", filterDate);
+  }
+
+  if (sortKey === "saved_asc") {
+    query = query.order("saved_at", { ascending: true });
+  } else if (sortKey === "period_desc") {
+    query = query.order("period_end", { ascending: false }).order("period_start", { ascending: false });
+  } else if (sortKey === "period_asc") {
+    query = query.order("period_start", { ascending: true }).order("period_end", { ascending: true });
+  } else {
+    query = query.order("saved_at", { ascending: false });
+  }
+
+  const historyRes = await query;
+  if (historyRes.error) {
+    alert(`분배 이력 조회 중 오류가 발생했습니다.
+${historyRes.error.message}`);
+    return;
+  }
+
+  const historyRows = historyRes.data ?? [];
+  const historyIds = historyRows.map((row) => row.id).filter(Boolean);
+
+  let memberRows = [];
+  let logRows = [];
+
+  if (historyIds.length > 0) {
+    const [memberRes, logRes] = await Promise.all([
+      supabase
+        .from("distribution_history_members")
+        .select("distribution_history_id, member_id, member_name, points, ratio, raw_diamond, final_diamond, note, is_retired, display_order")
+        .in("distribution_history_id", historyIds)
+        .order("display_order", { ascending: true }),
+      supabase
+        .from("distribution_history_logs")
+        .select("distribution_history_id, log_date, log_time, boss_name, cutter_name, participants_text, participants, display_order")
+        .in("distribution_history_id", historyIds)
+        .order("display_order", { ascending: true })
+    ]);
+
+    if (memberRes.error) {
+      alert(`분배 이력 길드원 결과 조회 중 오류가 발생했습니다.
+${memberRes.error.message}`);
+      return;
+    }
+
+    if (logRes.error) {
+      alert(`분배 이력 보스로그 조회 중 오류가 발생했습니다.
+${logRes.error.message}`);
+      return;
+    }
+
+    memberRows = memberRes.data ?? [];
+    logRows = logRes.data ?? [];
+  }
+
+  const memberMap = new Map();
+  const logMap = new Map();
+
+  memberRows.forEach((row) => {
+    const key = row.distribution_history_id;
+    if (!memberMap.has(key)) memberMap.set(key, []);
+    memberMap.get(key).push({
+      memberId: row.member_id ?? null,
+      memberName: row.member_name,
+      points: Number(row.points ?? 0),
+      ratio: Number(row.ratio ?? 0),
+      rawDiamond: Number(row.raw_diamond ?? 0),
+      finalDiamond: Number(row.final_diamond ?? 0),
+      note: row.note || (row.is_retired ? "탈퇴한 길드원" : "")
+    });
+  });
+
+  logRows.forEach((row) => {
+    const key = row.distribution_history_id;
+    if (!logMap.has(key)) logMap.set(key, []);
+    logMap.get(key).push({
+      date: row.log_date || "",
+      time: row.log_time || "",
+      boss: row.boss_name || "",
+      cutter: row.cutter_name || "",
+      participants: Array.isArray(row.participants)
+        ? row.participants.map((item) => String(item).trim()).filter(Boolean)
+        : String(row.participants_text || "").split(",").map((item) => item.trim()).filter(Boolean)
+    });
+  });
+
+  state.history.items = historyRows.map((row) => ({
+    id: row.id,
+    savedAt: formatDateTime(row.saved_at),
+    startDate: row.period_start,
+    endDate: row.period_end,
+    totalDiamond: Number(row.total_diamond ?? 0),
+    guildFeePercent: Number(row.guild_fee_percent ?? 0),
+    guildMasterPercent: Number(row.guild_master_percent ?? 0),
+    managerPercent: Number(row.manager_percent ?? 0),
+    actualDiamond: Number(row.actual_diamond ?? 0),
+    totalPoints: Number(row.total_points ?? 0),
+    diamondPerPoint: Number(row.diamond_per_point ?? 0),
+    remainingDiamond: Number(row.remaining_diamond ?? 0),
+    workbookName: row.workbook_name || "",
+    memberRows: memberMap.get(row.id) ?? [],
+    logRows: logMap.get(row.id) ?? []
+  }));
+
+  const visibleIds = new Set(state.history.items.map((item) => item.id));
+  if (!state.history.selectedId || !visibleIds.has(state.history.selectedId)) {
+    state.history.selectedId = state.history.items[0]?.id ?? null;
+  }
+}
+
 function initializeHistoryState() {
   state.history = {
     filterDate: "",
     sortKey: "saved_desc",
-    selectedId: "hist-001",
-    items: [
-      {
-        id: "hist-001",
-        savedAt: "2026-03-26 21:15:10",
-        startDate: "2026-03-16",
-        endDate: "2026-03-26",
-        totalDiamond: 100000,
-        guildFeePercent: 10,
-        guildMasterPercent: 5,
-        managerPercent: 3,
-        actualDiamond: 82000,
-        totalPoints: 120,
-        diamondPerPoint: 683.3333,
-        remainingDiamond: 40,
-        memberRows: [
-          { memberName: "길드원A", points: 20, ratio: 20 / 120, rawDiamond: 13666.666, finalDiamond: 13666, note: "" },
-          { memberName: "길드원B", points: 18, ratio: 18 / 120, rawDiamond: 12300, finalDiamond: 12300, note: "" },
-          { memberName: "길드원C", points: 12, ratio: 12 / 120, rawDiamond: 8200, finalDiamond: 8200, note: "" }
-        ],
-        logRows: [
-          { date: "2026-03-16", time: "21:00:00", boss: "검은 마녀", cutter: "길드원A", participants: ["길드원A", "길드원B", "길드원C"] },
-          { date: "2026-03-18", time: "20:35:00", boss: "붉은 용", cutter: "길드원B", participants: ["길드원A", "길드원B"] },
-          { date: "2026-03-22", time: "22:10:00", boss: "얼음 군주", cutter: "길드원C", participants: ["길드원A", "길드원C"] }
-        ]
-      },
-      {
-        id: "hist-002",
-        savedAt: "2026-03-12 20:03:41",
-        startDate: "2026-03-01",
-        endDate: "2026-03-12",
-        totalDiamond: 84000,
-        guildFeePercent: 10,
-        guildMasterPercent: 5,
-        managerPercent: 3,
-        actualDiamond: 68880,
-        totalPoints: 104,
-        diamondPerPoint: 662.3076,
-        remainingDiamond: 12,
-        memberRows: [
-          { memberName: "길드원A", points: 16, ratio: 16 / 104, rawDiamond: 10596.9216, finalDiamond: 10596, note: "" },
-          { memberName: "길드원D", points: 14, ratio: 14 / 104, rawDiamond: 9272.3064, finalDiamond: 9272, note: "" }
-        ],
-        logRows: [
-          { date: "2026-03-03", time: "20:10:00", boss: "검은 마녀", cutter: "길드원D", participants: ["길드원A", "길드원D"] },
-          { date: "2026-03-10", time: "21:40:00", boss: "고대 거인", cutter: "길드원A", participants: ["길드원A", "길드원D"] }
-        ]
-      }
-    ]
+    selectedId: null,
+    items: []
   };
 }
 
@@ -2011,9 +2093,10 @@ function handleHistoryListClick(event) {
   renderHistoryTab();
 }
 
-function handleHistorySearch() {
+async function handleHistorySearch() {
   state.history.filterDate = String(el.historyDateInput.value || "").trim();
   state.history.sortKey = String(el.historySortSelect.value || "saved_desc").trim();
+  await loadHistoryData();
   renderHistoryTab();
 }
 
@@ -3127,6 +3210,21 @@ function formatUpdatedAt(value) {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${month}/${day}`;
+}
+
+function formatDateTime(value) {
+  if (!value) return "-";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hour = String(date.getHours()).padStart(2, "0");
+  const minute = String(date.getMinutes()).padStart(2, "0");
+  const second = String(date.getSeconds()).padStart(2, "0");
+  return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
 }
 
 function escapeHtml(value) {
