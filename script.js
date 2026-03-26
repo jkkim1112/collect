@@ -101,9 +101,13 @@ function bindElements() {
   el.importPreviewBtn = document.getElementById("importPreviewBtn");
   el.importApplyBtn = document.getElementById("importApplyBtn");
   el.importCloseBtn = document.getElementById("importCloseBtn");
-  el.distributionSection = document.getElementById("distributionSection");
   el.mainCard = document.getElementById("mainCard");
+  el.mainCardTitle = document.getElementById("mainCardTitle");
   el.mainActions = document.getElementById("mainActions");
+  el.mainTableSearch = document.getElementById("mainTableSearch");
+  el.summaryTableWrap = document.getElementById("summaryTableWrap");
+  el.distributionContent = document.getElementById("distributionContent");
+  el.distributionHeaderActions = document.getElementById("distributionHeaderActions");
   el.distributionSaveBtn = document.getElementById("distributionSaveBtn");
   el.distributionTotalDiamondInput = document.getElementById("distributionTotalDiamondInput");
   el.distributionGuildFeePercentInput = document.getElementById("distributionGuildFeePercentInput");
@@ -234,9 +238,21 @@ function updateTabUi() {
   const isBoss = state.activeTab === "boss";
   const isPower = state.activeTab === "power";
 
-  el.mainCard.classList.toggle("hidden", isDistribution);
+  el.mainCard.classList.remove("hidden");
   el.mainActions.classList.toggle("hidden", isDistribution);
-  el.distributionSection.classList.toggle("hidden", !isDistribution);
+  el.summaryTableWrap.classList.toggle("hidden", isDistribution);
+  el.distributionContent.classList.toggle("hidden", !isDistribution);
+  el.mainTableSearch.classList.toggle("hidden", isDistribution);
+  el.distributionHeaderActions.classList.toggle("hidden", !isDistribution);
+
+  if (isDistribution) {
+    el.mainCardTitle.textContent = "분배";
+    el.tableGuideText.textContent = "보스로그 엑셀을 기준으로 기간 내 참여 점수를 집계하여 분배 다이아를 계산합니다.";
+  } else if (isSpecial) {
+    el.mainCardTitle.textContent = "특수";
+  } else {
+    el.mainCardTitle.textContent = "전체 현황";
+  }
 
   el.guildManageBtn.disabled = isSpecial || isDistribution;
   el.bulkEditBtn.disabled = isSpecial;

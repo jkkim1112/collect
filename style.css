@@ -1345,6 +1345,16 @@ button {
 }
 
 
+
+.distribution-content {
+  display: block;
+}
+
+.distribution-header-actions {
+  display: flex;
+  align-items: center;
+}
+
 .distribution-card {
   margin-top: 0;
 }
