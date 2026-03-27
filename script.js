@@ -313,8 +313,8 @@ function updateTabUi() {
   el.bossSearchInput.disabled = !isBoss || isSpecial || isDistribution || isHistory || state.isBulkSaving;
   el.bossSearchInput.classList.toggle("hidden", !isBoss);
   el.itemManageBtn.classList.toggle("hidden", isPower || isDistribution || isHistory);
-  el.importOpenBtn.classList.toggle("hidden", !(state.activeTab === "mount" || state.activeTab === "boss"));
-  el.importOpenBtn.disabled = isSpecial || isDistribution || isHistory || isPower || isAccessory || state.isBulkSaving;
+  el.importOpenBtn.classList.toggle("hidden", !(state.activeTab === "mount" || state.activeTab === "boss" || state.activeTab === "accessory"));
+  el.importOpenBtn.disabled = isSpecial || isDistribution || isHistory || isPower || state.isBulkSaving;
   el.itemManageBtn.textContent = isAccessory ? "악세사리 관리" : isBoss ? "보스컬렉 관리" : "탈것 관리";
   el.itemManageTitle.textContent = isAccessory ? "악세사리 관리" : isBoss ? "보스컬렉 관리" : "탈것 관리";
   el.itemNameHeader.textContent = isAccessory ? "악세사리명" : isBoss ? "보스컬렉명" : "탈것명";
@@ -3327,10 +3327,17 @@ function escapeAttr(value) {
 function openImportModal() {
   state.importPreview = null;
   const isBoss = state.activeTab === "boss";
-  el.importModalTitle.textContent = isBoss ? "보스컬렉 초기값 붙여넣기" : "탈것 초기값 붙여넣기";
-  el.importModalGuideText.textContent = isBoss
-    ? "첫 줄에 헤더를 포함해서 붙여넣어주세요. 첫 칸은 이름, 나머지 칸은 보스컬렉명입니다."
-    : "첫 줄에 헤더를 포함해서 붙여넣어주세요. 첫 칸은 이름, 나머지 칸은 탈것명입니다.";
+  const isAccessory = state.activeTab === "accessory";
+  el.importModalTitle.textContent = isAccessory
+    ? "악세사리 초기값 붙여넣기"
+    : isBoss
+      ? "보스컬렉 초기값 붙여넣기"
+      : "탈것 초기값 붙여넣기";
+  el.importModalGuideText.textContent = isAccessory
+    ? "첫 줄에 헤더를 포함해서 붙여넣어주세요. 첫 칸은 이름, 나머지 칸은 그룹명_부위명입니다."
+    : isBoss
+      ? "첫 줄에 헤더를 포함해서 붙여넣어주세요. 첫 칸은 이름, 나머지 칸은 보스컬렉명입니다."
+      : "첫 줄에 헤더를 포함해서 붙여넣어주세요. 첫 칸은 이름, 나머지 칸은 탈것명입니다.";
   el.importTextarea.value = "";
   el.importPreviewBox.textContent = "미리보기를 누르면 반영 예정 내용을 보여드립니다.";
   el.importApplyBtn.disabled = true;
@@ -3345,6 +3352,14 @@ function closeImportModal() {
 }
 
 function getImportTargetConfig() {
+  if (state.activeTab === "accessory") {
+    return {
+      tabLabel: "악세사리",
+      tableName: "member_accessories",
+      conflictKey: "member_id,accessory_group_id"
+    };
+  }
+
   if (state.activeTab === "boss") {
     return {
       tabLabel: "보스컬렉",
@@ -3389,9 +3404,50 @@ function parseImportOwnedValue(rawValue) {
   return { kind: "invalid", value };
 }
 
+function parseImportAccessoryHeader(headerValue) {
+  const raw = String(headerValue ?? "").trim();
+  if (!raw) return null;
+
+  const separators = ["_", "-", "/", ":", " "];
+  for (const separator of separators) {
+    const lastIndex = raw.lastIndexOf(separator);
+    if (lastIndex <= 0 || lastIndex >= raw.length - 1) continue;
+
+    const groupName = raw.slice(0, lastIndex).trim();
+    const partLabel = raw.slice(lastIndex + 1).trim();
+    if (!groupName || !partLabel) continue;
+
+    const part = ACCESSORY_PARTS.find((entry) => entry.label === partLabel);
+    if (!part) continue;
+
+    return {
+      groupName,
+      partKey: part.key,
+      partLabel: part.label
+    };
+  }
+
+  return null;
+}
+
+function parseImportAccessoryValue(rawValue) {
+  const value = String(rawValue ?? "").trim();
+  if (!value) return { kind: "blank" };
+
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < 0) {
+    return { kind: "invalid", value };
+  }
+
+  return {
+    kind: "value",
+    count: Math.max(0, Math.floor(number))
+  };
+}
+
 function buildImportPreview() {
-  if (!(state.activeTab === "mount" || state.activeTab === "boss")) {
-    throw new Error("탈것 또는 보스컬렉 탭에서만 사용할 수 있습니다.");
+  if (!(state.activeTab === "mount" || state.activeTab === "boss" || state.activeTab === "accessory")) {
+    throw new Error("탈것, 악세사리 또는 보스컬렉 탭에서만 사용할 수 있습니다.");
   }
 
   const raw = String(el.importTextarea.value ?? "").split("\r").join("").trim();
@@ -3406,9 +3462,98 @@ function buildImportPreview() {
 
   const config = getImportTargetConfig();
   const headerRow = rows[0].map((value) => String(value ?? "").trim());
-  const itemMap = new Map(config.items.map((item) => [item.name.trim(), item]));
   const memberMap = new Map(state.members.map((member) => [member.name.trim(), member]));
 
+  if (state.activeTab === "accessory") {
+    const groupMap = new Map(state.accessoryGroups.map((group) => [group.name.trim(), group]));
+    const headerInfos = [];
+    const unknownHeaders = [];
+
+    for (let colIndex = 1; colIndex < headerRow.length; colIndex += 1) {
+      const headerName = headerRow[colIndex];
+      if (!headerName) {
+        headerInfos.push(null);
+        continue;
+      }
+
+      const parsedHeader = parseImportAccessoryHeader(headerName);
+      if (!parsedHeader) {
+        unknownHeaders.push(headerName);
+        headerInfos.push(null);
+        continue;
+      }
+
+      const group = groupMap.get(parsedHeader.groupName);
+      if (!group) {
+        unknownHeaders.push(headerName);
+        headerInfos.push(null);
+        continue;
+      }
+
+      headerInfos.push({
+        headerName,
+        groupId: group.id,
+        groupName: group.name,
+        partKey: parsedHeader.partKey,
+        maxCount: Number(group.max_count ?? 0)
+      });
+    }
+
+    const unknownMembers = new Set();
+    const invalidValues = [];
+    const appliedMap = new Map();
+
+    for (let rowIndex = 1; rowIndex < rows.length; rowIndex += 1) {
+      const row = rows[rowIndex];
+      const memberName = String(row[0] ?? "").trim();
+      if (!memberName) continue;
+
+      const member = memberMap.get(memberName);
+      if (!member) {
+        unknownMembers.add(memberName);
+        continue;
+      }
+
+      for (let colIndex = 1; colIndex < headerRow.length; colIndex += 1) {
+        const headerInfo = headerInfos[colIndex - 1];
+        if (!headerInfo) continue;
+
+        const parsedValue = parseImportAccessoryValue(row[colIndex] ?? "");
+        if (parsedValue.kind === "blank") continue;
+        if (parsedValue.kind === "invalid") {
+          invalidValues.push(`${memberName} / ${headerInfo.headerName} / ${parsedValue.value}`);
+          continue;
+        }
+
+        const key = `${member.id}__${headerInfo.groupId}`;
+        const existing = appliedMap.get(key) ?? {
+          member_id: member.id,
+          accessory_group_id: headerInfo.groupId
+        };
+
+        existing[headerInfo.partKey] = Math.min(headerInfo.maxCount, parsedValue.count);
+        appliedMap.set(key, existing);
+      }
+    }
+
+    return {
+      tableName: config.tableName,
+      conflictKey: config.conflictKey,
+      updates: Array.from(appliedMap.values()),
+      summaryText: [
+        `${config.tabLabel} 초기값 미리보기`,
+        `반영 예정 행 수: ${appliedMap.size}건`,
+        `없는 헤더 수: ${unknownHeaders.length}건`,
+        `없는 길드원 수: ${unknownMembers.size}건`,
+        `잘못된 값 수: ${invalidValues.length}건`,
+        unknownHeaders.length ? `없는 헤더: ${unknownHeaders.join(", ")}` : "",
+        unknownMembers.size ? `없는 길드원: ${Array.from(unknownMembers).join(", ")}` : "",
+        invalidValues.length ? `잘못된 값 예시: ${invalidValues.slice(0, 10).join(" | ")}` : ""
+      ].filter(Boolean).join("\n")
+    };
+  }
+
+  const itemMap = new Map(config.items.map((item) => [item.name.trim(), item]));
   const unknownHeaders = [];
   const headerItems = [];
   for (let colIndex = 1; colIndex < headerRow.length; colIndex += 1) {
