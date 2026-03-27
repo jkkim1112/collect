@@ -1372,6 +1372,38 @@ button {
   color: #111827;
 }
 
+.distribution-operating-fund-box {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.distribution-operating-fund-view,
+.distribution-operating-fund-edit {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fafafa;
+}
+
+.distribution-operating-fund-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.distribution-operating-fund-edit .distribution-field {
+  flex: 1 1 auto;
+}
+
+.distribution-operating-fund-buttons {
+  flex: 0 0 auto;
+}
+
 .distribution-deduction-grid {
   display: grid;
   grid-template-columns: 1.15fr 0.9fr 0.9fr 0.9fr auto;
@@ -1560,6 +1592,20 @@ button {
 
   .distribution-header-top .btn {
     width: 100%;
+  }
+
+  .distribution-operating-fund-view,
+  .distribution-operating-fund-edit {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .distribution-operating-fund-buttons {
+    width: 100%;
+  }
+
+  .distribution-operating-fund-buttons .btn {
+    flex: 1 1 0;
   }
 }
 

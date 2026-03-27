@@ -64,6 +64,29 @@
 
       <div class="distribution-content hidden" id="distributionContent">
         <div class="distribution-section">
+          <h3 class="distribution-section-title">길드 운영비</h3>
+          <div class="distribution-operating-fund-box">
+            <div class="distribution-operating-fund-view" id="distributionOperatingFundViewBox">
+              <div>
+                <div class="distribution-summary-chip-label">저장된 길드 운영비</div>
+                <div class="distribution-operating-fund-value" id="distributionOperatingFundValue">0</div>
+              </div>
+              <button class="btn btn-outline" id="distributionOperatingFundEditBtn" type="button">수정</button>
+            </div>
+            <div class="distribution-operating-fund-edit hidden" id="distributionOperatingFundEditBox">
+              <div class="distribution-field">
+                <label for="distributionOperatingFundInput">길드 운영비</label>
+                <input type="number" id="distributionOperatingFundInput" min="0" step="1" placeholder="길드 운영비를 입력해주세요">
+              </div>
+              <div class="distribution-button-row distribution-operating-fund-buttons">
+                <button class="btn btn-primary" id="distributionOperatingFundSaveBtn" type="button">저장</button>
+                <button class="btn btn-gray" id="distributionOperatingFundCancelBtn" type="button">취소</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="distribution-section">
           <h3 class="distribution-section-title">공제 설정</h3>
           <div class="distribution-deduction-grid">
             <div class="distribution-field">
