@@ -313,8 +313,8 @@ function updateTabUi() {
   el.bossSearchInput.disabled = !isBoss || isSpecial || isDistribution || isHistory || state.isBulkSaving;
   el.bossSearchInput.classList.toggle("hidden", !isBoss);
   el.itemManageBtn.classList.toggle("hidden", isPower || isDistribution || isHistory);
-  el.importOpenBtn.classList.toggle("hidden", !(state.activeTab === "mount" || state.activeTab === "boss"));
-  el.importOpenBtn.disabled = isSpecial || isDistribution || isHistory || isPower || isAccessory || state.isBulkSaving;
+  el.importOpenBtn.classList.toggle("hidden", !(state.activeTab === "mount" || state.activeTab === "boss" || state.activeTab === "accessory"));
+  el.importOpenBtn.disabled = isSpecial || isDistribution || isHistory || isPower || state.isBulkSaving;
   el.itemManageBtn.textContent = isAccessory ? "악세사리 관리" : isBoss ? "보스컬렉 관리" : "탈것 관리";
   el.itemManageTitle.textContent = isAccessory ? "악세사리 관리" : isBoss ? "보스컬렉 관리" : "탈것 관리";
   el.itemNameHeader.textContent = isAccessory ? "악세사리명" : isBoss ? "보스컬렉명" : "탈것명";
@@ -3289,10 +3289,17 @@ function escapeAttr(value) {
 function openImportModal() {
   state.importPreview = null;
   const isBoss = state.activeTab === "boss";
-  el.importModalTitle.textContent = isBoss ? "보스컬렉 초기값 붙여넣기" : "탈것 초기값 붙여넣기";
-  el.importModalGuideText.textContent = isBoss
-    ? "첫 줄에 헤더를 포함해서 붙여넣어주세요. 첫 칸은 이름, 나머지 칸은 보스컬렉명입니다."
-    : "첫 줄에 헤더를 포함해서 붙여넣어주세요. 첫 칸은 이름, 나머지 칸은 탈것명입니다.";
+  const isAccessory = state.activeTab === "accessory";
+  el.importModalTitle.textContent = isAccessory
+    ? "악세사리 초기값 붙여넣기"
+    : isBoss
+      ? "보스컬렉 초기값 붙여넣기"
+      : "탈것 초기값 붙여넣기";
+  el.importModalGuideText.textContent = isAccessory
+    ? "첫 줄에 헤더를 포함해서 붙여넣어주세요. 첫 칸은 이름, 나머지 칸은 그룹명_부위명입니다."
+    : isBoss
+      ? "첫 줄에 헤더를 포함해서 붙여넣어주세요. 첫 칸은 이름, 나머지 칸은 보스컬렉명입니다."
+      : "첫 줄에 헤더를 포함해서 붙여넣어주세요. 첫 칸은 이름, 나머지 칸은 탈것명입니다.";
   el.importTextarea.value = "";
   el.importPreviewBox.textContent = "미리보기를 누르면 반영 예정 내용을 보여드립니다.";
   el.importApplyBtn.disabled = true;
@@ -3307,6 +3314,15 @@ function closeImportModal() {
 }
 
 function getImportTargetConfig() {
+  if (state.activeTab === "accessory") {
+    return {
+      tabLabel: "악세사리",
+      items: state.accessoryGroups,
+      conflictKey: "member_id,accessory_group_id",
+      tableName: "member_accessories"
+    };
+  }
+
   if (state.activeTab === "boss") {
     return {
       tabLabel: "보스컬렉",
@@ -3341,6 +3357,61 @@ function getImportTargetConfig() {
   };
 }
 
+
+function normalizeImportHeaderToken(value) {
+  return String(value ?? "")
+    .trim()
+    .replace(/[\s_\-/:]+/g, "")
+    .toLowerCase();
+}
+
+function parseAccessoryImportHeader(headerName) {
+  const raw = String(headerName ?? "").trim();
+  if (!raw) return null;
+
+  const normalizedHeader = normalizeImportHeaderToken(raw);
+  if (!normalizedHeader) return null;
+
+  const normalizedPartMap = new Map(
+    ACCESSORY_PARTS.map((part) => [normalizeImportHeaderToken(part.label), part])
+  );
+
+  let matchedPart = null;
+  for (const [normalizedLabel, part] of normalizedPartMap.entries()) {
+    if (normalizedHeader.endsWith(normalizedLabel)) {
+      matchedPart = { normalizedLabel, part };
+      break;
+    }
+  }
+
+  if (!matchedPart) return null;
+
+  const groupToken = normalizedHeader.slice(0, normalizedHeader.length - matchedPart.normalizedLabel.length);
+  if (!groupToken) return null;
+
+  const group = state.accessoryGroups.find((entry) => normalizeImportHeaderToken(entry.name) === groupToken);
+  if (!group) {
+    return { group: null, part: matchedPart.part };
+  }
+
+  return { group, part: matchedPart.part };
+}
+
+function parseAccessoryImportValue(rawValue, maxCount) {
+  const value = String(rawValue ?? "").trim();
+  if (!value) return { kind: "blank" };
+
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < 0) {
+    return { kind: "invalid", value };
+  }
+
+  return {
+    kind: "value",
+    count: Math.min(Math.max(0, Math.floor(number)), Math.max(0, Number(maxCount ?? 0)))
+  };
+}
+
 function parseImportOwnedValue(rawValue) {
   const value = String(rawValue ?? "").trim();
   if (!value) return { kind: "blank" };
@@ -3352,8 +3423,8 @@ function parseImportOwnedValue(rawValue) {
 }
 
 function buildImportPreview() {
-  if (!(state.activeTab === "mount" || state.activeTab === "boss")) {
-    throw new Error("탈것 또는 보스컬렉 탭에서만 사용할 수 있습니다.");
+  if (!(state.activeTab === "mount" || state.activeTab === "boss" || state.activeTab === "accessory")) {
+    throw new Error("탈것, 악세사리 또는 보스컬렉 탭에서만 사용할 수 있습니다.");
   }
 
   const raw = String(el.importTextarea.value ?? "").split("\r").join("").trim();
@@ -3368,9 +3439,94 @@ function buildImportPreview() {
 
   const config = getImportTargetConfig();
   const headerRow = rows[0].map((value) => String(value ?? "").trim());
-  const itemMap = new Map(config.items.map((item) => [item.name.trim(), item]));
   const memberMap = new Map(state.members.map((member) => [member.name.trim(), member]));
 
+  if (state.activeTab === "accessory") {
+    const unknownHeaders = [];
+    const headerItems = [];
+    for (let colIndex = 1; colIndex < headerRow.length; colIndex += 1) {
+      const headerName = headerRow[colIndex];
+      if (!headerName) {
+        headerItems.push(null);
+        continue;
+      }
+
+      const parsedHeader = parseAccessoryImportHeader(headerName);
+      if (!parsedHeader || !parsedHeader.group || !parsedHeader.part) {
+        unknownHeaders.push(headerName);
+        headerItems.push(null);
+        continue;
+      }
+
+      headerItems.push(parsedHeader);
+    }
+
+    const unknownMembers = new Set();
+    const invalidValues = [];
+    const appliedMap = new Map();
+    const existingRowMap = new Map(
+      (state.memberAccessories || []).map((row) => [`${row.member_id}__${row.accessory_group_id}`, { ...row }])
+    );
+
+    for (let rowIndex = 1; rowIndex < rows.length; rowIndex += 1) {
+      const row = rows[rowIndex];
+      const memberName = String(row[0] ?? "").trim();
+      if (!memberName) continue;
+
+      const member = memberMap.get(memberName);
+      if (!member) {
+        unknownMembers.add(memberName);
+        continue;
+      }
+
+      for (let colIndex = 1; colIndex < headerRow.length; colIndex += 1) {
+        const headerInfo = headerItems[colIndex - 1];
+        if (!headerInfo) continue;
+
+        const parsedValue = parseAccessoryImportValue(row[colIndex] ?? "", headerInfo.group.max_count);
+        if (parsedValue.kind === "blank") continue;
+        if (parsedValue.kind === "invalid") {
+          invalidValues.push(`${memberName} / ${headerRow[colIndex]} / ${parsedValue.value}`);
+          continue;
+        }
+
+        const key = `${member.id}__${headerInfo.group.id}`;
+        const baseRow = appliedMap.get(key)
+          ?? existingRowMap.get(key)
+          ?? {
+            member_id: member.id,
+            accessory_group_id: headerInfo.group.id,
+            ring_count: 0,
+            necklace_count: 0,
+            earring_count: 0,
+            bracelet_count: 0,
+            belt_count: 0
+          };
+
+        const nextRow = { ...baseRow, updated_at: new Date().toISOString() };
+        nextRow[headerInfo.part.key] = parsedValue.count;
+        appliedMap.set(key, nextRow);
+      }
+    }
+
+    return {
+      tableName: config.tableName,
+      conflictKey: config.conflictKey,
+      updates: Array.from(appliedMap.values()),
+      summaryText: [
+        `${config.tabLabel} 초기값 미리보기`,
+        `반영 예정 행 수: ${appliedMap.size}건`,
+        `없는 항목 수: ${unknownHeaders.length}건`,
+        `없는 길드원 수: ${unknownMembers.size}건`,
+        `잘못된 값 수: ${invalidValues.length}건`,
+        unknownHeaders.length ? `없는 항목: ${unknownHeaders.join(", ")}` : "",
+        unknownMembers.size ? `없는 길드원: ${Array.from(unknownMembers).join(", ")}` : "",
+        invalidValues.length ? `잘못된 값 예시: ${invalidValues.slice(0, 10).join(" | ")}` : ""
+      ].filter(Boolean).join("\n")
+    };
+  }
+
+  const itemMap = new Map(config.items.map((item) => [item.name.trim(), item]));
   const unknownHeaders = [];
   const headerItems = [];
   for (let colIndex = 1; colIndex < headerRow.length; colIndex += 1) {
