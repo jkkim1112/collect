@@ -2,7 +2,7 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 const SUPABASE_URL = "https://mgmvyapblwiwjaytkgwl.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_fzA0-8AjS9D1xtXLkgdo1Q_iCY-dYJV";
-const ADMIN_PASSWORD = "1590";
+const ADMIN_PASSWORD = "1234";
 const ACCESSORY_PARTS = [
   { key: "ring_count", label: "반지" },
   { key: "necklace_count", label: "목걸이" },
@@ -2139,8 +2139,34 @@ async function handleHistorySearch() {
   renderHistoryTab();
 }
 
-function handleHistoryDelete() {
-  alert("분배 이력 삭제 기능은 다음 단계에서 연결할 예정입니다.");
+async function handleHistoryDelete() {
+  const selectedId = String(state.history?.selectedId || "").trim();
+  if (!selectedId) {
+    alert("삭제할 분배 이력을 먼저 선택해주세요.");
+    return;
+  }
+
+  const selectedItem = getSelectedHistoryItem();
+  const periodText = selectedItem ? `${selectedItem.startDate} ~ ${selectedItem.endDate}` : "선택 이력";
+  const confirmed = window.confirm(`${periodText} 분배 이력을 삭제하시겠습니까?`);
+  if (!confirmed) return;
+
+  const deleteRes = await supabase
+    .from("distribution_histories")
+    .delete()
+    .eq("id", selectedId);
+
+  if (deleteRes.error) {
+    alert(`분배 이력 삭제 중 오류가 발생했습니다.
+${deleteRes.error.message}`);
+    return;
+  }
+
+  state.history.selectedId = null;
+  delete state.history.detailCache[selectedId];
+  await loadHistoryData();
+  renderHistoryTab();
+  alert("분배 이력이 삭제되었습니다.");
 }
 
 function handleHistoryExport() {
