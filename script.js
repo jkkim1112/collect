@@ -313,8 +313,8 @@ function updateTabUi() {
   el.bossSearchInput.disabled = !isBoss || isSpecial || isDistribution || isHistory || state.isBulkSaving;
   el.bossSearchInput.classList.toggle("hidden", !isBoss);
   el.itemManageBtn.classList.toggle("hidden", isPower || isDistribution || isHistory);
-  el.importOpenBtn.classList.toggle("hidden", !(state.activeTab === "mount" || state.activeTab === "boss"));
-  el.importOpenBtn.disabled = isSpecial || isDistribution || isHistory || isPower || isAccessory || state.isBulkSaving;
+  el.importOpenBtn.classList.toggle("hidden", !(state.activeTab === "mount" || state.activeTab === "boss" || state.activeTab === "accessory"));
+  el.importOpenBtn.disabled = isSpecial || isDistribution || isHistory || isPower || state.isBulkSaving;
   el.itemManageBtn.textContent = isAccessory ? "악세사리 관리" : isBoss ? "보스컬렉 관리" : "탈것 관리";
   el.itemManageTitle.textContent = isAccessory ? "악세사리 관리" : isBoss ? "보스컬렉 관리" : "탈것 관리";
   el.itemNameHeader.textContent = isAccessory ? "악세사리명" : isBoss ? "보스컬렉명" : "탈것명";
@@ -3327,10 +3327,13 @@ function escapeAttr(value) {
 function openImportModal() {
   state.importPreview = null;
   const isBoss = state.activeTab === "boss";
-  el.importModalTitle.textContent = isBoss ? "보스컬렉 초기값 붙여넣기" : "탈것 초기값 붙여넣기";
-  el.importModalGuideText.textContent = isBoss
-    ? "첫 줄에 헤더를 포함해서 붙여넣어주세요. 첫 칸은 이름, 나머지 칸은 보스컬렉명입니다."
-    : "첫 줄에 헤더를 포함해서 붙여넣어주세요. 첫 칸은 이름, 나머지 칸은 탈것명입니다.";
+  const isAccessory = state.activeTab === "accessory";
+  el.importModalTitle.textContent = isAccessory ? "악세사리 초기값 붙여넣기" : isBoss ? "보스컬렉 초기값 붙여넣기" : "탈것 초기값 붙여넣기";
+  el.importModalGuideText.textContent = isAccessory
+    ? "첫 줄에 헤더를 포함해서 붙여넣어주세요. 첫 칸은 이름, 나머지 칸은 '그룹명-목걸이'처럼 그룹명과 부위를 함께 입력해주세요. 구분자는 -, _, /, :, 공백을 모두 사용할 수 있습니다."
+    : isBoss
+      ? "첫 줄에 헤더를 포함해서 붙여넣어주세요. 첫 칸은 이름, 나머지 칸은 보스컬렉명입니다."
+      : "첫 줄에 헤더를 포함해서 붙여넣어주세요. 첫 칸은 이름, 나머지 칸은 탈것명입니다.";
   el.importTextarea.value = "";
   el.importPreviewBox.textContent = "미리보기를 누르면 반영 예정 내용을 보여드립니다.";
   el.importApplyBtn.disabled = true;
@@ -3345,6 +3348,29 @@ function closeImportModal() {
 }
 
 function getImportTargetConfig() {
+  if (state.activeTab === "accessory") {
+    return {
+      tabLabel: "악세사리",
+      items: state.accessoryGroups,
+      conflictKey: "member_id,accessory_group_id",
+      tableName: "member_accessories",
+      makeRow: (memberId, itemId) => ({
+        member_id: memberId,
+        accessory_group_id: itemId,
+        ring_count: 0,
+        necklace_count: 0,
+        earring_count: 0,
+        belt_count: 0,
+        bracelet_count: 0,
+        updated_at: new Date().toISOString()
+      }),
+      applyCount: (row, partKey, value) => {
+        row[partKey] = value;
+        row.updated_at = new Date().toISOString();
+      }
+    };
+  }
+
   if (state.activeTab === "boss") {
     return {
       tabLabel: "보스컬렉",
@@ -3389,9 +3415,47 @@ function parseImportOwnedValue(rawValue) {
   return { kind: "invalid", value };
 }
 
+function parseAccessoryImportValue(rawValue) {
+  const value = String(rawValue ?? "").trim();
+  if (!value) return { kind: "blank" };
+
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < 0) {
+    return { kind: "invalid", value };
+  }
+
+  return { kind: "value", count: Math.floor(number) };
+}
+
+function resolveAccessoryImportHeader(headerName) {
+  const normalizedHeader = String(headerName ?? "").trim();
+  if (!normalizedHeader) return null;
+
+  for (const group of state.accessoryGroups) {
+    const groupName = String(group.name ?? "").trim();
+    if (!groupName) continue;
+
+    for (const part of ACCESSORY_PARTS) {
+      const patterns = [
+        `${groupName}-${part.label}`,
+        `${groupName}_${part.label}`,
+        `${groupName}/${part.label}`,
+        `${groupName}:${part.label}`,
+        `${groupName} ${part.label}`
+      ];
+
+      if (patterns.includes(normalizedHeader)) {
+        return { groupId: group.id, groupName, partKey: part.key, partLabel: part.label, maxCount: Number(group.max_count ?? 0) };
+      }
+    }
+  }
+
+  return null;
+}
+
 function buildImportPreview() {
-  if (!(state.activeTab === "mount" || state.activeTab === "boss")) {
-    throw new Error("탈것 또는 보스컬렉 탭에서만 사용할 수 있습니다.");
+  if (!(state.activeTab === "mount" || state.activeTab === "boss" || state.activeTab === "accessory")) {
+    throw new Error("탈것, 보스컬렉 또는 악세사리 탭에서만 사용할 수 있습니다.");
   }
 
   const raw = String(el.importTextarea.value ?? "").split("\r").join("").trim();
