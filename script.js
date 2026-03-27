@@ -2,7 +2,7 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 const SUPABASE_URL = "https://mgmvyapblwiwjaytkgwl.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_fzA0-8AjS9D1xtXLkgdo1Q_iCY-dYJV";
-const ADMIN_PASSWORD = "1234";
+const ADMIN_PASSWORD = "1590";
 const ACCESSORY_PARTS = [
   { key: "ring_count", label: "반지" },
   { key: "necklace_count", label: "목걸이" },
