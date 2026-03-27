@@ -18,6 +18,7 @@ const state = {
   distribution: null,
   history: null,
   pendingManageType: null,
+  pendingEditMemberId: null,
   members: [],
   mountItems: [],
   memberMounts: [],
@@ -28,6 +29,7 @@ const state = {
   searchTerm: "",
   bossSearchTerm: "",
   selectedMemberId: null,
+  rowEditMemberId: null,
   draftMemberId: null,
   draftTab: null,
   draftPower: "",
@@ -491,6 +493,7 @@ function handleSearch() {
 
   if (matchedMembers.length === 0) {
     state.selectedMemberId = null;
+    state.rowEditMemberId = null;
     closeSearchSelectModal();
     syncDraftState();
     renderAll();
@@ -565,6 +568,7 @@ function sortFilteredMembers(members) {
 function getEditableMember() {
   if (state.overallEditMode) return null;
   if (!state.searchTerm.trim() || !state.selectedMemberId) return null;
+  if (!state.rowEditMemberId || state.rowEditMemberId !== state.selectedMemberId) return null;
   return state.members.find((member) => member.id === state.selectedMemberId) ?? null;
 }
 
@@ -748,11 +752,13 @@ function renderGuideText() {
     return;
   }
 
-  el.tableGuideText.textContent = state.activeTab === "power"
-    ? "선택된 길드원 1명만 표시됩니다. 이 행에서 최고 투력을 수정할 수 있습니다."
-    : state.activeTab === "accessory"
-      ? "선택된 길드원 1명만 표시됩니다. 이 행에서 악세사리 수량을 수정할 수 있습니다."
-      : "선택된 길드원 1명만 표시됩니다. 이 행에서 보유 상태를 수정할 수 있습니다.";
+  el.tableGuideText.textContent = state.rowEditMemberId === state.selectedMemberId
+    ? state.activeTab === "power"
+      ? "선택된 길드원 1명 수정 모드입니다. 이 행에서 최고 투력을 수정한 뒤 저장할 수 있습니다."
+      : state.activeTab === "accessory"
+        ? "선택된 길드원 1명 수정 모드입니다. 이 행에서 악세사리 수량을 수정한 뒤 저장할 수 있습니다."
+        : "선택된 길드원 1명 수정 모드입니다. 이 행에서 보유 상태를 수정한 뒤 저장할 수 있습니다."
+    : "선택된 길드원 1명만 표시됩니다. 수정 버튼에서 관리자 인증 후 수정할 수 있습니다.";
 }
 
 function renderSummaryTable() {
@@ -772,6 +778,13 @@ function renderSummaryTable() {
   }
 
   renderMountSummaryTable();
+}
+
+function getRowActionButtonHtml(memberId, saveRole) {
+  if (state.overallEditMode) return `<span class="notice-text action-box">일괄</span>`;
+  if (state.selectedMemberId !== memberId) return `<span class="notice-text action-box">불가</span>`;
+  if (state.rowEditMemberId === memberId) return `<button class="btn btn-primary btn-sm" type="button" data-role="${saveRole}" data-member-id="${memberId}">저장</button>`;
+  return `<button class="btn btn-outline btn-sm" type="button" data-role="edit-row" data-member-id="${memberId}">수정</button>`;
 }
 
 function renderPowerSummaryTable() {
@@ -810,11 +823,7 @@ function renderPowerSummaryTable() {
       ? `<input class="inline-power-input" type="number" min="0" step="1" data-role="power-input" data-member-id="${member.id}" value="${escapeAttr(getMemberDraftPower(member))}">`
       : `<span class="value-box">${member.power ?? 0}</span>`;
 
-    const saveCell = state.overallEditMode
-      ? `<span class="notice-text action-box">일괄</span>`
-      : isEditable
-        ? `<button class="btn btn-primary btn-sm" type="button" data-role="save-row-power" data-member-id="${member.id}">저장</button>`
-        : `<span class="notice-text action-box">불가</span>`;
+    const saveCell = getRowActionButtonHtml(member.id, "save-row-power");
 
     const lastUpdatedCell = `<span class="last-updated-box">${formatUpdatedAt(member.updated_at)}</span>`;
 
@@ -883,11 +892,7 @@ function renderMountSummaryTable() {
       return `<td><span class="badge ${currentOwned ? "badge-own" : "badge-not"}">${currentOwned ? "보유" : "미보유"}</span></td>`;
     }).join("");
 
-    const saveCell = state.overallEditMode
-      ? `<span class="notice-text action-box">일괄</span>`
-      : isEditable
-        ? `<button class="btn btn-primary btn-sm" type="button" data-role="save-row-mount" data-member-id="${member.id}">저장</button>`
-        : `<span class="notice-text action-box">불가</span>`;
+    const saveCell = getRowActionButtonHtml(member.id, "save-row-mount");
 
     const lastUpdatedCell = `<span class="last-updated-box">${formatUpdatedAt(member.updated_at)}</span>`;
 
@@ -966,11 +971,7 @@ function renderBossSummaryTable() {
       return `<td><span class="badge ${currentOwned ? "badge-own" : "badge-not"}">${currentOwned ? "보유" : "미보유"}</span></td>`;
     }).join("");
 
-    const saveCell = state.overallEditMode
-      ? `<span class="notice-text action-box">일괄</span>`
-      : isEditable
-        ? `<button class="btn btn-primary btn-sm" type="button" data-role="save-row-boss" data-member-id="${member.id}">저장</button>`
-        : `<span class="notice-text action-box">불가</span>`;
+    const saveCell = getRowActionButtonHtml(member.id, "save-row-boss");
 
     const lastUpdatedCell = `<span class="last-updated-box">${formatUpdatedAt(member.updated_at)}</span>`;
 
@@ -1080,11 +1081,7 @@ function renderAccessorySummaryTable() {
       }).join("");
     }).join("");
 
-    const saveCell = state.overallEditMode
-      ? `<span class="notice-text action-box">일괄</span>`
-      : isEditable
-        ? `<button class="btn btn-primary btn-sm" type="button" data-role="save-row-accessory" data-member-id="${member.id}">저장</button>`
-        : `<span class="notice-text action-box">불가</span>`;
+    const saveCell = getRowActionButtonHtml(member.id, "save-row-accessory");
 
     const lastUpdatedCell = `<span class="last-updated-box">${formatUpdatedAt(getAccessoryLatestUpdatedAt(member.id))}</span>`;
 
@@ -1128,6 +1125,7 @@ function selectMemberFromSearch(memberId) {
 
   state.searchTerm = member.name;
   state.selectedMemberId = member.id;
+  state.rowEditMemberId = null;
   el.searchInput.value = member.name;
   closeSearchSelectModal();
   syncDraftState();
@@ -1856,78 +1854,6 @@ ${historyRes.error.message}`);
   }
 }
 
-async function loadHistoryDetail(historyId, forceReload = false) {
-  const targetId = String(historyId || "").trim();
-  if (!targetId) return null;
-
-  if (!forceReload && state.history?.detailCache?.[targetId]) {
-    return state.history.detailCache[targetId];
-  }
-
-  state.history.loadingDetailId = targetId;
-  renderHistoryDetail();
-
-  const [memberRes, logRes] = await Promise.all([
-    supabase
-      .from("distribution_history_members")
-      .select("distribution_history_id, member_id, member_name, points, ratio, raw_diamond, final_diamond, note, is_retired, display_order")
-      .eq("distribution_history_id", targetId)
-      .order("display_order", { ascending: true }),
-    supabase
-      .from("distribution_history_logs")
-      .select("distribution_history_id, log_date, log_time, boss_name, cutter_name, participants_text, participants, display_order")
-      .eq("distribution_history_id", targetId)
-      .order("display_order", { ascending: true })
-  ]);
-
-  if (memberRes.error) {
-    state.history.loadingDetailId = null;
-    alert(`분배 이력 길드원 결과 조회 중 오류가 발생했습니다.
-${memberRes.error.message}`);
-    return null;
-  }
-
-  if (logRes.error) {
-    state.history.loadingDetailId = null;
-    alert(`분배 이력 보스로그 조회 중 오류가 발생했습니다.
-${logRes.error.message}`);
-    return null;
-  }
-
-  const detail = {
-    memberRows: (memberRes.data ?? []).map((row) => ({
-      memberId: row.member_id ?? null,
-      memberName: row.member_name,
-      points: Number(row.points ?? 0),
-      ratio: Number(row.ratio ?? 0),
-      rawDiamond: Number(row.raw_diamond ?? 0),
-      finalDiamond: Number(row.final_diamond ?? 0),
-      note: row.note || (row.is_retired ? "탈퇴한 길드원" : "")
-    })),
-    logRows: (logRes.data ?? []).map((row) => ({
-      date: row.log_date || "",
-      time: row.log_time || "",
-      boss: row.boss_name || "",
-      cutter: row.cutter_name || "",
-      participants: Array.isArray(row.participants)
-        ? row.participants.map((item) => String(item).trim()).filter(Boolean)
-        : String(row.participants_text || "").split(",").map((item) => item.trim()).filter(Boolean)
-    }))
-  };
-
-  state.history.detailCache[targetId] = detail;
-  if (state.history.loadingDetailId === targetId) {
-    state.history.loadingDetailId = null;
-  }
-  return detail;
-}
-
-function getSelectedHistoryDetail() {
-  const selectedId = String(state.history?.selectedId || "").trim();
-  if (!selectedId) return null;
-  return state.history?.detailCache?.[selectedId] ?? null;
-}
-
 function initializeHistoryState() {
   state.history = {
     filterDate: "",
@@ -2001,6 +1927,78 @@ function renderHistoryListTable() {
       <td class="is-right">${formatNumber(item.remainingDiamond)}</td>
     </tr>
   `).join("");
+}
+
+async function loadHistoryDetail(historyId, forceReload = false) {
+  const targetId = String(historyId || "").trim();
+  if (!targetId) return null;
+
+  if (!forceReload && state.history?.detailCache?.[targetId]) {
+    return state.history.detailCache[targetId];
+  }
+
+  state.history.loadingDetailId = targetId;
+  renderHistoryDetail();
+
+  const [memberRes, logRes] = await Promise.all([
+    supabase
+      .from("distribution_history_members")
+      .select("distribution_history_id, member_id, member_name, points, ratio, raw_diamond, final_diamond, note, is_retired, display_order")
+      .eq("distribution_history_id", targetId)
+      .order("display_order", { ascending: true }),
+    supabase
+      .from("distribution_history_logs")
+      .select("distribution_history_id, log_date, log_time, boss_name, cutter_name, participants_text, participants, display_order")
+      .eq("distribution_history_id", targetId)
+      .order("display_order", { ascending: true })
+  ]);
+
+  if (memberRes.error) {
+    state.history.loadingDetailId = null;
+    alert(`분배 이력 길드원 결과 조회 중 오류가 발생했습니다.
+${memberRes.error.message}`);
+    return null;
+  }
+
+  if (logRes.error) {
+    state.history.loadingDetailId = null;
+    alert(`분배 이력 보스로그 조회 중 오류가 발생했습니다.
+${logRes.error.message}`);
+    return null;
+  }
+
+  const detail = {
+    memberRows: (memberRes.data ?? []).map((row) => ({
+      memberId: row.member_id ?? null,
+      memberName: row.member_name,
+      points: Number(row.points ?? 0),
+      ratio: Number(row.ratio ?? 0),
+      rawDiamond: Number(row.raw_diamond ?? 0),
+      finalDiamond: Number(row.final_diamond ?? 0),
+      note: row.note || (row.is_retired ? "탈퇴한 길드원" : "")
+    })),
+    logRows: (logRes.data ?? []).map((row) => ({
+      date: row.log_date || "",
+      time: row.log_time || "",
+      boss: row.boss_name || "",
+      cutter: row.cutter_name || "",
+      participants: Array.isArray(row.participants)
+        ? row.participants.map((item) => String(item).trim()).filter(Boolean)
+        : String(row.participants_text || "").split(",").map((item) => item.trim()).filter(Boolean)
+    }))
+  };
+
+  state.history.detailCache[targetId] = detail;
+  if (state.history.loadingDetailId === targetId) {
+    state.history.loadingDetailId = null;
+  }
+  return detail;
+}
+
+function getSelectedHistoryDetail() {
+  const selectedId = String(state.history?.selectedId || "").trim();
+  if (!selectedId) return null;
+  return state.history?.detailCache?.[selectedId] ?? null;
 }
 
 function getSelectedHistoryItem() {
@@ -2297,6 +2295,11 @@ function handleSummaryTableClick(event) {
     return;
   }
 
+  if (role === "edit-row") {
+    openPasswordModal("row-edit", button.dataset.memberId);
+    return;
+  }
+
   if (role === "save-row-power") {
     savePowerEditableRow(button.dataset.memberId);
     return;
@@ -2479,6 +2482,7 @@ async function savePowerEditableRow(memberId) {
   if (state.overallEditMode) {
     state.draftAllRows = {};
   }
+  state.rowEditMemberId = null;
   renderAll();
   alert("저장되었습니다.");
 }
@@ -2503,6 +2507,7 @@ async function saveMountEditableRow(memberId) {
   if (state.overallEditMode) {
     state.draftAllRows = {};
   }
+  state.rowEditMemberId = null;
   renderAll();
   alert("저장되었습니다.");
 }
@@ -2527,6 +2532,7 @@ async function saveAccessoryEditableRow(memberId) {
   if (state.overallEditMode) {
     state.draftAllRows = {};
   }
+  state.rowEditMemberId = null;
   renderAll();
   alert("저장되었습니다.");
 }
@@ -2551,6 +2557,7 @@ async function saveBossEditableRow(memberId) {
   if (state.overallEditMode) {
     state.draftAllRows = {};
   }
+  state.rowEditMemberId = null;
   renderAll();
   alert("저장되었습니다.");
 }
@@ -2558,12 +2565,14 @@ async function saveBossEditableRow(memberId) {
 function resetSearchState() {
   state.searchTerm = "";
   state.selectedMemberId = null;
+  state.rowEditMemberId = null;
   state.draftTab = null;
   el.searchInput.value = "";
 }
 
-function openPasswordModal(type) {
+function openPasswordModal(type, memberId = null) {
   state.pendingManageType = type;
+  state.pendingEditMemberId = memberId;
   el.passwordInput.value = "";
   el.passwordErrorText.classList.add("hidden");
   openModal(el.passwordModalBackdrop);
@@ -2572,6 +2581,7 @@ function openPasswordModal(type) {
 
 function closePasswordModal() {
   state.pendingManageType = null;
+  state.pendingEditMemberId = null;
   closeModal(el.passwordModalBackdrop);
 }
 
@@ -2602,7 +2612,13 @@ function confirmPassword() {
     openImportModal();
   }
 
+  if (state.pendingManageType === "row-edit") {
+    state.rowEditMemberId = state.pendingEditMemberId;
+    renderAll();
+  }
+
   state.pendingManageType = null;
+  state.pendingEditMemberId = null;
 }
 
 function handleGuildManageTableClick(event) {
