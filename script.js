@@ -2,23 +2,23 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 const SUPABASE_URL = "https://mgmvyapblwiwjaytkgwl.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_fzA0-8AjS9D1xtXLkgdo1Q_iCY-dYJV";
-const ADMIN_PASSWORD = "1234";
+const ADMIN_PASSWORD = "1590";
 const ACCESSORY_PARTS = [
-  { key: "ring_count", label: "반지" },
   { key: "necklace_count", label: "목걸이" },
   { key: "earring_count", label: "귀걸이" },
-  { key: "belt_count", label: "허리띠" },
-  { key: "bracelet_count", label: "팔찌" }
+  { key: "ring_count", label: "반지" },
+  { key: "bracelet_count", label: "팔찌" },
+  { key: "belt_count", label: "허리띠" }
 ];
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const state = {
   activeTab: "power",
-  regularDistribution: null,
-  directDistribution: null,
+  distribution: null,
   history: null,
   pendingManageType: null,
+  pendingEditMemberId: null,
   members: [],
   mountItems: [],
   memberMounts: [],
@@ -29,6 +29,7 @@ const state = {
   searchTerm: "",
   bossSearchTerm: "",
   selectedMemberId: null,
+  rowEditMemberId: null,
   draftMemberId: null,
   draftTab: null,
   draftPower: "",
@@ -48,7 +49,7 @@ const el = {};
 document.addEventListener("DOMContentLoaded", async () => {
   bindElements();
   bindEvents();
-  initializeDistributionStates();
+  initializeDistributionState();
   initializeHistoryState();
   updateTabUi();
   await loadActiveTabData();
@@ -174,7 +175,7 @@ function bindEvents() {
       resetOverallEditMode();
       updateTabUi();
 
-      if (isDistributionTab(nextTab)) {
+      if (nextTab === "distribution") {
         renderAll();
         return;
       }
@@ -271,7 +272,7 @@ function updateTabUi() {
   });
 
   const isSpecial = false;
-  const isDistribution = isDistributionTab();
+  const isDistribution = state.activeTab === "distribution";
   const isHistory = state.activeTab === "history";
   const isAccessory = state.activeTab === "accessory";
   const isBoss = state.activeTab === "boss";
@@ -287,7 +288,7 @@ function updateTabUi() {
   el.historyHeaderActions.classList.toggle("hidden", !isHistory);
 
   if (isDistribution) {
-    el.mainCardTitle.textContent = state.activeTab === "direct_distribution" ? "직접 분배" : "정기 분배";
+    el.mainCardTitle.textContent = "분배";
     el.tableGuideText.textContent = "보스로그 엑셀을 기준으로 기간 내 참여 점수를 집계하여 분배 다이아를 계산합니다.";
   } else if (isHistory) {
     el.mainCardTitle.textContent = "분배 이력";
@@ -492,6 +493,7 @@ function handleSearch() {
 
   if (matchedMembers.length === 0) {
     state.selectedMemberId = null;
+    state.rowEditMemberId = null;
     closeSearchSelectModal();
     syncDraftState();
     renderAll();
@@ -566,6 +568,7 @@ function sortFilteredMembers(members) {
 function getEditableMember() {
   if (state.overallEditMode) return null;
   if (!state.searchTerm.trim() || !state.selectedMemberId) return null;
+  if (!state.rowEditMemberId || state.rowEditMemberId !== state.selectedMemberId) return null;
   return state.members.find((member) => member.id === state.selectedMemberId) ?? null;
 }
 
@@ -749,11 +752,13 @@ function renderGuideText() {
     return;
   }
 
-  el.tableGuideText.textContent = state.activeTab === "power"
-    ? "선택된 길드원 1명만 표시됩니다. 이 행에서 최고 투력을 수정할 수 있습니다."
-    : state.activeTab === "accessory"
-      ? "선택된 길드원 1명만 표시됩니다. 이 행에서 악세사리 수량을 수정할 수 있습니다."
-      : "선택된 길드원 1명만 표시됩니다. 이 행에서 보유 상태를 수정할 수 있습니다.";
+  el.tableGuideText.textContent = state.rowEditMemberId === state.selectedMemberId
+    ? state.activeTab === "power"
+      ? "선택된 길드원 1명 수정 모드입니다. 이 행에서 최고 투력을 수정한 뒤 저장할 수 있습니다."
+      : state.activeTab === "accessory"
+        ? "선택된 길드원 1명 수정 모드입니다. 이 행에서 악세사리 수량을 수정한 뒤 저장할 수 있습니다."
+        : "선택된 길드원 1명 수정 모드입니다. 이 행에서 보유 상태를 수정한 뒤 저장할 수 있습니다."
+    : "선택된 길드원 1명만 표시됩니다. 수정 버튼에서 관리자 인증 후 수정할 수 있습니다.";
 }
 
 function renderSummaryTable() {
@@ -773,6 +778,13 @@ function renderSummaryTable() {
   }
 
   renderMountSummaryTable();
+}
+
+function getRowActionButtonHtml(memberId, saveRole) {
+  if (state.overallEditMode) return `<span class="notice-text action-box">일괄</span>`;
+  if (state.selectedMemberId !== memberId) return `<span class="notice-text action-box">불가</span>`;
+  if (state.rowEditMemberId === memberId) return `<button class="btn btn-primary btn-sm" type="button" data-role="${saveRole}" data-member-id="${memberId}">저장</button>`;
+  return `<button class="btn btn-outline btn-sm" type="button" data-role="edit-row" data-member-id="${memberId}">수정</button>`;
 }
 
 function renderPowerSummaryTable() {
@@ -811,11 +823,7 @@ function renderPowerSummaryTable() {
       ? `<input class="inline-power-input" type="number" min="0" step="1" data-role="power-input" data-member-id="${member.id}" value="${escapeAttr(getMemberDraftPower(member))}">`
       : `<span class="value-box">${member.power ?? 0}</span>`;
 
-    const saveCell = state.overallEditMode
-      ? `<span class="notice-text action-box">일괄</span>`
-      : isEditable
-        ? `<button class="btn btn-primary btn-sm" type="button" data-role="save-row-power" data-member-id="${member.id}">저장</button>`
-        : `<span class="notice-text action-box">불가</span>`;
+    const saveCell = getRowActionButtonHtml(member.id, "save-row-power");
 
     const lastUpdatedCell = `<span class="last-updated-box">${formatUpdatedAt(member.updated_at)}</span>`;
 
@@ -884,11 +892,7 @@ function renderMountSummaryTable() {
       return `<td><span class="badge ${currentOwned ? "badge-own" : "badge-not"}">${currentOwned ? "보유" : "미보유"}</span></td>`;
     }).join("");
 
-    const saveCell = state.overallEditMode
-      ? `<span class="notice-text action-box">일괄</span>`
-      : isEditable
-        ? `<button class="btn btn-primary btn-sm" type="button" data-role="save-row-mount" data-member-id="${member.id}">저장</button>`
-        : `<span class="notice-text action-box">불가</span>`;
+    const saveCell = getRowActionButtonHtml(member.id, "save-row-mount");
 
     const lastUpdatedCell = `<span class="last-updated-box">${formatUpdatedAt(member.updated_at)}</span>`;
 
@@ -967,11 +971,7 @@ function renderBossSummaryTable() {
       return `<td><span class="badge ${currentOwned ? "badge-own" : "badge-not"}">${currentOwned ? "보유" : "미보유"}</span></td>`;
     }).join("");
 
-    const saveCell = state.overallEditMode
-      ? `<span class="notice-text action-box">일괄</span>`
-      : isEditable
-        ? `<button class="btn btn-primary btn-sm" type="button" data-role="save-row-boss" data-member-id="${member.id}">저장</button>`
-        : `<span class="notice-text action-box">불가</span>`;
+    const saveCell = getRowActionButtonHtml(member.id, "save-row-boss");
 
     const lastUpdatedCell = `<span class="last-updated-box">${formatUpdatedAt(member.updated_at)}</span>`;
 
@@ -1081,11 +1081,7 @@ function renderAccessorySummaryTable() {
       }).join("");
     }).join("");
 
-    const saveCell = state.overallEditMode
-      ? `<span class="notice-text action-box">일괄</span>`
-      : isEditable
-        ? `<button class="btn btn-primary btn-sm" type="button" data-role="save-row-accessory" data-member-id="${member.id}">저장</button>`
-        : `<span class="notice-text action-box">불가</span>`;
+    const saveCell = getRowActionButtonHtml(member.id, "save-row-accessory");
 
     const lastUpdatedCell = `<span class="last-updated-box">${formatUpdatedAt(getAccessoryLatestUpdatedAt(member.id))}</span>`;
 
@@ -1129,6 +1125,7 @@ function selectMemberFromSearch(memberId) {
 
   state.searchTerm = member.name;
   state.selectedMemberId = member.id;
+  state.rowEditMemberId = null;
   el.searchInput.value = member.name;
   closeSearchSelectModal();
   syncDraftState();
@@ -1140,19 +1137,9 @@ function closeSearchSelectModal() {
 }
 
 
-function isDistributionTab(tabKey = state.activeTab) {
-  return tabKey === "distribution" || tabKey === "direct_distribution";
-}
-
-function getActiveDistributionState() {
-  return state.activeTab === "direct_distribution" ? state.directDistribution : state.regularDistribution;
-}
-
-function initializeDistributionStates() {
-  state.regularDistribution = createEmptyDistributionState();
-  state.directDistribution = createEmptyDistributionState();
-  setDistributionDefaultDates(state.regularDistribution);
-  setDistributionDefaultDates(state.directDistribution);
+function initializeDistributionState() {
+  state.distribution = createEmptyDistributionState();
+  setDistributionDefaultDates();
 }
 
 function createEmptyDistributionState() {
@@ -1183,13 +1170,12 @@ function createEmptyDistributionState() {
   };
 }
 
-function setDistributionDefaultDates(distributionState) {
-  if (!distributionState) return;
+function setDistributionDefaultDates() {
   const today = new Date();
   const endDate = formatDateToInputValue(today);
   const startDate = formatDateToInputValue(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 6));
-  distributionState.startDate = startDate;
-  distributionState.endDate = endDate;
+  state.distribution.startDate = startDate;
+  state.distribution.endDate = endDate;
 }
 
 function renderDistributionTab() {
@@ -1200,7 +1186,7 @@ function renderDistributionTab() {
 }
 
 function renderDistributionInputs() {
-  const distribution = getActiveDistributionState();
+  const distribution = state.distribution;
   el.distributionTotalDiamondInput.value = distribution.totalDiamond;
   el.distributionGuildFeePercentInput.value = distribution.guildFeePercent;
   el.distributionGuildMasterPercentInput.value = distribution.guildMasterPercent;
@@ -1215,7 +1201,7 @@ function renderDistributionInputs() {
 }
 
 function renderDistributionSummary() {
-  const summary = getActiveDistributionState().summary;
+  const summary = state.distribution.summary;
   el.distributionSummaryPeriod.textContent = summary.periodText;
   el.distributionSummaryActualDiamond.textContent = formatNumber(summary.actualDiamond);
   el.distributionSummaryTotalPoints.textContent = formatNumber(summary.totalPoints);
@@ -1236,7 +1222,7 @@ function renderDistributionMemberTable() {
     </tr>
   `;
 
-  const rows = getActiveDistributionState().memberResults;
+  const rows = state.distribution.memberResults;
   if (rows.length === 0) {
     el.distributionMemberTableBody.innerHTML = `
       <tr>
@@ -1271,7 +1257,7 @@ function renderDistributionLogTable() {
     </tr>
   `;
 
-  const logs = getActiveDistributionState().usedLogs;
+  const logs = state.distribution.usedLogs;
   if (logs.length === 0) {
     el.distributionLogTableBody.innerHTML = `
       <tr>
@@ -1296,7 +1282,7 @@ function renderDistributionLogTable() {
 function handleDistributionDeductionCalculate() {
   syncDistributionInputs();
   try {
-    getActiveDistributionState().deduction = calculateDistributionDeduction();
+    state.distribution.deduction = calculateDistributionDeduction();
     renderDistributionTab();
   } catch (error) {
     alert(error.message);
@@ -1307,14 +1293,14 @@ async function handleDistributionCalculate() {
   syncDistributionInputs();
 
   try {
-    getActiveDistributionState().deduction = calculateDistributionDeduction();
+    state.distribution.deduction = calculateDistributionDeduction();
     const workbookRows = await readDistributionWorkbookRows();
     const result = buildDistributionResult(workbookRows);
-    getActiveDistributionState().workbookName = el.distributionFileInput.files?.[0]?.name ?? "";
-    getActiveDistributionState().rawRows = workbookRows;
-    getActiveDistributionState().usedLogs = result.usedLogs;
-    getActiveDistributionState().memberResults = result.memberResults;
-    getActiveDistributionState().summary = result.summary;
+    state.distribution.workbookName = el.distributionFileInput.files?.[0]?.name ?? "";
+    state.distribution.rawRows = workbookRows;
+    state.distribution.usedLogs = result.usedLogs;
+    state.distribution.memberResults = result.memberResults;
+    state.distribution.summary = result.summary;
     renderDistributionTab();
     alert("분배 계산이 완료되었습니다.");
   } catch (error) {
@@ -1323,7 +1309,7 @@ async function handleDistributionCalculate() {
 }
 
 function handleDistributionSaveResult() {
-  if (!getActiveDistributionState().memberResults.length) {
+  if (!state.distribution.memberResults.length) {
     alert("먼저 분배 계산을 진행해주세요.");
     return;
   }
@@ -1337,24 +1323,24 @@ function handleDistributionSaveResult() {
   const worksheet = buildDistributionExportSheet();
   XLSX.utils.book_append_sheet(workbook, worksheet, "분배결과");
 
-  const fileName = `${state.activeTab === "direct_distribution" ? "직접분배결과" : "정기분배결과"}_${getActiveDistributionState().startDate || "시작일"}_${getActiveDistributionState().endDate || "종료일"}.xlsx`;
+  const fileName = `분배결과_${state.distribution.startDate || "시작일"}_${state.distribution.endDate || "종료일"}.xlsx`;
   XLSX.writeFile(workbook, fileName);
 }
 
 async function handleDistributionFinalSave() {
-  if (!getActiveDistributionState().memberResults.length) {
+  if (!state.distribution.memberResults.length) {
     alert("먼저 분배 계산을 진행해주세요.");
     return;
   }
 
   syncDistributionInputs();
 
-  if (!getActiveDistributionState().startDate || !getActiveDistributionState().endDate) {
+  if (!state.distribution.startDate || !state.distribution.endDate) {
     alert("시작일과 종료일을 입력해주세요.");
     return;
   }
 
-  if (getActiveDistributionState().startDate > getActiveDistributionState().endDate) {
+  if (state.distribution.startDate > state.distribution.endDate) {
     alert("시작일은 종료일보다 클 수 없습니다.");
     return;
   }
@@ -1411,7 +1397,7 @@ ${error.message}`);
 }
 
 function buildDistributionHistoryPayload(saveTimestamp) {
-  const distribution = getActiveDistributionState();
+  const distribution = state.distribution;
   const summary = distribution.summary;
   const deduction = distribution.deduction;
 
@@ -1441,7 +1427,7 @@ function buildDistributionHistoryMemberPayloads(distributionHistoryId, saveTimes
     (state.members || []).map((member) => [String(member?.name ?? "").trim(), member?.id ?? null])
   );
 
-  return (getActiveDistributionState().memberResults || []).map((row, index) => ({
+  return (state.distribution.memberResults || []).map((row, index) => ({
     distribution_history_id: distributionHistoryId,
     member_id: row.note === "탈퇴한 길드원" ? null : (memberIdByName.get(row.memberName) ?? null),
     member_name: row.memberName,
@@ -1457,7 +1443,7 @@ function buildDistributionHistoryMemberPayloads(distributionHistoryId, saveTimes
 }
 
 function buildDistributionHistoryLogPayloads(distributionHistoryId, saveTimestamp) {
-  return (getActiveDistributionState().usedLogs || []).map((row, index) => ({
+  return (state.distribution.usedLogs || []).map((row, index) => ({
     distribution_history_id: distributionHistoryId,
     log_date: row.date,
     log_time: row.time || null,
@@ -1471,20 +1457,20 @@ function buildDistributionHistoryLogPayloads(distributionHistoryId, saveTimestam
 }
 
 function buildDistributionExportSheet() {
-  const summary = getActiveDistributionState().summary;
-  const deduction = getActiveDistributionState().deduction;
-  const totalDiamond = parseInteger(getActiveDistributionState().totalDiamond);
-  const memberRows = getActiveDistributionState().memberResults;
-  const logRows = getActiveDistributionState().usedLogs;
+  const summary = state.distribution.summary;
+  const deduction = state.distribution.deduction;
+  const totalDiamond = parseInteger(state.distribution.totalDiamond);
+  const memberRows = state.distribution.memberResults;
+  const logRows = state.distribution.usedLogs;
 
   const rows = [
     ["분배 결과"],
     [],
     ["공제 설정", "값", "", "분배 요약", "값", "", ""],
     ["대상 기간", summary.periodText, "", "총 다이아", totalDiamond, "", ""],
-    ["길드 운영비 %", parsePercent(getActiveDistributionState().guildFeePercent), "", "운영비 공제", deduction.guildFeeAmount, "", ""],
-    ["길드장 %", parsePercent(getActiveDistributionState().guildMasterPercent), "", "길드장 공제", deduction.guildMasterAmount, "", ""],
-    ["총무 %", parsePercent(getActiveDistributionState().managerPercent), "", "총무 공제", deduction.managerAmount, "", ""],
+    ["길드 운영비 %", parsePercent(state.distribution.guildFeePercent), "", "운영비 공제", deduction.guildFeeAmount, "", ""],
+    ["길드장 %", parsePercent(state.distribution.guildMasterPercent), "", "길드장 공제", deduction.guildMasterAmount, "", ""],
+    ["총무 %", parsePercent(state.distribution.managerPercent), "", "총무 공제", deduction.managerAmount, "", ""],
     ["실제 분배 다이아", summary.actualDiamond, "", "전체 참여점수", summary.totalPoints, "", ""],
     ["1점당 다이아", Number(summary.diamondPerPoint.toFixed(4)), "", "남은 다이아", summary.remainingDiamond, "", ""],
     [],
@@ -1570,13 +1556,8 @@ function setCellFormat(ws, address, format) {
 }
 
 function resetDistributionStateAndRender() {
-  if (state.activeTab === "direct_distribution") {
-    state.directDistribution = createEmptyDistributionState();
-    setDistributionDefaultDates(state.directDistribution);
-  } else {
-    state.regularDistribution = createEmptyDistributionState();
-    setDistributionDefaultDates(state.regularDistribution);
-  }
+  state.distribution = createEmptyDistributionState();
+  setDistributionDefaultDates();
   if (el.distributionFileInput) {
     el.distributionFileInput.value = "";
   }
@@ -1584,19 +1565,19 @@ function resetDistributionStateAndRender() {
 }
 
 function syncDistributionInputs() {
-  getActiveDistributionState().totalDiamond = String(el.distributionTotalDiamondInput.value ?? "").trim();
-  getActiveDistributionState().guildFeePercent = String(el.distributionGuildFeePercentInput.value ?? "").trim();
-  getActiveDistributionState().guildMasterPercent = String(el.distributionGuildMasterPercentInput.value ?? "").trim();
-  getActiveDistributionState().managerPercent = String(el.distributionManagerPercentInput.value ?? "").trim();
-  getActiveDistributionState().startDate = String(el.distributionStartDateInput.value ?? "").trim();
-  getActiveDistributionState().endDate = String(el.distributionEndDateInput.value ?? "").trim();
+  state.distribution.totalDiamond = String(el.distributionTotalDiamondInput.value ?? "").trim();
+  state.distribution.guildFeePercent = String(el.distributionGuildFeePercentInput.value ?? "").trim();
+  state.distribution.guildMasterPercent = String(el.distributionGuildMasterPercentInput.value ?? "").trim();
+  state.distribution.managerPercent = String(el.distributionManagerPercentInput.value ?? "").trim();
+  state.distribution.startDate = String(el.distributionStartDateInput.value ?? "").trim();
+  state.distribution.endDate = String(el.distributionEndDateInput.value ?? "").trim();
 }
 
 function calculateDistributionDeduction() {
-  const totalDiamond = normalizeNonNegativeNumber(getActiveDistributionState().totalDiamond, "총 다이아를 올바르게 입력해주세요.");
-  const guildFeePercent = normalizePercentValue(getActiveDistributionState().guildFeePercent);
-  const guildMasterPercent = normalizePercentValue(getActiveDistributionState().guildMasterPercent);
-  const managerPercent = normalizePercentValue(getActiveDistributionState().managerPercent);
+  const totalDiamond = normalizeNonNegativeNumber(state.distribution.totalDiamond, "총 다이아를 올바르게 입력해주세요.");
+  const guildFeePercent = normalizePercentValue(state.distribution.guildFeePercent);
+  const guildMasterPercent = normalizePercentValue(state.distribution.guildMasterPercent);
+  const managerPercent = normalizePercentValue(state.distribution.managerPercent);
 
   const guildFeeAmount = Math.floor(totalDiamond * (guildFeePercent / 100));
   const guildMasterAmount = Math.floor(totalDiamond * (guildMasterPercent / 100));
@@ -1710,19 +1691,19 @@ function normalizeDistributionTime(value) {
 }
 
 function buildDistributionResult(workbookRows) {
-  if (!getActiveDistributionState().startDate || !getActiveDistributionState().endDate) {
+  if (!state.distribution.startDate || !state.distribution.endDate) {
     throw new Error("시작일과 종료일을 입력해주세요.");
   }
 
-  if (getActiveDistributionState().startDate > getActiveDistributionState().endDate) {
+  if (state.distribution.startDate > state.distribution.endDate) {
     throw new Error("시작일은 종료일보다 클 수 없습니다.");
   }
 
   const usedLogs = workbookRows.filter((row) => {
-    return row.date && row.date >= getActiveDistributionState().startDate && row.date <= getActiveDistributionState().endDate && row.participants.length > 0;
+    return row.date && row.date >= state.distribution.startDate && row.date <= state.distribution.endDate && row.participants.length > 0;
   });
 
-  const actualDiamond = getActiveDistributionState().deduction.actualDiamond;
+  const actualDiamond = state.distribution.deduction.actualDiamond;
   const pointMap = new Map();
   const activeMemberNameSet = new Set(
     (state.members || [])
@@ -1777,7 +1758,7 @@ function buildDistributionResult(workbookRows) {
     usedLogs,
     memberResults,
     summary: {
-      periodText: `${getActiveDistributionState().startDate} ~ ${getActiveDistributionState().endDate}`,
+      periodText: `${state.distribution.startDate} ~ ${state.distribution.endDate}`,
       actualDiamond,
       totalPoints,
       diamondPerPoint,
@@ -1873,78 +1854,6 @@ ${historyRes.error.message}`);
   }
 }
 
-async function loadHistoryDetail(historyId, forceReload = false) {
-  const targetId = String(historyId || "").trim();
-  if (!targetId) return null;
-
-  if (!forceReload && state.history?.detailCache?.[targetId]) {
-    return state.history.detailCache[targetId];
-  }
-
-  state.history.loadingDetailId = targetId;
-  renderHistoryDetail();
-
-  const [memberRes, logRes] = await Promise.all([
-    supabase
-      .from("distribution_history_members")
-      .select("distribution_history_id, member_id, member_name, points, ratio, raw_diamond, final_diamond, note, is_retired, display_order")
-      .eq("distribution_history_id", targetId)
-      .order("display_order", { ascending: true }),
-    supabase
-      .from("distribution_history_logs")
-      .select("distribution_history_id, log_date, log_time, boss_name, cutter_name, participants_text, participants, display_order")
-      .eq("distribution_history_id", targetId)
-      .order("display_order", { ascending: true })
-  ]);
-
-  if (memberRes.error) {
-    state.history.loadingDetailId = null;
-    alert(`분배 이력 길드원 결과 조회 중 오류가 발생했습니다.
-${memberRes.error.message}`);
-    return null;
-  }
-
-  if (logRes.error) {
-    state.history.loadingDetailId = null;
-    alert(`분배 이력 보스로그 조회 중 오류가 발생했습니다.
-${logRes.error.message}`);
-    return null;
-  }
-
-  const detail = {
-    memberRows: (memberRes.data ?? []).map((row) => ({
-      memberId: row.member_id ?? null,
-      memberName: row.member_name,
-      points: Number(row.points ?? 0),
-      ratio: Number(row.ratio ?? 0),
-      rawDiamond: Number(row.raw_diamond ?? 0),
-      finalDiamond: Number(row.final_diamond ?? 0),
-      note: row.note || (row.is_retired ? "탈퇴한 길드원" : "")
-    })),
-    logRows: (logRes.data ?? []).map((row) => ({
-      date: row.log_date || "",
-      time: row.log_time || "",
-      boss: row.boss_name || "",
-      cutter: row.cutter_name || "",
-      participants: Array.isArray(row.participants)
-        ? row.participants.map((item) => String(item).trim()).filter(Boolean)
-        : String(row.participants_text || "").split(",").map((item) => item.trim()).filter(Boolean)
-    }))
-  };
-
-  state.history.detailCache[targetId] = detail;
-  if (state.history.loadingDetailId === targetId) {
-    state.history.loadingDetailId = null;
-  }
-  return detail;
-}
-
-function getSelectedHistoryDetail() {
-  const selectedId = String(state.history?.selectedId || "").trim();
-  if (!selectedId) return null;
-  return state.history?.detailCache?.[selectedId] ?? null;
-}
-
 function initializeHistoryState() {
   state.history = {
     filterDate: "",
@@ -2018,6 +1927,78 @@ function renderHistoryListTable() {
       <td class="is-right">${formatNumber(item.remainingDiamond)}</td>
     </tr>
   `).join("");
+}
+
+async function loadHistoryDetail(historyId, forceReload = false) {
+  const targetId = String(historyId || "").trim();
+  if (!targetId) return null;
+
+  if (!forceReload && state.history?.detailCache?.[targetId]) {
+    return state.history.detailCache[targetId];
+  }
+
+  state.history.loadingDetailId = targetId;
+  renderHistoryDetail();
+
+  const [memberRes, logRes] = await Promise.all([
+    supabase
+      .from("distribution_history_members")
+      .select("distribution_history_id, member_id, member_name, points, ratio, raw_diamond, final_diamond, note, is_retired, display_order")
+      .eq("distribution_history_id", targetId)
+      .order("display_order", { ascending: true }),
+    supabase
+      .from("distribution_history_logs")
+      .select("distribution_history_id, log_date, log_time, boss_name, cutter_name, participants_text, participants, display_order")
+      .eq("distribution_history_id", targetId)
+      .order("display_order", { ascending: true })
+  ]);
+
+  if (memberRes.error) {
+    state.history.loadingDetailId = null;
+    alert(`분배 이력 길드원 결과 조회 중 오류가 발생했습니다.
+${memberRes.error.message}`);
+    return null;
+  }
+
+  if (logRes.error) {
+    state.history.loadingDetailId = null;
+    alert(`분배 이력 보스로그 조회 중 오류가 발생했습니다.
+${logRes.error.message}`);
+    return null;
+  }
+
+  const detail = {
+    memberRows: (memberRes.data ?? []).map((row) => ({
+      memberId: row.member_id ?? null,
+      memberName: row.member_name,
+      points: Number(row.points ?? 0),
+      ratio: Number(row.ratio ?? 0),
+      rawDiamond: Number(row.raw_diamond ?? 0),
+      finalDiamond: Number(row.final_diamond ?? 0),
+      note: row.note || (row.is_retired ? "탈퇴한 길드원" : "")
+    })),
+    logRows: (logRes.data ?? []).map((row) => ({
+      date: row.log_date || "",
+      time: row.log_time || "",
+      boss: row.boss_name || "",
+      cutter: row.cutter_name || "",
+      participants: Array.isArray(row.participants)
+        ? row.participants.map((item) => String(item).trim()).filter(Boolean)
+        : String(row.participants_text || "").split(",").map((item) => item.trim()).filter(Boolean)
+    }))
+  };
+
+  state.history.detailCache[targetId] = detail;
+  if (state.history.loadingDetailId === targetId) {
+    state.history.loadingDetailId = null;
+  }
+  return detail;
+}
+
+function getSelectedHistoryDetail() {
+  const selectedId = String(state.history?.selectedId || "").trim();
+  if (!selectedId) return null;
+  return state.history?.detailCache?.[selectedId] ?? null;
 }
 
 function getSelectedHistoryItem() {
@@ -2158,8 +2139,34 @@ async function handleHistorySearch() {
   renderHistoryTab();
 }
 
-function handleHistoryDelete() {
-  alert("분배 이력 삭제 기능은 다음 단계에서 연결할 예정입니다.");
+async function handleHistoryDelete() {
+  const selectedId = String(state.history?.selectedId || "").trim();
+  if (!selectedId) {
+    alert("삭제할 분배 이력을 먼저 선택해주세요.");
+    return;
+  }
+
+  const selectedItem = getSelectedHistoryItem();
+  const periodText = selectedItem ? `${selectedItem.startDate} ~ ${selectedItem.endDate}` : "선택 이력";
+  const confirmed = window.confirm(`${periodText} 분배 이력을 삭제하시겠습니까?`);
+  if (!confirmed) return;
+
+  const deleteRes = await supabase
+    .from("distribution_histories")
+    .delete()
+    .eq("id", selectedId);
+
+  if (deleteRes.error) {
+    alert(`분배 이력 삭제 중 오류가 발생했습니다.
+${deleteRes.error.message}`);
+    return;
+  }
+
+  state.history.selectedId = null;
+  delete state.history.detailCache[selectedId];
+  await loadHistoryData();
+  renderHistoryTab();
+  alert("분배 이력이 삭제되었습니다.");
 }
 
 function handleHistoryExport() {
@@ -2311,6 +2318,11 @@ function handleSummaryTableClick(event) {
 
   if (role === "toggle-accessory-group-hidden") {
     toggleAccessoryGroupHidden(button.dataset.groupId);
+    return;
+  }
+
+  if (role === "edit-row") {
+    openPasswordModal("row-edit", button.dataset.memberId);
     return;
   }
 
@@ -2496,6 +2508,7 @@ async function savePowerEditableRow(memberId) {
   if (state.overallEditMode) {
     state.draftAllRows = {};
   }
+  state.rowEditMemberId = null;
   renderAll();
   alert("저장되었습니다.");
 }
@@ -2520,6 +2533,7 @@ async function saveMountEditableRow(memberId) {
   if (state.overallEditMode) {
     state.draftAllRows = {};
   }
+  state.rowEditMemberId = null;
   renderAll();
   alert("저장되었습니다.");
 }
@@ -2544,6 +2558,7 @@ async function saveAccessoryEditableRow(memberId) {
   if (state.overallEditMode) {
     state.draftAllRows = {};
   }
+  state.rowEditMemberId = null;
   renderAll();
   alert("저장되었습니다.");
 }
@@ -2568,6 +2583,7 @@ async function saveBossEditableRow(memberId) {
   if (state.overallEditMode) {
     state.draftAllRows = {};
   }
+  state.rowEditMemberId = null;
   renderAll();
   alert("저장되었습니다.");
 }
@@ -2575,12 +2591,14 @@ async function saveBossEditableRow(memberId) {
 function resetSearchState() {
   state.searchTerm = "";
   state.selectedMemberId = null;
+  state.rowEditMemberId = null;
   state.draftTab = null;
   el.searchInput.value = "";
 }
 
-function openPasswordModal(type) {
+function openPasswordModal(type, memberId = null) {
   state.pendingManageType = type;
+  state.pendingEditMemberId = memberId;
   el.passwordInput.value = "";
   el.passwordErrorText.classList.add("hidden");
   openModal(el.passwordModalBackdrop);
@@ -2589,6 +2607,7 @@ function openPasswordModal(type) {
 
 function closePasswordModal() {
   state.pendingManageType = null;
+  state.pendingEditMemberId = null;
   closeModal(el.passwordModalBackdrop);
 }
 
@@ -2619,7 +2638,13 @@ function confirmPassword() {
     openImportModal();
   }
 
+  if (state.pendingManageType === "row-edit") {
+    state.rowEditMemberId = state.pendingEditMemberId;
+    renderAll();
+  }
+
   state.pendingManageType = null;
+  state.pendingEditMemberId = null;
 }
 
 function handleGuildManageTableClick(event) {
