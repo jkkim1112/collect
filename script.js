@@ -2,13 +2,13 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 const SUPABASE_URL = "https://mgmvyapblwiwjaytkgwl.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_fzA0-8AjS9D1xtXLkgdo1Q_iCY-dYJV";
-const ADMIN_PASSWORD = "1234";
+const ADMIN_PASSWORD = "1590";
 const ACCESSORY_PARTS = [
-  { key: "ring_count", label: "반지" },
   { key: "necklace_count", label: "목걸이" },
   { key: "earring_count", label: "귀걸이" },
-  { key: "belt_count", label: "허리띠" },
-  { key: "bracelet_count", label: "팔찌" }
+  { key: "ring_count", label: "반지" },
+  { key: "bracelet_count", label: "팔찌" },
+  { key: "belt_count", label: "허리띠" }
 ];
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -18,6 +18,7 @@ const state = {
   distribution: null,
   history: null,
   pendingManageType: null,
+  pendingEditMemberId: null,
   members: [],
   mountItems: [],
   memberMounts: [],
@@ -28,6 +29,7 @@ const state = {
   searchTerm: "",
   bossSearchTerm: "",
   selectedMemberId: null,
+  rowEditMemberId: null,
   draftMemberId: null,
   draftTab: null,
   draftPower: "",
@@ -179,8 +181,6 @@ function bindEvents() {
       }
 
       if (nextTab === "history") {
-        state.history.selectedId = null;
-        state.history.loadingDetailId = null;
         await loadHistoryData();
         renderAll();
         return;
@@ -493,6 +493,7 @@ function handleSearch() {
 
   if (matchedMembers.length === 0) {
     state.selectedMemberId = null;
+    state.rowEditMemberId = null;
     closeSearchSelectModal();
     syncDraftState();
     renderAll();
@@ -567,6 +568,7 @@ function sortFilteredMembers(members) {
 function getEditableMember() {
   if (state.overallEditMode) return null;
   if (!state.searchTerm.trim() || !state.selectedMemberId) return null;
+  if (!state.rowEditMemberId || state.rowEditMemberId !== state.selectedMemberId) return null;
   return state.members.find((member) => member.id === state.selectedMemberId) ?? null;
 }
 
@@ -750,11 +752,13 @@ function renderGuideText() {
     return;
   }
 
-  el.tableGuideText.textContent = state.activeTab === "power"
-    ? "선택된 길드원 1명만 표시됩니다. 이 행에서 최고 투력을 수정할 수 있습니다."
-    : state.activeTab === "accessory"
-      ? "선택된 길드원 1명만 표시됩니다. 이 행에서 악세사리 수량을 수정할 수 있습니다."
-      : "선택된 길드원 1명만 표시됩니다. 이 행에서 보유 상태를 수정할 수 있습니다.";
+  el.tableGuideText.textContent = state.rowEditMemberId === state.selectedMemberId
+    ? state.activeTab === "power"
+      ? "선택된 길드원 1명 수정 모드입니다. 이 행에서 최고 투력을 수정한 뒤 저장할 수 있습니다."
+      : state.activeTab === "accessory"
+        ? "선택된 길드원 1명 수정 모드입니다. 이 행에서 악세사리 수량을 수정한 뒤 저장할 수 있습니다."
+        : "선택된 길드원 1명 수정 모드입니다. 이 행에서 보유 상태를 수정한 뒤 저장할 수 있습니다."
+    : "선택된 길드원 1명만 표시됩니다. 수정 버튼에서 관리자 인증 후 수정할 수 있습니다.";
 }
 
 function renderSummaryTable() {
@@ -774,6 +778,13 @@ function renderSummaryTable() {
   }
 
   renderMountSummaryTable();
+}
+
+function getRowActionButtonHtml(memberId, saveRole) {
+  if (state.overallEditMode) return `<span class="notice-text action-box">일괄</span>`;
+  if (state.selectedMemberId !== memberId) return `<span class="notice-text action-box">불가</span>`;
+  if (state.rowEditMemberId === memberId) return `<button class="btn btn-primary btn-sm" type="button" data-role="${saveRole}" data-member-id="${memberId}">저장</button>`;
+  return `<button class="btn btn-outline btn-sm" type="button" data-role="edit-row" data-member-id="${memberId}">수정</button>`;
 }
 
 function renderPowerSummaryTable() {
@@ -812,11 +823,7 @@ function renderPowerSummaryTable() {
       ? `<input class="inline-power-input" type="number" min="0" step="1" data-role="power-input" data-member-id="${member.id}" value="${escapeAttr(getMemberDraftPower(member))}">`
       : `<span class="value-box">${member.power ?? 0}</span>`;
 
-    const saveCell = state.overallEditMode
-      ? `<span class="notice-text action-box">일괄</span>`
-      : isEditable
-        ? `<button class="btn btn-primary btn-sm" type="button" data-role="save-row-power" data-member-id="${member.id}">저장</button>`
-        : `<span class="notice-text action-box">불가</span>`;
+    const saveCell = getRowActionButtonHtml(member.id, "save-row-power");
 
     const lastUpdatedCell = `<span class="last-updated-box">${formatUpdatedAt(member.updated_at)}</span>`;
 
@@ -885,11 +892,7 @@ function renderMountSummaryTable() {
       return `<td><span class="badge ${currentOwned ? "badge-own" : "badge-not"}">${currentOwned ? "보유" : "미보유"}</span></td>`;
     }).join("");
 
-    const saveCell = state.overallEditMode
-      ? `<span class="notice-text action-box">일괄</span>`
-      : isEditable
-        ? `<button class="btn btn-primary btn-sm" type="button" data-role="save-row-mount" data-member-id="${member.id}">저장</button>`
-        : `<span class="notice-text action-box">불가</span>`;
+    const saveCell = getRowActionButtonHtml(member.id, "save-row-mount");
 
     const lastUpdatedCell = `<span class="last-updated-box">${formatUpdatedAt(member.updated_at)}</span>`;
 
@@ -968,11 +971,7 @@ function renderBossSummaryTable() {
       return `<td><span class="badge ${currentOwned ? "badge-own" : "badge-not"}">${currentOwned ? "보유" : "미보유"}</span></td>`;
     }).join("");
 
-    const saveCell = state.overallEditMode
-      ? `<span class="notice-text action-box">일괄</span>`
-      : isEditable
-        ? `<button class="btn btn-primary btn-sm" type="button" data-role="save-row-boss" data-member-id="${member.id}">저장</button>`
-        : `<span class="notice-text action-box">불가</span>`;
+    const saveCell = getRowActionButtonHtml(member.id, "save-row-boss");
 
     const lastUpdatedCell = `<span class="last-updated-box">${formatUpdatedAt(member.updated_at)}</span>`;
 
@@ -1082,11 +1081,7 @@ function renderAccessorySummaryTable() {
       }).join("");
     }).join("");
 
-    const saveCell = state.overallEditMode
-      ? `<span class="notice-text action-box">일괄</span>`
-      : isEditable
-        ? `<button class="btn btn-primary btn-sm" type="button" data-role="save-row-accessory" data-member-id="${member.id}">저장</button>`
-        : `<span class="notice-text action-box">불가</span>`;
+    const saveCell = getRowActionButtonHtml(member.id, "save-row-accessory");
 
     const lastUpdatedCell = `<span class="last-updated-box">${formatUpdatedAt(getAccessoryLatestUpdatedAt(member.id))}</span>`;
 
@@ -1130,6 +1125,7 @@ function selectMemberFromSearch(memberId) {
 
   state.searchTerm = member.name;
   state.selectedMemberId = member.id;
+  state.rowEditMemberId = null;
   el.searchInput.value = member.name;
   closeSearchSelectModal();
   syncDraftState();
@@ -1858,78 +1854,6 @@ ${historyRes.error.message}`);
   }
 }
 
-async function loadHistoryDetail(historyId, forceReload = false) {
-  const targetId = String(historyId || "").trim();
-  if (!targetId) return null;
-
-  if (!forceReload && state.history?.detailCache?.[targetId]) {
-    return state.history.detailCache[targetId];
-  }
-
-  state.history.loadingDetailId = targetId;
-  renderHistoryDetail();
-
-  const [memberRes, logRes] = await Promise.all([
-    supabase
-      .from("distribution_history_members")
-      .select("distribution_history_id, member_id, member_name, points, ratio, raw_diamond, final_diamond, note, is_retired, display_order")
-      .eq("distribution_history_id", targetId)
-      .order("display_order", { ascending: true }),
-    supabase
-      .from("distribution_history_logs")
-      .select("distribution_history_id, log_date, log_time, boss_name, cutter_name, participants_text, participants, display_order")
-      .eq("distribution_history_id", targetId)
-      .order("display_order", { ascending: true })
-  ]);
-
-  if (memberRes.error) {
-    state.history.loadingDetailId = null;
-    alert(`분배 이력 길드원 결과 조회 중 오류가 발생했습니다.
-${memberRes.error.message}`);
-    return null;
-  }
-
-  if (logRes.error) {
-    state.history.loadingDetailId = null;
-    alert(`분배 이력 보스로그 조회 중 오류가 발생했습니다.
-${logRes.error.message}`);
-    return null;
-  }
-
-  const detail = {
-    memberRows: (memberRes.data ?? []).map((row) => ({
-      memberId: row.member_id ?? null,
-      memberName: row.member_name,
-      points: Number(row.points ?? 0),
-      ratio: Number(row.ratio ?? 0),
-      rawDiamond: Number(row.raw_diamond ?? 0),
-      finalDiamond: Number(row.final_diamond ?? 0),
-      note: row.note || (row.is_retired ? "탈퇴한 길드원" : "")
-    })),
-    logRows: (logRes.data ?? []).map((row) => ({
-      date: row.log_date || "",
-      time: row.log_time || "",
-      boss: row.boss_name || "",
-      cutter: row.cutter_name || "",
-      participants: Array.isArray(row.participants)
-        ? row.participants.map((item) => String(item).trim()).filter(Boolean)
-        : String(row.participants_text || "").split(",").map((item) => item.trim()).filter(Boolean)
-    }))
-  };
-
-  state.history.detailCache[targetId] = detail;
-  if (state.history.loadingDetailId === targetId) {
-    state.history.loadingDetailId = null;
-  }
-  return detail;
-}
-
-function getSelectedHistoryDetail() {
-  const selectedId = String(state.history?.selectedId || "").trim();
-  if (!selectedId) return null;
-  return state.history?.detailCache?.[selectedId] ?? null;
-}
-
 function initializeHistoryState() {
   state.history = {
     filterDate: "",
@@ -2003,6 +1927,78 @@ function renderHistoryListTable() {
       <td class="is-right">${formatNumber(item.remainingDiamond)}</td>
     </tr>
   `).join("");
+}
+
+async function loadHistoryDetail(historyId, forceReload = false) {
+  const targetId = String(historyId || "").trim();
+  if (!targetId) return null;
+
+  if (!forceReload && state.history?.detailCache?.[targetId]) {
+    return state.history.detailCache[targetId];
+  }
+
+  state.history.loadingDetailId = targetId;
+  renderHistoryDetail();
+
+  const [memberRes, logRes] = await Promise.all([
+    supabase
+      .from("distribution_history_members")
+      .select("distribution_history_id, member_id, member_name, points, ratio, raw_diamond, final_diamond, note, is_retired, display_order")
+      .eq("distribution_history_id", targetId)
+      .order("display_order", { ascending: true }),
+    supabase
+      .from("distribution_history_logs")
+      .select("distribution_history_id, log_date, log_time, boss_name, cutter_name, participants_text, participants, display_order")
+      .eq("distribution_history_id", targetId)
+      .order("display_order", { ascending: true })
+  ]);
+
+  if (memberRes.error) {
+    state.history.loadingDetailId = null;
+    alert(`분배 이력 길드원 결과 조회 중 오류가 발생했습니다.
+${memberRes.error.message}`);
+    return null;
+  }
+
+  if (logRes.error) {
+    state.history.loadingDetailId = null;
+    alert(`분배 이력 보스로그 조회 중 오류가 발생했습니다.
+${logRes.error.message}`);
+    return null;
+  }
+
+  const detail = {
+    memberRows: (memberRes.data ?? []).map((row) => ({
+      memberId: row.member_id ?? null,
+      memberName: row.member_name,
+      points: Number(row.points ?? 0),
+      ratio: Number(row.ratio ?? 0),
+      rawDiamond: Number(row.raw_diamond ?? 0),
+      finalDiamond: Number(row.final_diamond ?? 0),
+      note: row.note || (row.is_retired ? "탈퇴한 길드원" : "")
+    })),
+    logRows: (logRes.data ?? []).map((row) => ({
+      date: row.log_date || "",
+      time: row.log_time || "",
+      boss: row.boss_name || "",
+      cutter: row.cutter_name || "",
+      participants: Array.isArray(row.participants)
+        ? row.participants.map((item) => String(item).trim()).filter(Boolean)
+        : String(row.participants_text || "").split(",").map((item) => item.trim()).filter(Boolean)
+    }))
+  };
+
+  state.history.detailCache[targetId] = detail;
+  if (state.history.loadingDetailId === targetId) {
+    state.history.loadingDetailId = null;
+  }
+  return detail;
+}
+
+function getSelectedHistoryDetail() {
+  const selectedId = String(state.history?.selectedId || "").trim();
+  if (!selectedId) return null;
+  return state.history?.detailCache?.[selectedId] ?? null;
 }
 
 function getSelectedHistoryItem() {
@@ -2139,14 +2135,38 @@ async function handleHistoryListClick(event) {
 async function handleHistorySearch() {
   state.history.filterDate = String(el.historyDateInput.value || "").trim();
   state.history.sortKey = String(el.historySortSelect.value || "saved_desc").trim();
-  state.history.selectedId = null;
-  state.history.loadingDetailId = null;
   await loadHistoryData();
   renderHistoryTab();
 }
 
-function handleHistoryDelete() {
-  alert("분배 이력 삭제 기능은 다음 단계에서 연결할 예정입니다.");
+async function handleHistoryDelete() {
+  const selectedId = String(state.history?.selectedId || "").trim();
+  if (!selectedId) {
+    alert("삭제할 분배 이력을 먼저 선택해주세요.");
+    return;
+  }
+
+  const selectedItem = getSelectedHistoryItem();
+  const periodText = selectedItem ? `${selectedItem.startDate} ~ ${selectedItem.endDate}` : "선택 이력";
+  const confirmed = window.confirm(`${periodText} 분배 이력을 삭제하시겠습니까?`);
+  if (!confirmed) return;
+
+  const deleteRes = await supabase
+    .from("distribution_histories")
+    .delete()
+    .eq("id", selectedId);
+
+  if (deleteRes.error) {
+    alert(`분배 이력 삭제 중 오류가 발생했습니다.
+${deleteRes.error.message}`);
+    return;
+  }
+
+  state.history.selectedId = null;
+  delete state.history.detailCache[selectedId];
+  await loadHistoryData();
+  renderHistoryTab();
+  alert("분배 이력이 삭제되었습니다.");
 }
 
 function handleHistoryExport() {
@@ -2298,6 +2318,11 @@ function handleSummaryTableClick(event) {
 
   if (role === "toggle-accessory-group-hidden") {
     toggleAccessoryGroupHidden(button.dataset.groupId);
+    return;
+  }
+
+  if (role === "edit-row") {
+    openPasswordModal("row-edit", button.dataset.memberId);
     return;
   }
 
@@ -2483,6 +2508,7 @@ async function savePowerEditableRow(memberId) {
   if (state.overallEditMode) {
     state.draftAllRows = {};
   }
+  state.rowEditMemberId = null;
   renderAll();
   alert("저장되었습니다.");
 }
@@ -2507,6 +2533,7 @@ async function saveMountEditableRow(memberId) {
   if (state.overallEditMode) {
     state.draftAllRows = {};
   }
+  state.rowEditMemberId = null;
   renderAll();
   alert("저장되었습니다.");
 }
@@ -2531,6 +2558,7 @@ async function saveAccessoryEditableRow(memberId) {
   if (state.overallEditMode) {
     state.draftAllRows = {};
   }
+  state.rowEditMemberId = null;
   renderAll();
   alert("저장되었습니다.");
 }
@@ -2555,6 +2583,7 @@ async function saveBossEditableRow(memberId) {
   if (state.overallEditMode) {
     state.draftAllRows = {};
   }
+  state.rowEditMemberId = null;
   renderAll();
   alert("저장되었습니다.");
 }
@@ -2562,12 +2591,14 @@ async function saveBossEditableRow(memberId) {
 function resetSearchState() {
   state.searchTerm = "";
   state.selectedMemberId = null;
+  state.rowEditMemberId = null;
   state.draftTab = null;
   el.searchInput.value = "";
 }
 
-function openPasswordModal(type) {
+function openPasswordModal(type, memberId = null) {
   state.pendingManageType = type;
+  state.pendingEditMemberId = memberId;
   el.passwordInput.value = "";
   el.passwordErrorText.classList.add("hidden");
   openModal(el.passwordModalBackdrop);
@@ -2576,6 +2607,7 @@ function openPasswordModal(type) {
 
 function closePasswordModal() {
   state.pendingManageType = null;
+  state.pendingEditMemberId = null;
   closeModal(el.passwordModalBackdrop);
 }
 
@@ -2606,7 +2638,13 @@ function confirmPassword() {
     openImportModal();
   }
 
+  if (state.pendingManageType === "row-edit") {
+    state.rowEditMemberId = state.pendingEditMemberId;
+    renderAll();
+  }
+
   state.pendingManageType = null;
+  state.pendingEditMemberId = null;
 }
 
 function handleGuildManageTableClick(event) {
@@ -3290,13 +3328,9 @@ function openImportModal() {
   state.importPreview = null;
   const isBoss = state.activeTab === "boss";
   const isAccessory = state.activeTab === "accessory";
-  el.importModalTitle.textContent = isAccessory
-    ? "악세사리 초기값 붙여넣기"
-    : isBoss
-      ? "보스컬렉 초기값 붙여넣기"
-      : "탈것 초기값 붙여넣기";
+  el.importModalTitle.textContent = isAccessory ? "악세사리 초기값 붙여넣기" : isBoss ? "보스컬렉 초기값 붙여넣기" : "탈것 초기값 붙여넣기";
   el.importModalGuideText.textContent = isAccessory
-    ? "첫 줄에 헤더를 포함해서 붙여넣어주세요. 첫 칸은 이름, 나머지 칸은 그룹명_부위명입니다."
+    ? "첫 줄에 헤더를 포함해서 붙여넣어주세요. 첫 칸은 이름, 나머지 칸은 그룹명_부위명 형식입니다."
     : isBoss
       ? "첫 줄에 헤더를 포함해서 붙여넣어주세요. 첫 칸은 이름, 나머지 칸은 보스컬렉명입니다."
       : "첫 줄에 헤더를 포함해서 붙여넣어주세요. 첫 칸은 이름, 나머지 칸은 탈것명입니다.";
@@ -3319,7 +3353,21 @@ function getImportTargetConfig() {
       tabLabel: "악세사리",
       items: state.accessoryGroups,
       conflictKey: "member_id,accessory_group_id",
-      tableName: "member_accessories"
+      tableName: "member_accessories",
+      makeRow: (memberId, itemId) => ({
+        member_id: memberId,
+        accessory_group_id: itemId,
+        ring_count: 0,
+        necklace_count: 0,
+        earring_count: 0,
+        belt_count: 0,
+        bracelet_count: 0,
+        updated_at: new Date().toISOString()
+      }),
+      applyCount: (row, partKey, value) => {
+        row[partKey] = value;
+        row.updated_at = new Date().toISOString();
+      }
     };
   }
 
@@ -3357,61 +3405,6 @@ function getImportTargetConfig() {
   };
 }
 
-
-function normalizeImportHeaderToken(value) {
-  return String(value ?? "")
-    .trim()
-    .replace(/[\s_\-/:]+/g, "")
-    .toLowerCase();
-}
-
-function parseAccessoryImportHeader(headerName) {
-  const raw = String(headerName ?? "").trim();
-  if (!raw) return null;
-
-  const normalizedHeader = normalizeImportHeaderToken(raw);
-  if (!normalizedHeader) return null;
-
-  const normalizedPartMap = new Map(
-    ACCESSORY_PARTS.map((part) => [normalizeImportHeaderToken(part.label), part])
-  );
-
-  let matchedPart = null;
-  for (const [normalizedLabel, part] of normalizedPartMap.entries()) {
-    if (normalizedHeader.endsWith(normalizedLabel)) {
-      matchedPart = { normalizedLabel, part };
-      break;
-    }
-  }
-
-  if (!matchedPart) return null;
-
-  const groupToken = normalizedHeader.slice(0, normalizedHeader.length - matchedPart.normalizedLabel.length);
-  if (!groupToken) return null;
-
-  const group = state.accessoryGroups.find((entry) => normalizeImportHeaderToken(entry.name) === groupToken);
-  if (!group) {
-    return { group: null, part: matchedPart.part };
-  }
-
-  return { group, part: matchedPart.part };
-}
-
-function parseAccessoryImportValue(rawValue, maxCount) {
-  const value = String(rawValue ?? "").trim();
-  if (!value) return { kind: "blank" };
-
-  const number = Number(value);
-  if (!Number.isFinite(number) || number < 0) {
-    return { kind: "invalid", value };
-  }
-
-  return {
-    kind: "value",
-    count: Math.min(Math.max(0, Math.floor(number)), Math.max(0, Number(maxCount ?? 0)))
-  };
-}
-
 function parseImportOwnedValue(rawValue) {
   const value = String(rawValue ?? "").trim();
   if (!value) return { kind: "blank" };
@@ -3422,17 +3415,86 @@ function parseImportOwnedValue(rawValue) {
   return { kind: "invalid", value };
 }
 
+function parseImportAccessoryValue(rawValue) {
+  const value = String(rawValue ?? "").trim();
+  if (!value) return { kind: "blank" };
+
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < 0) {
+    return { kind: "invalid", value };
+  }
+
+  return { kind: "value", count: Math.floor(number) };
+}
+
+function normalizeAccessoryImportHeader(value) {
+  return String(value ?? "")
+    .trim()
+    .replace(/[\/\:\-]+/g, "_")
+    .replace(/\s+/g, "_");
+}
+
+function getAccessoryImportHeaderMaps() {
+  const groupMap = new Map(
+    state.accessoryGroups.map((group) => [normalizeAccessoryImportHeader(group.name).toLowerCase(), group])
+  );
+  const partMap = new Map(
+    ACCESSORY_PARTS.map((part) => [normalizeAccessoryImportHeader(part.label).toLowerCase(), part])
+  );
+  return { groupMap, partMap };
+}
+
+
+function parseAccessoryImportValue(rawValue) {
+  const value = String(rawValue ?? "").trim();
+  if (!value) return { kind: "blank" };
+
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < 0) {
+    return { kind: "invalid", value };
+  }
+
+  return { kind: "value", count: Math.floor(number) };
+}
+
+function resolveAccessoryImportHeader(headerName) {
+  const normalizedHeader = String(headerName ?? "").trim();
+  if (!normalizedHeader) return null;
+
+  for (const group of state.accessoryGroups) {
+    const groupName = String(group.name ?? "").trim();
+    if (!groupName) continue;
+
+    for (const part of ACCESSORY_PARTS) {
+      const patterns = [
+        `${groupName}-${part.label}`,
+        `${groupName}_${part.label}`,
+        `${groupName}/${part.label}`,
+        `${groupName}:${part.label}`,
+        `${groupName} ${part.label}`
+      ];
+
+      if (patterns.includes(normalizedHeader)) {
+        return { groupId: group.id, groupName, partKey: part.key, partLabel: part.label, maxCount: Number(group.max_count ?? 0) };
+      }
+    }
+  }
+
+  return null;
+}
+
 function buildImportPreview() {
   if (!(state.activeTab === "mount" || state.activeTab === "boss" || state.activeTab === "accessory")) {
     throw new Error("탈것, 악세사리 또는 보스컬렉 탭에서만 사용할 수 있습니다.");
   }
 
-  const raw = String(el.importTextarea.value ?? "").split("\r").join("").trim();
+  const raw = String(el.importTextarea.value ?? "").split("").join("").trim();
   if (!raw) {
     throw new Error("붙여넣을 데이터를 입력해주세요.");
   }
 
-  const rows = raw.split("\n").map((line) => line.split("\t"));
+  const rows = raw.split("
+").map((line) => line.split("	"));
   if (rows.length < 2) {
     throw new Error("헤더 포함 2줄 이상 데이터를 붙여넣어주세요.");
   }
@@ -3440,33 +3502,44 @@ function buildImportPreview() {
   const config = getImportTargetConfig();
   const headerRow = rows[0].map((value) => String(value ?? "").trim());
   const memberMap = new Map(state.members.map((member) => [member.name.trim(), member]));
+  const unknownHeaders = [];
+  const unknownMembers = new Set();
+  const invalidValues = [];
 
   if (state.activeTab === "accessory") {
-    const unknownHeaders = [];
-    const headerItems = [];
+    const { groupMap, partMap } = getAccessoryImportHeaderMaps();
+    const headerParts = [];
+
     for (let colIndex = 1; colIndex < headerRow.length; colIndex += 1) {
       const headerName = headerRow[colIndex];
       if (!headerName) {
-        headerItems.push(null);
+        headerParts.push(null);
         continue;
       }
 
-      const parsedHeader = parseAccessoryImportHeader(headerName);
-      if (!parsedHeader || !parsedHeader.group || !parsedHeader.part) {
+      const normalized = normalizeAccessoryImportHeader(headerName).toLowerCase();
+      const parts = normalized.split("_").filter(Boolean);
+      if (parts.length < 2) {
         unknownHeaders.push(headerName);
-        headerItems.push(null);
+        headerParts.push(null);
         continue;
       }
 
-      headerItems.push(parsedHeader);
+      const partToken = parts[parts.length - 1];
+      const groupToken = parts.slice(0, -1).join("_");
+      const group = groupMap.get(groupToken) ?? null;
+      const part = partMap.get(partToken) ?? null;
+
+      if (!group || !part) {
+        unknownHeaders.push(headerName);
+        headerParts.push(null);
+        continue;
+      }
+
+      headerParts.push({ group, part });
     }
 
-    const unknownMembers = new Set();
-    const invalidValues = [];
     const appliedMap = new Map();
-    const existingRowMap = new Map(
-      (state.memberAccessories || []).map((row) => [`${row.member_id}__${row.accessory_group_id}`, { ...row }])
-    );
 
     for (let rowIndex = 1; rowIndex < rows.length; rowIndex += 1) {
       const row = rows[rowIndex];
@@ -3480,32 +3553,37 @@ function buildImportPreview() {
       }
 
       for (let colIndex = 1; colIndex < headerRow.length; colIndex += 1) {
-        const headerInfo = headerItems[colIndex - 1];
+        const headerInfo = headerParts[colIndex - 1];
         if (!headerInfo) continue;
 
-        const parsedValue = parseAccessoryImportValue(row[colIndex] ?? "", headerInfo.group.max_count);
-        if (parsedValue.kind === "blank") continue;
-        if (parsedValue.kind === "invalid") {
-          invalidValues.push(`${memberName} / ${headerRow[colIndex]} / ${parsedValue.value}`);
+        const parsed = parseImportAccessoryValue(row[colIndex] ?? "");
+        if (parsed.kind === "blank") continue;
+        if (parsed.kind === "invalid") {
+          invalidValues.push(`${memberName} / ${headerRow[colIndex]} / ${parsed.value}`);
           continue;
         }
 
         const key = `${member.id}__${headerInfo.group.id}`;
-        const baseRow = appliedMap.get(key)
-          ?? existingRowMap.get(key)
-          ?? {
+        let targetRow = appliedMap.get(key);
+        if (!targetRow) {
+          const existing = getAccessoryRecord(member.id, headerInfo.group.id);
+          const maxCount = Number(headerInfo.group.max_count ?? 0);
+          const normalizeCount = (value) => Math.min(maxCount, Math.max(0, Math.floor(Number(value) || 0)));
+          targetRow = {
             member_id: member.id,
             accessory_group_id: headerInfo.group.id,
-            ring_count: 0,
-            necklace_count: 0,
-            earring_count: 0,
-            bracelet_count: 0,
-            belt_count: 0
+            ring_count: normalizeCount(existing?.ring_count),
+            necklace_count: normalizeCount(existing?.necklace_count),
+            earring_count: normalizeCount(existing?.earring_count),
+            belt_count: normalizeCount(existing?.belt_count),
+            bracelet_count: normalizeCount(existing?.bracelet_count),
+            updated_at: new Date().toISOString()
           };
+          appliedMap.set(key, targetRow);
+        }
 
-        const nextRow = { ...baseRow, updated_at: new Date().toISOString() };
-        nextRow[headerInfo.part.key] = parsedValue.count;
-        appliedMap.set(key, nextRow);
+        const maxCount = Number(headerInfo.group.max_count ?? 0);
+        targetRow[headerInfo.part.key] = Math.min(maxCount, Math.max(0, parsed.count));
       }
     }
 
@@ -3522,12 +3600,12 @@ function buildImportPreview() {
         unknownHeaders.length ? `없는 항목: ${unknownHeaders.join(", ")}` : "",
         unknownMembers.size ? `없는 길드원: ${Array.from(unknownMembers).join(", ")}` : "",
         invalidValues.length ? `잘못된 값 예시: ${invalidValues.slice(0, 10).join(" | ")}` : ""
-      ].filter(Boolean).join("\n")
+      ].filter(Boolean).join("
+")
     };
   }
 
   const itemMap = new Map(config.items.map((item) => [item.name.trim(), item]));
-  const unknownHeaders = [];
   const headerItems = [];
   for (let colIndex = 1; colIndex < headerRow.length; colIndex += 1) {
     const headerName = headerRow[colIndex];
@@ -3541,8 +3619,6 @@ function buildImportPreview() {
     headerItems.push(item);
   }
 
-  const unknownMembers = new Set();
-  const invalidValues = [];
   const appliedMap = new Map();
 
   for (let rowIndex = 1; rowIndex < rows.length; rowIndex += 1) {
@@ -3587,7 +3663,8 @@ function buildImportPreview() {
       unknownHeaders.length ? `없는 항목: ${unknownHeaders.join(", ")}` : "",
       unknownMembers.size ? `없는 길드원: ${Array.from(unknownMembers).join(", ")}` : "",
       invalidValues.length ? `잘못된 값 예시: ${invalidValues.slice(0, 10).join(" | ")}` : ""
-    ].filter(Boolean).join("\n")
+    ].filter(Boolean).join("
+")
   };
 }
 
