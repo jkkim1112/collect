@@ -358,7 +358,7 @@ async function loadMountData() {
   const [membersRes, itemsRes, memberMountsRes] = await Promise.all([
     supabase.from("guild_members").select("id, name, power, updated_at").order("name", { ascending: true }),
     supabase.from("mounts").select("id, name, display_order").order("display_order", { ascending: true }),
-    supabase.from("member_mounts").select("id, member_id, mount_id, owned")
+    supabase.from("member_mounts").select("id, member_id, mount_id, owned, updated_at")
   ]);
 
   if (membersRes.error) {
@@ -408,7 +408,7 @@ async function loadBossData() {
   while (true) {
     const memberBossRes = await supabase
       .from("member_boss_collections")
-      .select("id, member_id, boss_collection_id, owned")
+      .select("id, member_id, boss_collection_id, owned, updated_at")
       .range(from, from + pageSize - 1);
 
     if (memberBossRes.error) {
@@ -907,7 +907,7 @@ function renderMountSummaryTable() {
 
     const saveCell = getRowActionButtonHtml(member.id, "save-row-mount");
 
-    const lastUpdatedCell = `<span class="last-updated-box">${formatUpdatedAt(member.updated_at)}</span>`;
+    const lastUpdatedCell = `<span class="last-updated-box">${formatUpdatedAt(getMountLatestUpdatedAt(member.id))}</span>`;
 
     return `
       <tr class="${rowClass}">
@@ -986,7 +986,7 @@ function renderBossSummaryTable() {
 
     const saveCell = getRowActionButtonHtml(member.id, "save-row-boss");
 
-    const lastUpdatedCell = `<span class="last-updated-box">${formatUpdatedAt(member.updated_at)}</span>`;
+    const lastUpdatedCell = `<span class="last-updated-box">${formatUpdatedAt(getBossLatestUpdatedAt(member.id))}</span>`;
 
     return `
       <tr class="${rowClass}">
@@ -2298,7 +2298,11 @@ function getUpdatedSortText() {
 function getComparableUpdatedAt(member) {
   const value = state.activeTab === "accessory"
     ? getAccessoryLatestUpdatedAt(member.id)
-    : member?.updated_at;
+    : state.activeTab === "boss"
+      ? getBossLatestUpdatedAt(member.id)
+      : state.activeTab === "mount"
+        ? getMountLatestUpdatedAt(member.id)
+        : member?.updated_at;
 
   if (!value) return -1;
 
@@ -2408,10 +2412,13 @@ async function persistPowerRow(memberId, draftRow, power) {
 }
 
 async function persistMountRow(memberId, draftRow) {
+  const now = new Date().toISOString();
+
   const upsertPayload = state.mountItems.map((item) => ({
     member_id: memberId,
     mount_id: item.id,
-    owned: Boolean(draftRow?.ownedMap?.[item.id])
+    owned: Boolean(draftRow?.ownedMap?.[item.id]),
+    updated_at: now
   }));
 
   const upsertRes = await supabase
@@ -2759,10 +2766,12 @@ async function addMember() {
   const newMember = insertRes.data;
 
   if (state.mountItems.length > 0) {
+    const now = new Date().toISOString();
     const memberMountPayload = state.mountItems.map((item) => ({
       member_id: newMember.id,
       mount_id: item.id,
-      owned: false
+      owned: false,
+      updated_at: now
     }));
 
     const memberMountRes = await supabase
@@ -2929,10 +2938,12 @@ async function addItem() {
   const newItem = insertRes.data;
 
   if (state.members.length > 0) {
+    const now = new Date().toISOString();
     const memberMountPayload = state.members.map((member) => ({
       member_id: member.id,
       mount_id: newItem.id,
-      owned: false
+      owned: false,
+      updated_at: now
     }));
 
     const memberMountRes = await supabase
@@ -3264,11 +3275,33 @@ function getOwnedValue(memberId, itemId) {
   return Boolean(record?.owned);
 }
 
+function getMountLatestUpdatedAt(memberId) {
+  const records = state.memberMounts.filter((entry) => entry.member_id === memberId);
+  if (records.length === 0) return null;
+
+  return records.reduce((latest, current) => {
+    if (!current?.updated_at) return latest;
+    if (!latest) return current.updated_at;
+    return new Date(current.updated_at) > new Date(latest) ? current.updated_at : latest;
+  }, null);
+}
+
 function getBossOwnedValue(memberId, itemId) {
   const record = state.memberBossCollections.find(
     (entry) => entry.member_id === memberId && String(entry.boss_collection_id) === String(itemId)
   );
   return Boolean(record?.owned);
+}
+
+function getBossLatestUpdatedAt(memberId) {
+  const records = state.memberBossCollections.filter((entry) => entry.member_id === memberId);
+  if (records.length === 0) return null;
+
+  return records.reduce((latest, current) => {
+    if (!current?.updated_at) return latest;
+    if (!latest) return current.updated_at;
+    return new Date(current.updated_at) > new Date(latest) ? current.updated_at : latest;
+  }, null);
 }
 
 function getSimpleItems() {
