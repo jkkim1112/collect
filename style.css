@@ -796,6 +796,19 @@ button {
     font-size: 11px;
   }
 
+  .last-updated-box {
+    width: 72px;
+    font-size: 12px;
+  }
+
+  .last-updated-col {
+    min-width: 86px;
+  }
+
+  .last-updated-header-text {
+    font-size: 13px;
+  }
+
   .badge,
   .toggle-single-btn {
     width: 58px;
@@ -1093,16 +1106,21 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 64px;
+  width: 76px;
   min-height: 34px;
-  color: #6b7280;
-  font-size: 12px;
+  color: #4b5563;
+  font-size: 13px;
+  font-weight: 600;
   line-height: 1.35;
   text-align: center;
 }
 
 .last-updated-col {
-  min-width: 72px;
+  min-width: 92px;
+}
+
+.last-updated-header-text {
+  font-size: 14px;
 }
 
 .tab.disabled {

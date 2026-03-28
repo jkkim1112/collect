@@ -38,6 +38,7 @@ const state = {
   draftAllRows: {},
   overallEditMode: false,
   powerSortDirection: "desc",
+  updatedAtSortDirection: null,
   hiddenAccessoryGroupIds: {},
   isBulkSaving: false,
   bulkSaveProgress: 0,
@@ -549,16 +550,28 @@ function getFilteredMembers() {
 }
 
 function sortFilteredMembers(members) {
-  if (!state.powerSortDirection) return members;
+  const updatedDirection = state.updatedAtSortDirection;
+  const powerDirection = state.powerSortDirection;
 
-  const direction = state.powerSortDirection === "asc" ? 1 : -1;
+  if (!updatedDirection && !powerDirection) return members;
 
   return [...members].sort((left, right) => {
-    const leftPower = Number(left.power ?? 0);
-    const rightPower = Number(right.power ?? 0);
+    if (updatedDirection) {
+      const leftTime = getComparableUpdatedAt(left);
+      const rightTime = getComparableUpdatedAt(right);
 
-    if (leftPower !== rightPower) {
-      return (leftPower - rightPower) * direction;
+      if (leftTime !== rightTime) {
+        return updatedDirection === "asc" ? leftTime - rightTime : rightTime - leftTime;
+      }
+    }
+
+    if (powerDirection) {
+      const leftPower = Number(left.power ?? 0);
+      const rightPower = Number(right.power ?? 0);
+
+      if (leftPower !== rightPower) {
+        return powerDirection === "asc" ? leftPower - rightPower : rightPower - leftPower;
+      }
     }
 
     return String(left.name ?? "").localeCompare(String(right.name ?? ""), "ko");
@@ -799,7 +812,7 @@ function renderPowerSummaryTable() {
     `<th>길드원</th>`,
     `<th class="sortable-header ${state.powerSortDirection ? "active" : ""}" data-role="power-sort-header"><span class="sort-header-inner"><span>최고 투력</span><span class="sort-indicator">${powerSortText}</span></span></th>`,
     `<th class="save-col">저장</th>`,
-    `<th class="last-updated-col">수정일</th>`
+    `<th class="last-updated-col sortable-header ${state.updatedAtSortDirection ? "active" : ""}" data-role="updated-sort-header"><span class="sort-header-inner"><span class="last-updated-header-text">수정일</span><span class="sort-indicator">${getUpdatedSortText()}</span></span></th>`
   ];
 
   el.summaryTableHead.innerHTML = `<tr>${headers.join("")}</tr>`;
@@ -852,7 +865,7 @@ function renderMountSummaryTable() {
     `<th class="sortable-header ${state.powerSortDirection ? "active" : ""}" data-role="power-sort-header"><span class="sort-header-inner"><span>전투력</span><span class="sort-indicator">${powerSortText}</span></span></th>`,
     ...state.mountItems.map((item) => `<th class="item-col-header">${escapeHtml(item.name)}</th>`),
     `<th class="save-col">저장</th>`,
-    `<th class="last-updated-col">수정일</th>`
+    `<th class="last-updated-col sortable-header ${state.updatedAtSortDirection ? "active" : ""}" data-role="updated-sort-header"><span class="sort-header-inner"><span class="last-updated-header-text">수정일</span><span class="sort-indicator">${getUpdatedSortText()}</span></span></th>`
   ];
 
   el.summaryTableHead.innerHTML = `<tr>${headers.join("")}</tr>`;
@@ -931,7 +944,7 @@ function renderBossSummaryTable() {
     `<th class="sortable-header ${state.powerSortDirection ? "active" : ""}" data-role="power-sort-header"><span class="sort-header-inner"><span>전투력</span><span class="sort-indicator">${powerSortText}</span></span></th>`,
     ...filteredBossItems.map((item) => `<th class="item-col-header">${escapeHtml(item.name)}</th>`),
     `<th class="save-col">저장</th>`,
-    `<th class="last-updated-col">수정일</th>`
+    `<th class="last-updated-col sortable-header ${state.updatedAtSortDirection ? "active" : ""}" data-role="updated-sort-header"><span class="sort-header-inner"><span class="last-updated-header-text">수정일</span><span class="sort-indicator">${getUpdatedSortText()}</span></span></th>`
   ];
 
   el.summaryTableHead.innerHTML = `<tr>${headers.join("")}</tr>`;
@@ -1010,7 +1023,7 @@ function renderAccessorySummaryTable() {
       return `<th colspan="${colSpan}" class="group-header group-boundary-start group-boundary-end${hiddenClass}"><div class="group-header-inner"><span class="group-header-text">${escapeHtml(group.name)}</span><button class="group-hide-btn ${isHidden ? "is-hidden" : ""}" type="button" data-role="toggle-accessory-group-hidden" data-group-id="${group.id}">${isHidden ? "숨김해제" : "숨김"}</button></div></th>`;
     }),
     `<th rowspan="2" class="save-col">저장</th>`,
-    `<th rowspan="2" class="last-updated-col">수정일</th>`
+    `<th rowspan="2" class="last-updated-col sortable-header ${state.updatedAtSortDirection ? "active" : ""}" data-role="updated-sort-header"><span class="sort-header-inner"><span class="last-updated-header-text">수정일</span><span class="sort-indicator">${getUpdatedSortText()}</span></span></th>`
   ];
 
   const subHeaders = state.accessoryGroups.flatMap((group) => {
@@ -2274,10 +2287,43 @@ function handleSummaryTableInput(event) {
   }
 }
 
+function getUpdatedSortText() {
+  return state.updatedAtSortDirection === "asc"
+    ? "▲"
+    : state.updatedAtSortDirection === "desc"
+      ? "▼"
+      : "↕";
+}
+
+function getComparableUpdatedAt(member) {
+  const value = state.activeTab === "accessory"
+    ? getAccessoryLatestUpdatedAt(member.id)
+    : member?.updated_at;
+
+  if (!value) return -1;
+
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) ? time : -1;
+}
+
 function handleSummaryTableHeadClick(event) {
   const hideButton = event.target.closest('[data-role="toggle-accessory-group-hidden"]');
   if (hideButton) {
     toggleAccessoryGroupHidden(hideButton.dataset.groupId);
+    return;
+  }
+
+  const updatedHeader = event.target.closest('[data-role="updated-sort-header"]');
+  if (updatedHeader) {
+    if (state.updatedAtSortDirection === "asc") {
+      state.updatedAtSortDirection = "desc";
+    } else if (state.updatedAtSortDirection === "desc") {
+      state.updatedAtSortDirection = null;
+    } else {
+      state.updatedAtSortDirection = "asc";
+    }
+
+    renderSummaryTable();
     return;
   }
 
