@@ -1372,23 +1372,6 @@ button {
   color: #111827;
 }
 
-.distribution-operating-fund-view {
-  display: flex;
-  justify-content: space-between;
-  align-items: end;
-  gap: 12px;
-  padding: 14px 16px;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  background: #fafafa;
-}
-
-.distribution-operating-fund-value {
-  font-size: 22px;
-  font-weight: 700;
-  color: #111827;
-}
-
 .distribution-deduction-grid {
   display: grid;
   grid-template-columns: 1.15fr 0.9fr 0.9fr 0.9fr auto;

@@ -41,8 +41,7 @@ const state = {
   hiddenAccessoryGroupIds: {},
   isBulkSaving: false,
   bulkSaveProgress: 0,
-  importPreview: null,
-  distributionOperatingFundEditMode: false
+  importPreview: null
 };
 
 const el = {};
@@ -52,7 +51,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   bindEvents();
   initializeDistributionState();
   initializeHistoryState();
-  await loadDistributionOperatingFund();
   updateTabUi();
   await loadActiveTabData();
   renderAll();
@@ -114,13 +112,6 @@ function bindElements() {
   el.summaryTableWrap = document.getElementById("summaryTableWrap");
   el.distributionContent = document.getElementById("distributionContent");
   el.distributionHeaderActions = document.getElementById("distributionHeaderActions");
-  el.distributionOperatingFundViewBox = document.getElementById("distributionOperatingFundViewBox");
-  el.distributionOperatingFundEditBox = document.getElementById("distributionOperatingFundEditBox");
-  el.distributionOperatingFundValue = document.getElementById("distributionOperatingFundValue");
-  el.distributionOperatingFundInput = document.getElementById("distributionOperatingFundInput");
-  el.distributionOperatingFundEditBtn = document.getElementById("distributionOperatingFundEditBtn");
-  el.distributionOperatingFundSaveBtn = document.getElementById("distributionOperatingFundSaveBtn");
-  el.distributionOperatingFundCancelBtn = document.getElementById("distributionOperatingFundCancelBtn");
   el.distributionSaveBtn = document.getElementById("distributionSaveBtn");
   el.distributionFinalSaveBtn = document.getElementById("distributionFinalSaveBtn");
   el.distributionTotalDiamondInput = document.getElementById("distributionTotalDiamondInput");
@@ -252,9 +243,6 @@ function bindEvents() {
   el.distributionDeductionCalcBtn.addEventListener("click", handleDistributionDeductionCalculate);
   el.distributionCalculateBtn.addEventListener("click", handleDistributionCalculate);
   el.distributionResetBtn.addEventListener("click", resetDistributionStateAndRender);
-  el.distributionOperatingFundEditBtn.addEventListener("click", handleDistributionOperatingFundEdit);
-  el.distributionOperatingFundSaveBtn.addEventListener("click", handleDistributionOperatingFundSave);
-  el.distributionOperatingFundCancelBtn.addEventListener("click", handleDistributionOperatingFundCancel);
   el.distributionSaveBtn.addEventListener("click", handleDistributionSaveResult);
   el.distributionFinalSaveBtn.addEventListener("click", handleDistributionFinalSave);
   el.historySearchBtn.addEventListener("click", handleHistorySearch);
@@ -1156,9 +1144,6 @@ function initializeDistributionState() {
 
 function createEmptyDistributionState() {
   return {
-    operatingFundId: 1,
-    operatingFund: 0,
-    operatingFundInput: "0",
     totalDiamond: "",
     guildFeePercent: "",
     guildMasterPercent: "",
@@ -1202,10 +1187,6 @@ function renderDistributionTab() {
 
 function renderDistributionInputs() {
   const distribution = state.distribution;
-  el.distributionOperatingFundValue.textContent = formatNumber(distribution.operatingFund);
-  el.distributionOperatingFundInput.value = distribution.operatingFundInput;
-  el.distributionOperatingFundViewBox.classList.toggle("hidden", state.distributionOperatingFundEditMode);
-  el.distributionOperatingFundEditBox.classList.toggle("hidden", !state.distributionOperatingFundEditMode);
   el.distributionTotalDiamondInput.value = distribution.totalDiamond;
   el.distributionGuildFeePercentInput.value = distribution.guildFeePercent;
   el.distributionGuildMasterPercentInput.value = distribution.guildMasterPercent;
@@ -1575,13 +1556,7 @@ function setCellFormat(ws, address, format) {
 }
 
 function resetDistributionStateAndRender() {
-  const operatingFundId = state.distribution.operatingFundId;
-  const operatingFund = state.distribution.operatingFund;
   state.distribution = createEmptyDistributionState();
-  state.distribution.operatingFundId = operatingFundId;
-  state.distribution.operatingFund = operatingFund;
-  state.distribution.operatingFundInput = String(operatingFund);
-  state.distributionOperatingFundEditMode = false;
   setDistributionDefaultDates();
   if (el.distributionFileInput) {
     el.distributionFileInput.value = "";
@@ -1815,77 +1790,6 @@ function formatPercent(value) {
 }
 
 
-
-async function loadDistributionOperatingFund() {
-  const res = await supabase
-    .from("distribution_settings")
-    .select("id, guild_operating_fund, updated_at")
-    .order("id", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  if (res.error) {
-    alert(`길드 운영비 조회 중 오류가 발생했습니다.
-${res.error.message}`);
-    state.distribution.operatingFundId = 1;
-    state.distribution.operatingFund = 0;
-    state.distribution.operatingFundInput = "0";
-    return;
-  }
-
-  const savedValue = Math.max(0, Math.floor(Number(res.data?.guild_operating_fund ?? 0) || 0));
-  state.distribution.operatingFundId = Number(res.data?.id ?? 1) || 1;
-  state.distribution.operatingFund = savedValue;
-  state.distribution.operatingFundInput = String(savedValue);
-}
-
-function handleDistributionOperatingFundEdit() {
-  state.distributionOperatingFundEditMode = true;
-  state.distribution.operatingFundInput = String(state.distribution.operatingFund ?? 0);
-  renderDistributionTab();
-}
-
-function handleDistributionOperatingFundCancel() {
-  state.distributionOperatingFundEditMode = false;
-  state.distribution.operatingFundInput = String(state.distribution.operatingFund ?? 0);
-  renderDistributionTab();
-}
-
-async function handleDistributionOperatingFundSave() {
-  const nextValue = Number(String(el.distributionOperatingFundInput.value ?? "").trim());
-
-  if (!Number.isFinite(nextValue) || nextValue < 0) {
-    alert("길드 운영비를 올바르게 입력해주세요.");
-    return;
-  }
-
-  const safeValue = Math.floor(nextValue);
-  const saveTimestamp = new Date().toISOString();
-  const payload = {
-    id: state.distribution.operatingFundId || 1,
-    guild_operating_fund: safeValue,
-    updated_at: saveTimestamp
-  };
-
-  const res = await supabase
-    .from("distribution_settings")
-    .upsert(payload, { onConflict: "id" })
-    .select("id, guild_operating_fund")
-    .single();
-
-  if (res.error) {
-    alert(`길드 운영비 저장 중 오류가 발생했습니다.
-${res.error.message}`);
-    return;
-  }
-
-  state.distribution.operatingFundId = Number(res.data?.id ?? 1) || 1;
-  state.distribution.operatingFund = Math.max(0, Math.floor(Number(res.data?.guild_operating_fund ?? safeValue) || 0));
-  state.distribution.operatingFundInput = String(state.distribution.operatingFund);
-  state.distributionOperatingFundEditMode = false;
-  renderDistributionTab();
-  alert("길드 운영비가 저장되었습니다.");
-}
 
 async function loadHistoryData() {
   const sortKey = state.history?.sortKey || "saved_desc";
