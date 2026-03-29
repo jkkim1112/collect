@@ -1317,18 +1317,17 @@ async function handleDistributionCalculate() {
   try {
     const totalDiamond = parseInteger(state.distribution.totalDiamond);
     const deduction = state.distribution.deduction ?? {};
-    const deductionTotal = Number(deduction.guildFeeAmount ?? 0) + Number(deduction.guildMasterAmount ?? 0) + Number(deduction.managerAmount ?? 0);
-    const expectedActualDiamond = totalDiamond - deductionTotal;
-
-    if (totalDiamond < 0) {
-      throw new Error("총 분배 다이아를 올바르게 입력해주세요.");
-    }
+    const guildFeeAmount = Number(deduction.guildFeeAmount ?? 0);
+    const guildMasterAmount = Number(deduction.guildMasterAmount ?? 0);
+    const managerAmount = Number(deduction.managerAmount ?? 0);
+    const actualDiamond = Number(deduction.actualDiamond ?? 0);
+    const expectedActualDiamond = totalDiamond - guildFeeAmount - guildMasterAmount - managerAmount;
 
     if (expectedActualDiamond < 0) {
       throw new Error("공제 합계가 총 분배 다이아보다 클 수 없습니다.");
     }
 
-    if (Number(deduction.actualDiamond ?? 0) !== expectedActualDiamond) {
+    if (actualDiamond !== expectedActualDiamond) {
       throw new Error("먼저 공제 계산을 진행해주세요.");
     }
 
