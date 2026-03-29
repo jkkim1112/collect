@@ -133,8 +133,6 @@ function bindElements() {
   el.distributionCalculateBtn = document.getElementById("distributionCalculateBtn");
   el.distributionResetBtn = document.getElementById("distributionResetBtn");
   el.distributionSummaryPeriod = document.getElementById("distributionSummaryPeriod");
-  el.distributionBossPointTableHead = document.getElementById("distributionBossPointTableHead");
-  el.distributionBossPointTableBody = document.getElementById("distributionBossPointTableBody");
   el.distributionSummaryActualDiamond = document.getElementById("distributionSummaryActualDiamond");
   el.distributionSummaryTotalPoints = document.getElementById("distributionSummaryTotalPoints");
   el.distributionSummaryPerPoint = document.getElementById("distributionSummaryPerPoint");
@@ -247,8 +245,6 @@ function bindEvents() {
   el.importPreviewBtn.addEventListener("click", handleImportPreview);
   el.importApplyBtn.addEventListener("click", handleImportApply);
   el.distributionDeductionCalcBtn.addEventListener("click", handleDistributionDeductionCalculate);
-  el.distributionFileInput.addEventListener("change", handleDistributionFileChange);
-  el.distributionBossPointTableBody.addEventListener("input", handleDistributionBossPointInput);
   el.distributionCalculateBtn.addEventListener("click", handleDistributionCalculate);
   el.distributionResetBtn.addEventListener("click", resetDistributionStateAndRender);
   el.distributionSaveBtn.addEventListener("click", handleDistributionSaveResult);
@@ -1181,8 +1177,6 @@ function createEmptyDistributionState() {
     endDate: "",
     workbookName: "",
     rawRows: [],
-    workbookBossNames: [],
-    bossPointRules: {},
     usedLogs: [],
     memberResults: [],
     summary: {
@@ -1205,7 +1199,6 @@ function setDistributionDefaultDates() {
 
 function renderDistributionTab() {
   renderDistributionInputs();
-  renderDistributionBossPointTable();
   renderDistributionSummary();
   renderDistributionMemberTable();
   renderDistributionLogTable();
@@ -1229,111 +1222,12 @@ function renderDistributionInputs() {
   el.distributionActualDiamondAmount.textContent = formatNumber(distribution.deduction.actualDiamond);
 }
 
-
-function renderDistributionBossPointTable() {
-  el.distributionBossPointTableHead.innerHTML = `
-    <tr>
-      <th class="is-center">No</th>
-      <th>보스명</th>
-      <th class="is-right">점수</th>
-    </tr>
-  `;
-
-  const bossNames = state.distribution.workbookBossNames || [];
-  if (!bossNames.length) {
-    el.distributionBossPointTableBody.innerHTML = `
-      <tr>
-        <td class="distribution-empty-row" colspan="3">엑셀 파일을 선택하면 보스 점수 설정이 표시됩니다.</td>
-      </tr>
-    `;
-    return;
-  }
-
-  el.distributionBossPointTableBody.innerHTML = bossNames.map((bossName, index) => {
-    const value = getDistributionBossPoint(bossName);
-    return `
-      <tr>
-        <td class="is-center">${index + 1}</td>
-        <td>${escapeHtml(bossName)}</td>
-        <td class="is-right">
-          <input class="distribution-boss-point-input" type="number" min="1" step="1" data-role="distribution-boss-point-input" data-boss-name="${escapeAttr(bossName)}" value="${escapeAttr(value)}">
-        </td>
-      </tr>
-    `;
-  }).join("");
-}
-
-function getDistributionBossPoint(bossName) {
-  const key = String(bossName ?? "").trim();
-  if (!key) return 1;
-  const value = Number(state.distribution.bossPointRules?.[key] ?? 1);
-  if (!Number.isFinite(value) || value < 1) return 1;
-  return Math.floor(value);
-}
-
-function syncDistributionBossPointRules(rows) {
-  const bossNameSet = new Set();
-
-  rows.forEach((row) => {
-    const bossName = String(row?.boss ?? "").trim();
-    if (bossName) bossNameSet.add(bossName);
-  });
-
-  const nextBossNames = Array.from(bossNameSet).sort((left, right) => left.localeCompare(right, "ko"));
-  const nextRules = {};
-
-  nextBossNames.forEach((bossName) => {
-    nextRules[bossName] = getDistributionBossPoint(bossName);
-  });
-
-  state.distribution.workbookBossNames = nextBossNames;
-  state.distribution.bossPointRules = nextRules;
-}
-
-async function handleDistributionFileChange() {
-  if (!el.distributionFileInput.files?.[0]) {
-    state.distribution.workbookName = "";
-    state.distribution.rawRows = [];
-    state.distribution.workbookBossNames = [];
-    state.distribution.bossPointRules = {};
-    renderDistributionTab();
-    return;
-  }
-
-  try {
-    const workbookRows = await readDistributionWorkbookRows();
-    state.distribution.workbookName = el.distributionFileInput.files?.[0]?.name ?? "";
-    state.distribution.rawRows = workbookRows;
-    syncDistributionBossPointRules(workbookRows);
-    renderDistributionTab();
-  } catch (error) {
-    state.distribution.workbookName = "";
-    state.distribution.rawRows = [];
-    state.distribution.workbookBossNames = [];
-    state.distribution.bossPointRules = {};
-    renderDistributionTab();
-    alert(error.message);
-  }
-}
-
-function handleDistributionBossPointInput(event) {
-  const target = event.target;
-  if (!target.matches('[data-role="distribution-boss-point-input"]')) return;
-
-  const bossName = String(target.dataset.bossName ?? "").trim();
-  if (!bossName) return;
-
-  const value = Math.max(1, Math.floor(Number(target.value) || 1));
-  state.distribution.bossPointRules[bossName] = value;
-  target.value = String(value);
-}
-
 function renderDistributionSummary() {
   const summary = state.distribution.summary;
   el.distributionSummaryPeriod.textContent = summary.periodText;
   el.distributionSummaryActualDiamond.textContent = formatNumber(summary.actualDiamond);
   el.distributionSummaryTotalPoints.textContent = formatNumber(summary.totalPoints);
-  el.distributionSummaryPerPoint.textContent = summary.totalPoints > 0 ? formatDecimal(summary.diamondPerPoint, 4) : "0";
+  el.distributionSummaryPerPoint.textContent = summary.totalPoints > 0 ? formatDecimal(summary.diamondPerPoint, 1) : "0";
   el.distributionSummaryRemaining.textContent = formatNumber(summary.remainingDiamond);
 }
 
@@ -1438,7 +1332,6 @@ async function handleDistributionCalculate() {
     }
 
     const workbookRows = await readDistributionWorkbookRows();
-    syncDistributionBossPointRules(workbookRows);
     const result = buildDistributionResult(workbookRows);
     state.distribution.workbookName = el.distributionFileInput.files?.[0]?.name ?? "";
     state.distribution.rawRows = workbookRows;
@@ -1577,7 +1470,7 @@ function buildDistributionHistoryMemberPayloads(distributionHistoryId, saveTimes
     member_name: row.memberName,
     points: row.points,
     ratio: Number(row.ratio || 0),
-    raw_diamond: Number((row.rawDiamond || 0).toFixed(2)),
+    raw_diamond: Number((row.rawDiamond || 0).toFixed(1)),
     final_diamond: row.finalDiamond,
     note: row.note || null,
     is_retired: row.note === "탈퇴한 길드원",
@@ -1616,7 +1509,7 @@ function buildDistributionExportSheet() {
     ["길드장", getDistributionDeductionModeLabel(state.distribution.guildMasterType), state.distribution.guildMasterValue || 0, "길드장 공제", deduction.guildMasterAmount, "", ""],
     ["총무비", getDistributionDeductionModeLabel(state.distribution.managerType), state.distribution.managerValue || 0, "총무 공제", deduction.managerAmount, "", ""],
     ["실제 분배 다이아", summary.actualDiamond, "", "전체 참여점수", summary.totalPoints, "", ""],
-    ["1점당 다이아", Number(summary.diamondPerPoint.toFixed(4)), "", "남은 다이아", summary.remainingDiamond, "", ""],
+    ["1점당 다이아", Number(summary.diamondPerPoint.toFixed(1)), "", "남은 다이아", summary.remainingDiamond, "", ""],
     [],
     ["길드원별 분배 결과"],
     ["No", "길드원", "참여점수", "참여비율", "계산 다이아", "최종 분배 다이아", "비고"]
@@ -1628,7 +1521,7 @@ function buildDistributionExportSheet() {
       row.memberName,
       row.points,
       row.ratio,
-      Number(row.rawDiamond.toFixed(2)),
+      Number(row.rawDiamond.toFixed(1)),
       row.finalDiamond,
       row.note || "-"
     ]);
@@ -1877,9 +1770,8 @@ function buildDistributionResult(workbookRows) {
   );
 
   usedLogs.forEach((row) => {
-    const bossPoint = getDistributionBossPoint(row.boss);
     row.participants.forEach((memberName) => {
-      pointMap.set(memberName, (pointMap.get(memberName) ?? 0) + bossPoint);
+      pointMap.set(memberName, (pointMap.get(memberName) ?? 0) + 1);
     });
   });
 
@@ -2199,7 +2091,7 @@ function renderHistoryDetail() {
   el.historySummaryPeriod.textContent = `${item.startDate} ~ ${item.endDate}`;
   el.historySummaryActualDiamond.textContent = formatNumber(item.actualDiamond);
   el.historySummaryTotalPoints.textContent = formatNumber(item.totalPoints);
-  el.historySummaryPerPoint.textContent = formatDecimal(item.diamondPerPoint, 4);
+  el.historySummaryPerPoint.textContent = formatDecimal(item.diamondPerPoint, 1);
   el.historySummaryRemaining.textContent = formatNumber(item.remainingDiamond);
   el.historySavedAt.textContent = item.savedAt;
   el.historyTotalDiamond.textContent = formatNumber(item.totalDiamond);
