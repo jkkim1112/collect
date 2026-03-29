@@ -2199,7 +2199,7 @@ function renderHistoryDetail() {
   el.historySummaryPeriod.textContent = `${item.startDate} ~ ${item.endDate}`;
   el.historySummaryActualDiamond.textContent = formatNumber(item.actualDiamond);
   el.historySummaryTotalPoints.textContent = formatNumber(item.totalPoints);
-  el.historySummaryPerPoint.textContent = formatDecimal(item.diamondPerPoint, 4);
+  el.historySummaryPerPoint.textContent = formatDecimal(item.diamondPerPoint, 1);
   el.historySummaryRemaining.textContent = formatNumber(item.remainingDiamond);
   el.historySavedAt.textContent = item.savedAt;
   el.historyTotalDiamond.textContent = formatNumber(item.totalDiamond);
