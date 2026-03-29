@@ -116,9 +116,12 @@ function bindElements() {
   el.distributionSaveBtn = document.getElementById("distributionSaveBtn");
   el.distributionFinalSaveBtn = document.getElementById("distributionFinalSaveBtn");
   el.distributionTotalDiamondInput = document.getElementById("distributionTotalDiamondInput");
-  el.distributionGuildFeePercentInput = document.getElementById("distributionGuildFeePercentInput");
-  el.distributionGuildMasterPercentInput = document.getElementById("distributionGuildMasterPercentInput");
-  el.distributionManagerPercentInput = document.getElementById("distributionManagerPercentInput");
+  el.distributionGuildFeeTypeInput = document.getElementById("distributionGuildFeeTypeInput");
+  el.distributionGuildFeeValueInput = document.getElementById("distributionGuildFeeValueInput");
+  el.distributionGuildMasterTypeInput = document.getElementById("distributionGuildMasterTypeInput");
+  el.distributionGuildMasterValueInput = document.getElementById("distributionGuildMasterValueInput");
+  el.distributionManagerTypeInput = document.getElementById("distributionManagerTypeInput");
+  el.distributionManagerValueInput = document.getElementById("distributionManagerValueInput");
   el.distributionDeductionCalcBtn = document.getElementById("distributionDeductionCalcBtn");
   el.distributionGuildFeeAmount = document.getElementById("distributionGuildFeeAmount");
   el.distributionGuildMasterAmount = document.getElementById("distributionGuildMasterAmount");
@@ -1158,9 +1161,12 @@ function initializeDistributionState() {
 function createEmptyDistributionState() {
   return {
     totalDiamond: "",
-    guildFeePercent: "",
-    guildMasterPercent: "",
-    managerPercent: "",
+    guildFeeType: "percent",
+    guildFeeValue: "",
+    guildMasterType: "percent",
+    guildMasterValue: "",
+    managerType: "percent",
+    managerValue: "",
     deduction: {
       guildFeeAmount: 0,
       guildMasterAmount: 0,
@@ -1201,9 +1207,12 @@ function renderDistributionTab() {
 function renderDistributionInputs() {
   const distribution = state.distribution;
   el.distributionTotalDiamondInput.value = distribution.totalDiamond;
-  el.distributionGuildFeePercentInput.value = distribution.guildFeePercent;
-  el.distributionGuildMasterPercentInput.value = distribution.guildMasterPercent;
-  el.distributionManagerPercentInput.value = distribution.managerPercent;
+  el.distributionGuildFeeTypeInput.value = distribution.guildFeeType;
+  el.distributionGuildFeeValueInput.value = distribution.guildFeeValue;
+  el.distributionGuildMasterTypeInput.value = distribution.guildMasterType;
+  el.distributionGuildMasterValueInput.value = distribution.guildMasterValue;
+  el.distributionManagerTypeInput.value = distribution.managerType;
+  el.distributionManagerValueInput.value = distribution.managerValue;
   el.distributionStartDateInput.value = distribution.startDate;
   el.distributionEndDateInput.value = distribution.endDate;
 
@@ -1418,9 +1427,9 @@ function buildDistributionHistoryPayload(saveTimestamp) {
     period_start: distribution.startDate,
     period_end: distribution.endDate,
     total_diamond: parseInteger(distribution.totalDiamond),
-    guild_fee_percent: parsePercent(distribution.guildFeePercent),
-    guild_master_percent: parsePercent(distribution.guildMasterPercent),
-    manager_percent: parsePercent(distribution.managerPercent),
+    guild_fee_percent: Number(deduction.guildFeePercent ?? 0),
+    guild_master_percent: Number(deduction.guildMasterPercent ?? 0),
+    manager_percent: Number(deduction.managerPercent ?? 0),
     guild_fee_amount: deduction.guildFeeAmount,
     guild_master_amount: deduction.guildMasterAmount,
     manager_amount: deduction.managerAmount,
@@ -1481,9 +1490,9 @@ function buildDistributionExportSheet() {
     [],
     ["공제 설정", "값", "", "분배 요약", "값", "", ""],
     ["대상 기간", summary.periodText, "", "총 다이아", totalDiamond, "", ""],
-    ["길드 운영비 %", parsePercent(state.distribution.guildFeePercent), "", "운영비 공제", deduction.guildFeeAmount, "", ""],
-    ["길드장 %", parsePercent(state.distribution.guildMasterPercent), "", "길드장 공제", deduction.guildMasterAmount, "", ""],
-    ["총무 %", parsePercent(state.distribution.managerPercent), "", "총무 공제", deduction.managerAmount, "", ""],
+    ["길드 운영비", getDistributionDeductionModeLabel(state.distribution.guildFeeType), state.distribution.guildFeeValue || 0, "운영비 공제", deduction.guildFeeAmount, "", ""],
+    ["길드장", getDistributionDeductionModeLabel(state.distribution.guildMasterType), state.distribution.guildMasterValue || 0, "길드장 공제", deduction.guildMasterAmount, "", ""],
+    ["총무비", getDistributionDeductionModeLabel(state.distribution.managerType), state.distribution.managerValue || 0, "총무 공제", deduction.managerAmount, "", ""],
     ["실제 분배 다이아", summary.actualDiamond, "", "전체 참여점수", summary.totalPoints, "", ""],
     ["1점당 다이아", Number(summary.diamondPerPoint.toFixed(4)), "", "남은 다이아", summary.remainingDiamond, "", ""],
     [],
@@ -1541,11 +1550,12 @@ function buildDistributionExportSheet() {
 }
 
 function applyDistributionExportFormats(ws, memberCount, logHeaderRowNumber, totalRowCount) {
-  const summaryPercentAddresses = ["B5", "B6", "B7"];
-  const summaryNumberAddresses = ["E4", "E5", "E6", "E7", "B8", "E8", "B9", "E9"];
+  const summaryNumberAddresses = ["C5", "E4", "E5", "C6", "E6", "C7", "E7", "B8", "E8", "B9", "E9"];
 
   setCellFormat(ws, "B4", "@");
-  summaryPercentAddresses.forEach((address) => setCellFormat(ws, address, "0.00"));
+  setCellFormat(ws, "B5", "@");
+  setCellFormat(ws, "B6", "@");
+  setCellFormat(ws, "B7", "@");
   summaryNumberAddresses.forEach((address) => setCellFormat(ws, address, "#,##0.####"));
 
   const memberStartRow = 13;
@@ -1579,42 +1589,62 @@ function resetDistributionStateAndRender() {
 
 function syncDistributionInputs() {
   state.distribution.totalDiamond = String(el.distributionTotalDiamondInput.value ?? "").trim();
-  state.distribution.guildFeePercent = String(el.distributionGuildFeePercentInput.value ?? "").trim();
-  state.distribution.guildMasterPercent = String(el.distributionGuildMasterPercentInput.value ?? "").trim();
-  state.distribution.managerPercent = String(el.distributionManagerPercentInput.value ?? "").trim();
+  state.distribution.guildFeeType = String(el.distributionGuildFeeTypeInput.value ?? "percent").trim() || "percent";
+  state.distribution.guildFeeValue = String(el.distributionGuildFeeValueInput.value ?? "").trim();
+  state.distribution.guildMasterType = String(el.distributionGuildMasterTypeInput.value ?? "percent").trim() || "percent";
+  state.distribution.guildMasterValue = String(el.distributionGuildMasterValueInput.value ?? "").trim();
+  state.distribution.managerType = String(el.distributionManagerTypeInput.value ?? "percent").trim() || "percent";
+  state.distribution.managerValue = String(el.distributionManagerValueInput.value ?? "").trim();
   state.distribution.startDate = String(el.distributionStartDateInput.value ?? "").trim();
   state.distribution.endDate = String(el.distributionEndDateInput.value ?? "").trim();
 }
 
 function calculateDistributionDeduction() {
-  const totalDiamond = normalizeNonNegativeNumber(state.distribution.totalDiamond, "총 다이아를 올바르게 입력해주세요.");
-  const guildFeePercent = normalizePercentValue(state.distribution.guildFeePercent);
-  const guildMasterPercent = normalizePercentValue(state.distribution.guildMasterPercent);
-  const managerPercent = normalizePercentValue(state.distribution.managerPercent);
+  const totalDiamond = normalizeNonNegativeNumber(state.distribution.totalDiamond, "총 분배 다이아를 올바르게 입력해주세요.");
+  const guildFee = calculateDistributionDeductionAmount(totalDiamond, state.distribution.guildFeeType, state.distribution.guildFeeValue, "길드운영비");
+  const guildMaster = calculateDistributionDeductionAmount(totalDiamond, state.distribution.guildMasterType, state.distribution.guildMasterValue, "길드장");
+  const manager = calculateDistributionDeductionAmount(totalDiamond, state.distribution.managerType, state.distribution.managerValue, "총무비");
 
-  const guildFeeAmount = Math.floor(totalDiamond * (guildFeePercent / 100));
-  const guildMasterAmount = Math.floor(totalDiamond * (guildMasterPercent / 100));
-  const managerAmount = Math.floor(totalDiamond * (managerPercent / 100));
-  const actualDiamond = totalDiamond - guildFeeAmount - guildMasterAmount - managerAmount;
+  const actualDiamond = totalDiamond - guildFee.amount - guildMaster.amount - manager.amount;
 
   if (actualDiamond < 0) {
-    throw new Error("공제 합계가 총 다이아보다 클 수 없습니다.");
+    throw new Error("공제 합계가 총 분배 다이아보다 클 수 없습니다.");
   }
 
   return {
-    guildFeeAmount,
-    guildMasterAmount,
-    managerAmount,
+    guildFeeAmount: guildFee.amount,
+    guildMasterAmount: guildMaster.amount,
+    managerAmount: manager.amount,
+    guildFeePercent: guildFee.percent,
+    guildMasterPercent: guildMaster.percent,
+    managerPercent: manager.percent,
     actualDiamond
   };
 }
 
-function normalizePercentValue(value) {
+function calculateDistributionDeductionAmount(totalDiamond, type, value, label) {
+  const normalizedType = type === "amount" ? "amount" : "percent";
+  const normalizedValue = normalizeDistributionDeductionValue(value, label);
+
+  if (normalizedType === "amount") {
+    return {
+      amount: Math.floor(normalizedValue),
+      percent: 0
+    };
+  }
+
+  return {
+    amount: Math.floor(totalDiamond * (normalizedValue / 100)),
+    percent: normalizedValue
+  };
+}
+
+function normalizeDistributionDeductionValue(value, label) {
   const trimmed = String(value ?? "").trim();
   if (!trimmed) return 0;
   const number = Number(trimmed);
   if (!Number.isFinite(number) || number < 0) {
-    throw new Error("퍼센트 값을 올바르게 입력해주세요.");
+    throw new Error(`${label} 값을 올바르게 입력해주세요.`);
   }
   return number;
 }
@@ -1800,6 +1830,10 @@ function formatDecimal(value, digits) {
 
 function formatPercent(value) {
   return `${(Number(value || 0) * 100).toFixed(2)}%`;
+}
+
+function getDistributionDeductionModeLabel(type) {
+  return type === "amount" ? "직접금액" : "%";
 }
 
 

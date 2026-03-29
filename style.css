@@ -1390,11 +1390,79 @@ button {
   color: #111827;
 }
 
-.distribution-deduction-grid {
+.distribution-total-row {
   display: grid;
-  grid-template-columns: 1.15fr 0.9fr 0.9fr 0.9fr auto;
+  grid-template-columns: minmax(260px, 1fr) auto;
   gap: 12px;
   align-items: end;
+}
+
+.distribution-total-field {
+  max-width: 520px;
+}
+
+.distribution-deduction-button-row {
+  justify-content: flex-end;
+}
+
+.distribution-deduction-table-wrap {
+  margin-top: 12px;
+  overflow-x: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.distribution-deduction-table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.distribution-deduction-table th,
+.distribution-deduction-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #e5e7eb;
+  vertical-align: middle;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.distribution-deduction-table th {
+  background: #f9fafb;
+  color: #374151;
+  font-weight: 700;
+  text-align: left;
+}
+
+.distribution-deduction-table td.is-right,
+.distribution-deduction-table th.is-right {
+  text-align: right;
+}
+
+.distribution-deduction-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.distribution-deduction-select,
+.distribution-deduction-input {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  font-size: 14px;
+  background: #fff;
+}
+
+.distribution-deduction-total-row td {
+  background: #fafafa;
+  font-weight: 700;
+}
+
+.distribution-deduction-total-value {
+  color: #1d4ed8;
 }
 
 .distribution-main-grid {
@@ -1439,13 +1507,6 @@ button {
 
 .distribution-button-row .btn {
   min-width: 96px;
-}
-
-.distribution-deduction-summary {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 12px;
 }
 
 .distribution-summary-chip,
@@ -1565,8 +1626,7 @@ button {
 
 @media (max-width: 900px) {
   .distribution-header-top,
-  .distribution-deduction-grid,
-  .distribution-deduction-summary,
+  .distribution-total-row,
   .distribution-main-grid,
   .distribution-summary-grid {
     grid-template-columns: 1fr;
@@ -1584,6 +1644,18 @@ button {
 @media (max-width: 768px) {
   .distribution-section {
     padding: 16px 14px 18px;
+  }
+
+  .distribution-deduction-table th,
+  .distribution-deduction-table td {
+    padding: 10px 10px;
+    font-size: 12px;
+  }
+
+  .distribution-deduction-select,
+  .distribution-deduction-input {
+    height: 36px;
+    font-size: 12px;
   }
 
   .distribution-member-table-wrap {
