@@ -1566,6 +1566,25 @@ button {
   max-height: 420px;
 }
 
+.distribution-boss-point-table-wrap {
+  max-height: 320px;
+}
+
+.distribution-boss-point-table {
+  min-width: 520px;
+}
+
+.distribution-boss-point-input {
+  width: 88px;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  text-align: right;
+  font-size: 14px;
+  background: #fff;
+}
+
 .distribution-table {
   width: 100%;
   min-width: 900px;
@@ -1664,6 +1683,16 @@ button {
 
   .distribution-log-table-wrap {
     max-height: 420px;
+  }
+
+  .distribution-boss-point-table {
+    min-width: 460px;
+  }
+
+  .distribution-boss-point-input {
+    width: 74px;
+    height: 34px;
+    font-size: 12px;
   }
 
   .distribution-table {

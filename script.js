@@ -133,6 +133,8 @@ function bindElements() {
   el.distributionCalculateBtn = document.getElementById("distributionCalculateBtn");
   el.distributionResetBtn = document.getElementById("distributionResetBtn");
   el.distributionSummaryPeriod = document.getElementById("distributionSummaryPeriod");
+  el.distributionBossPointTableHead = document.getElementById("distributionBossPointTableHead");
+  el.distributionBossPointTableBody = document.getElementById("distributionBossPointTableBody");
   el.distributionSummaryActualDiamond = document.getElementById("distributionSummaryActualDiamond");
   el.distributionSummaryTotalPoints = document.getElementById("distributionSummaryTotalPoints");
   el.distributionSummaryPerPoint = document.getElementById("distributionSummaryPerPoint");
@@ -245,6 +247,8 @@ function bindEvents() {
   el.importPreviewBtn.addEventListener("click", handleImportPreview);
   el.importApplyBtn.addEventListener("click", handleImportApply);
   el.distributionDeductionCalcBtn.addEventListener("click", handleDistributionDeductionCalculate);
+  el.distributionFileInput.addEventListener("change", handleDistributionFileChange);
+  el.distributionBossPointTableBody.addEventListener("input", handleDistributionBossPointInput);
   el.distributionCalculateBtn.addEventListener("click", handleDistributionCalculate);
   el.distributionResetBtn.addEventListener("click", resetDistributionStateAndRender);
   el.distributionSaveBtn.addEventListener("click", handleDistributionSaveResult);
@@ -1177,6 +1181,8 @@ function createEmptyDistributionState() {
     endDate: "",
     workbookName: "",
     rawRows: [],
+    workbookBossNames: [],
+    bossPointRules: {},
     usedLogs: [],
     memberResults: [],
     summary: {
@@ -1199,6 +1205,7 @@ function setDistributionDefaultDates() {
 
 function renderDistributionTab() {
   renderDistributionInputs();
+  renderDistributionBossPointTable();
   renderDistributionSummary();
   renderDistributionMemberTable();
   renderDistributionLogTable();
@@ -1220,6 +1227,105 @@ function renderDistributionInputs() {
   el.distributionGuildMasterAmount.textContent = formatNumber(distribution.deduction.guildMasterAmount);
   el.distributionManagerAmount.textContent = formatNumber(distribution.deduction.managerAmount);
   el.distributionActualDiamondAmount.textContent = formatNumber(distribution.deduction.actualDiamond);
+}
+
+
+function renderDistributionBossPointTable() {
+  el.distributionBossPointTableHead.innerHTML = `
+    <tr>
+      <th class="is-center">No</th>
+      <th>보스명</th>
+      <th class="is-right">점수</th>
+    </tr>
+  `;
+
+  const bossNames = state.distribution.workbookBossNames || [];
+  if (!bossNames.length) {
+    el.distributionBossPointTableBody.innerHTML = `
+      <tr>
+        <td class="distribution-empty-row" colspan="3">엑셀 파일을 선택하면 보스 점수 설정이 표시됩니다.</td>
+      </tr>
+    `;
+    return;
+  }
+
+  el.distributionBossPointTableBody.innerHTML = bossNames.map((bossName, index) => {
+    const value = getDistributionBossPoint(bossName);
+    return `
+      <tr>
+        <td class="is-center">${index + 1}</td>
+        <td>${escapeHtml(bossName)}</td>
+        <td class="is-right">
+          <input class="distribution-boss-point-input" type="number" min="1" step="1" data-role="distribution-boss-point-input" data-boss-name="${escapeAttr(bossName)}" value="${escapeAttr(value)}">
+        </td>
+      </tr>
+    `;
+  }).join("");
+}
+
+function getDistributionBossPoint(bossName) {
+  const key = String(bossName ?? "").trim();
+  if (!key) return 1;
+  const value = Number(state.distribution.bossPointRules?.[key] ?? 1);
+  if (!Number.isFinite(value) || value < 1) return 1;
+  return Math.floor(value);
+}
+
+function syncDistributionBossPointRules(rows) {
+  const bossNameSet = new Set();
+
+  rows.forEach((row) => {
+    const bossName = String(row?.boss ?? "").trim();
+    if (bossName) bossNameSet.add(bossName);
+  });
+
+  const nextBossNames = Array.from(bossNameSet).sort((left, right) => left.localeCompare(right, "ko"));
+  const nextRules = {};
+
+  nextBossNames.forEach((bossName) => {
+    nextRules[bossName] = getDistributionBossPoint(bossName);
+  });
+
+  state.distribution.workbookBossNames = nextBossNames;
+  state.distribution.bossPointRules = nextRules;
+}
+
+async function handleDistributionFileChange() {
+  if (!el.distributionFileInput.files?.[0]) {
+    state.distribution.workbookName = "";
+    state.distribution.rawRows = [];
+    state.distribution.workbookBossNames = [];
+    state.distribution.bossPointRules = {};
+    renderDistributionTab();
+    return;
+  }
+
+  try {
+    const workbookRows = await readDistributionWorkbookRows();
+    state.distribution.workbookName = el.distributionFileInput.files?.[0]?.name ?? "";
+    state.distribution.rawRows = workbookRows;
+    syncDistributionBossPointRules(workbookRows);
+    renderDistributionTab();
+  } catch (error) {
+    state.distribution.workbookName = "";
+    state.distribution.rawRows = [];
+    state.distribution.workbookBossNames = [];
+    state.distribution.bossPointRules = {};
+    renderDistributionTab();
+    alert(error.message);
+  }
+}
+
+function handleDistributionBossPointInput(event) {
+  const target = event.target;
+  if (!target.matches('[data-role="distribution-boss-point-input"]')) return;
+
+  const bossName = String(target.dataset.bossName ?? "").trim();
+  if (!bossName) return;
+
+  const value = Math.max(1, Math.floor(Number(target.value) || 1));
+  state.distribution.bossPointRules[bossName] = value;
+  target.value = String(value);
 }
 
 function renderDistributionSummary() {
@@ -1332,6 +1438,7 @@ async function handleDistributionCalculate() {
     }
 
     const workbookRows = await readDistributionWorkbookRows();
+    syncDistributionBossPointRules(workbookRows);
     const result = buildDistributionResult(workbookRows);
     state.distribution.workbookName = el.distributionFileInput.files?.[0]?.name ?? "";
     state.distribution.rawRows = workbookRows;
@@ -1770,8 +1877,9 @@ function buildDistributionResult(workbookRows) {
   );
 
   usedLogs.forEach((row) => {
+    const bossPoint = getDistributionBossPoint(row.boss);
     row.participants.forEach((memberName) => {
-      pointMap.set(memberName, (pointMap.get(memberName) ?? 0) + 1);
+      pointMap.set(memberName, (pointMap.get(memberName) ?? 0) + bossPoint);
     });
   });
 
