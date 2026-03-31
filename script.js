@@ -115,34 +115,36 @@ function bindElements() {
   el.distributionHeaderActions = document.getElementById("distributionHeaderActions");
   el.distributionSaveBtn = document.getElementById("distributionSaveBtn");
   el.distributionFinalSaveBtn = document.getElementById("distributionFinalSaveBtn");
-  el.distributionTotalDiamondInput = document.getElementById("distributionTotalDiamondInput");
-  el.distributionGuildFeeTypeInput = document.getElementById("distributionGuildFeeTypeInput");
-  el.distributionGuildFeeValueInput = document.getElementById("distributionGuildFeeValueInput");
-  el.distributionGuildMasterTypeInput = document.getElementById("distributionGuildMasterTypeInput");
-  el.distributionGuildMasterValueInput = document.getElementById("distributionGuildMasterValueInput");
-  el.distributionManagerTypeInput = document.getElementById("distributionManagerTypeInput");
-  el.distributionManagerValueInput = document.getElementById("distributionManagerValueInput");
-  el.distributionDeductionCalcBtn = document.getElementById("distributionDeductionCalcBtn");
-  el.distributionGuildFeeAmount = document.getElementById("distributionGuildFeeAmount");
-  el.distributionGuildMasterAmount = document.getElementById("distributionGuildMasterAmount");
-  el.distributionManagerAmount = document.getElementById("distributionManagerAmount");
-  el.distributionActualDiamondAmount = document.getElementById("distributionActualDiamondAmount");
-  el.distributionStartDateInput = document.getElementById("distributionStartDateInput");
-  el.distributionEndDateInput = document.getElementById("distributionEndDateInput");
+  el.distributionCommonTotalDiamondInput = document.getElementById("distributionCommonTotalDiamondInput");
+  el.distributionMainlandRatioInput = document.getElementById("distributionMainlandRatioInput");
+  el.distributionWorldRatioInput = document.getElementById("distributionWorldRatioInput");
   el.distributionFileInput = document.getElementById("distributionFileInput");
-  el.distributionCalculateBtn = document.getElementById("distributionCalculateBtn");
+  el.distributionLoadBtn = document.getElementById("distributionLoadBtn");
   el.distributionResetBtn = document.getElementById("distributionResetBtn");
-  el.distributionSummaryPeriod = document.getElementById("distributionSummaryPeriod");
-  el.distributionBossPointTableHead = document.getElementById("distributionBossPointTableHead");
-  el.distributionBossPointTableBody = document.getElementById("distributionBossPointTableBody");
-  el.distributionSummaryActualDiamond = document.getElementById("distributionSummaryActualDiamond");
-  el.distributionSummaryTotalPoints = document.getElementById("distributionSummaryTotalPoints");
-  el.distributionSummaryPerPoint = document.getElementById("distributionSummaryPerPoint");
-  el.distributionSummaryRemaining = document.getElementById("distributionSummaryRemaining");
-  el.distributionMemberTableHead = document.getElementById("distributionMemberTableHead");
-  el.distributionMemberTableBody = document.getElementById("distributionMemberTableBody");
-  el.distributionLogTableHead = document.getElementById("distributionLogTableHead");
-  el.distributionLogTableBody = document.getElementById("distributionLogTableBody");
+  el.distributionBossManageOpenBtn = document.getElementById("distributionBossManageOpenBtn");
+  el.distributionNameRuleOpenBtn = document.getElementById("distributionNameRuleOpenBtn");
+  el.distributionCommonSummaryTotalDiamond = document.getElementById("distributionCommonSummaryTotalDiamond");
+  el.distributionCommonSummaryMainlandDiamond = document.getElementById("distributionCommonSummaryMainlandDiamond");
+  el.distributionCommonSummaryWorldDiamond = document.getElementById("distributionCommonSummaryWorldDiamond");
+  el.distributionCommonSummaryWorkbookState = document.getElementById("distributionCommonSummaryWorkbookState");
+  el.distributionSubtabs = document.getElementById("distributionSubtabs");
+  el.distributionSubtabContent = document.getElementById("distributionSubtabContent");
+  el.distributionBossManageModalBackdrop = document.getElementById("distributionBossManageModalBackdrop");
+  el.distributionBossManageCloseBtn = document.getElementById("distributionBossManageCloseBtn");
+  el.distributionBossManageTableBody = document.getElementById("distributionBossManageTableBody");
+  el.distributionBossAddBtn = document.getElementById("distributionBossAddBtn");
+  el.distributionBossSaveBtn = document.getElementById("distributionBossSaveBtn");
+  el.distributionNameRuleModalBackdrop = document.getElementById("distributionNameRuleModalBackdrop");
+  el.distributionNameRuleCloseBtn = document.getElementById("distributionNameRuleCloseBtn");
+  el.distributionNameRuleTableBody = document.getElementById("distributionNameRuleTableBody");
+  el.distributionNameRuleAddBtn = document.getElementById("distributionNameRuleAddBtn");
+  el.distributionNameRuleSaveBtn = document.getElementById("distributionNameRuleSaveBtn");
+  el.distributionLogEditModalBackdrop = document.getElementById("distributionLogEditModalBackdrop");
+  el.distributionLogEditCloseBtn = document.getElementById("distributionLogEditCloseBtn");
+  el.distributionLogEditCurrentInput = document.getElementById("distributionLogEditCurrentInput");
+  el.distributionLogEditEditedInput = document.getElementById("distributionLogEditEditedInput");
+  el.distributionLogEditCancelBtn = document.getElementById("distributionLogEditCancelBtn");
+  el.distributionLogEditApplyBtn = document.getElementById("distributionLogEditApplyBtn");
   el.historyContent = document.getElementById("historyContent");
   el.historyHeaderActions = document.getElementById("historyHeaderActions");
   el.historyDeleteBtn = document.getElementById("historyDeleteBtn");
@@ -246,13 +248,28 @@ function bindEvents() {
   el.importCancelBtn.addEventListener("click", closeImportModal);
   el.importPreviewBtn.addEventListener("click", handleImportPreview);
   el.importApplyBtn.addEventListener("click", handleImportApply);
-  el.distributionDeductionCalcBtn.addEventListener("click", handleDistributionDeductionCalculate);
-  el.distributionFileInput.addEventListener("change", handleDistributionFileChange);
-  el.distributionBossPointTableBody.addEventListener("input", handleDistributionBossPointInput);
-  el.distributionCalculateBtn.addEventListener("click", handleDistributionCalculate);
-  el.distributionResetBtn.addEventListener("click", resetDistributionStateAndRender);
-  el.distributionSaveBtn.addEventListener("click", handleDistributionSaveResult);
-  el.distributionFinalSaveBtn.addEventListener("click", handleDistributionFinalSave);
+  el.distributionCommonTotalDiamondInput?.addEventListener("input", handleDistributionCommonInputChange);
+  el.distributionMainlandRatioInput?.addEventListener("input", handleDistributionCommonInputChange);
+  el.distributionWorldRatioInput?.addEventListener("input", handleDistributionCommonInputChange);
+  el.distributionFileInput?.addEventListener("change", handleDistributionWorkbookSelect);
+  el.distributionLoadBtn?.addEventListener("click", handleDistributionWorkbookLoad);
+  el.distributionResetBtn?.addEventListener("click", resetDistributionStateAndRender);
+  el.distributionBossManageOpenBtn?.addEventListener("click", () => openModal(el.distributionBossManageModalBackdrop));
+  el.distributionNameRuleOpenBtn?.addEventListener("click", () => openModal(el.distributionNameRuleModalBackdrop));
+  el.distributionBossManageCloseBtn?.addEventListener("click", () => closeModal(el.distributionBossManageModalBackdrop));
+  el.distributionNameRuleCloseBtn?.addEventListener("click", () => closeModal(el.distributionNameRuleModalBackdrop));
+  el.distributionLogEditCloseBtn?.addEventListener("click", () => closeModal(el.distributionLogEditModalBackdrop));
+  el.distributionLogEditCancelBtn?.addEventListener("click", () => closeModal(el.distributionLogEditModalBackdrop));
+  el.distributionLogEditApplyBtn?.addEventListener("click", handleDistributionLogEditApply);
+  el.distributionBossAddBtn?.addEventListener("click", handleDistributionBossAdd);
+  el.distributionNameRuleAddBtn?.addEventListener("click", handleDistributionNameRuleAdd);
+  el.distributionBossSaveBtn?.addEventListener("click", () => alert("분배 보스 관리 저장은 다음 단계에서 연결합니다."));
+  el.distributionNameRuleSaveBtn?.addEventListener("click", () => alert("참여자 이름 정리 저장은 다음 단계에서 연결합니다."));
+  el.distributionSubtabs?.addEventListener("click", handleDistributionSubtabClick);
+  el.distributionContent?.addEventListener("click", handleDistributionContentClick);
+  el.distributionContent?.addEventListener("input", handleDistributionContentInput);
+  el.distributionSaveBtn?.addEventListener("click", () => alert("엑셀 저장은 새 분배 구조 기준으로 다음 단계에서 연결합니다."));
+  el.distributionFinalSaveBtn?.addEventListener("click", () => alert("최종 저장은 새 분배 구조 기준으로 다음 단계에서 연결합니다."));
   el.historySearchBtn.addEventListener("click", handleHistorySearch);
   el.historyDeleteBtn.addEventListener("click", handleHistoryDelete);
   el.historyExportBtn.addEventListener("click", handleHistoryExport);
@@ -263,7 +280,7 @@ function bindEvents() {
   el.guildManageTableBody.addEventListener("click", handleGuildManageTableClick);
   el.itemManageTableBody.addEventListener("click", handleItemManageTableClick);
 
-  [el.passwordModalBackdrop, el.guildManageModalBackdrop, el.itemManageModalBackdrop, el.searchSelectModalBackdrop, el.importModalBackdrop].forEach((backdrop) => {
+  [el.passwordModalBackdrop, el.guildManageModalBackdrop, el.itemManageModalBackdrop, el.searchSelectModalBackdrop, el.importModalBackdrop, el.distributionBossManageModalBackdrop, el.distributionNameRuleModalBackdrop, el.distributionLogEditModalBackdrop].filter(Boolean).forEach((backdrop) => {
     backdrop.addEventListener("click", (event) => {
       if (event.target === backdrop) {
         closeModal(backdrop);
@@ -292,7 +309,7 @@ function updateTabUi() {
   el.distributionContent.classList.toggle("hidden", !isDistribution);
   el.historyContent.classList.toggle("hidden", !isHistory);
   el.mainTableSearch.classList.toggle("hidden", isDistribution || isHistory);
-  el.distributionHeaderActions.classList.toggle("hidden", !isDistribution);
+  el.distributionHeaderActions.classList.add("hidden");
   el.historyHeaderActions.classList.toggle("hidden", !isHistory);
 
   if (isDistribution) {
@@ -3892,4 +3909,461 @@ async function handleImportApply() {
   } catch (error) {
     alert(error.message);
   }
+}
+
+
+function initializeDistributionState() {
+  state.distribution = createEmptyDistributionState();
+}
+
+function createEmptyDistributionState() {
+  return {
+    totalDiamond: "100000",
+    mainlandRatio: "70",
+    worldRatio: "30",
+    workbookName: "",
+    workbookLoaded: false,
+    activeSubtab: "mainland",
+    bossMasters: [
+      { id: makeDistributionUid(), name: "본토 보스 A", score: 1, group: "mainland" },
+      { id: makeDistributionUid(), name: "본토 보스 B", score: 1, group: "mainland" },
+      { id: makeDistributionUid(), name: "월드 보스 X", score: 3, group: "world" },
+      { id: makeDistributionUid(), name: "월드 보스 Y", score: 2, group: "world" }
+    ],
+    nameRules: [
+      { id: makeDistributionUid(), fromName: "김김김2", toName: "김김김1" },
+      { id: makeDistributionUid(), fromName: "김김김_부캐", toName: "김김김1" }
+    ],
+    sections: {
+      mainland: createDefaultDistributionSection("mainland"),
+      world: createDefaultDistributionSection("world")
+    },
+    logEditTarget: null
+  };
+}
+
+function createDefaultDistributionSection(group) {
+  if (group === "world") {
+    return {
+      deductions: [
+        { id: makeDistributionUid(), name: "길드운영비", type: "percent", value: "5", amount: 1500 },
+        { id: makeDistributionUid(), name: "월드운영비", type: "amount", value: "2000", amount: 2000 },
+        { id: makeDistributionUid(), name: "총무비", type: "percent", value: "3", amount: 900 }
+      ],
+      summary: {
+        allocatedDiamond: 30000,
+        deductionTotal: 4400,
+        actualDiamond: 25600,
+        totalPoints: 72,
+        perPoint: 355.5,
+        remainingDiamond: 4
+      },
+      logs: [
+        { id: makeDistributionUid(), date: "2026-03-31", time: "22:10", boss: "월드 보스 X", group: "world", cutter: "길드원C", excelParticipants: "길드원C, 길드원D", workParticipants: "길드원C, 길드원D, 길드원E" },
+        { id: makeDistributionUid(), date: "2026-03-31", time: "22:40", boss: "월드 보스 Y", group: "world", cutter: "길드원D", excelParticipants: "김김김1, 김김김2", workParticipants: "김김김1" }
+      ],
+      results: [
+        { memberName: "길드원C", points: 15, ratio: "20.83%", rawDiamond: 5332.5, finalDiamond: 5332, note: "-" },
+        { memberName: "탈퇴길드원Z", points: 8, ratio: "0.00%", rawDiamond: 0, finalDiamond: 0, note: "탈퇴한 길드원" }
+      ]
+    };
+  }
+
+  return {
+    deductions: [
+      { id: makeDistributionUid(), name: "길드운영비", type: "percent", value: "10", amount: 7000 },
+      { id: makeDistributionUid(), name: "길드장", type: "percent", value: "5", amount: 3500 },
+      { id: makeDistributionUid(), name: "총무비", type: "percent", value: "3", amount: 2100 },
+      { id: makeDistributionUid(), name: "이벤트비", type: "amount", value: "5000", amount: 5000 }
+    ],
+    summary: {
+      allocatedDiamond: 70000,
+      deductionTotal: 17600,
+      actualDiamond: 52400,
+      totalPoints: 208,
+      perPoint: 251.9,
+      remainingDiamond: 19
+    },
+    logs: [
+      { id: makeDistributionUid(), date: "2026-03-31", time: "21:00", boss: "본토 보스 A", group: "mainland", cutter: "길드원A", excelParticipants: "김김김1, 김김김2, 박박박", workParticipants: "김김김1, 박박박" },
+      { id: makeDistributionUid(), date: "2026-03-31", time: "21:30", boss: "본토 보스 B", group: "mainland", cutter: "길드원B", excelParticipants: "길드원A, 길드원B, 길드원C", workParticipants: "길드원A, 길드원B, 길드원C" }
+    ],
+    results: [
+      { memberName: "김김김1", points: 28, ratio: "13.46%", rawDiamond: 7054.4, finalDiamond: 7054, note: "-" },
+      { memberName: "박박박", points: 24, ratio: "11.54%", rawDiamond: 6045.6, finalDiamond: 6045, note: "-" }
+    ]
+  };
+}
+
+function makeDistributionUid() {
+  return `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function renderDistributionTab() {
+  renderDistributionCommonSummary();
+  renderDistributionSubtabs();
+  renderDistributionSubtabContent();
+  renderDistributionBossManageTable();
+  renderDistributionNameRuleTable();
+}
+
+function renderDistributionCommonSummary() {
+  if (!state.distribution) return;
+
+  const totalDiamond = Number(state.distribution.totalDiamond || 0);
+  const mainlandRatio = Number(state.distribution.mainlandRatio || 0);
+  const worldRatio = Number(state.distribution.worldRatio || 0);
+  const mainlandDiamond = Math.floor(totalDiamond * mainlandRatio / 100);
+  const worldDiamond = Math.floor(totalDiamond * worldRatio / 100);
+
+  if (el.distributionCommonTotalDiamondInput) el.distributionCommonTotalDiamondInput.value = state.distribution.totalDiamond;
+  if (el.distributionMainlandRatioInput) el.distributionMainlandRatioInput.value = state.distribution.mainlandRatio;
+  if (el.distributionWorldRatioInput) el.distributionWorldRatioInput.value = state.distribution.worldRatio;
+  if (el.distributionCommonSummaryTotalDiamond) el.distributionCommonSummaryTotalDiamond.textContent = formatNumber(totalDiamond);
+  if (el.distributionCommonSummaryMainlandDiamond) el.distributionCommonSummaryMainlandDiamond.textContent = formatNumber(mainlandDiamond);
+  if (el.distributionCommonSummaryWorldDiamond) el.distributionCommonSummaryWorldDiamond.textContent = formatNumber(worldDiamond);
+  if (el.distributionCommonSummaryWorkbookState) {
+    el.distributionCommonSummaryWorkbookState.textContent = state.distribution.workbookLoaded
+      ? (state.distribution.workbookName || "로드 완료")
+      : "미로드";
+  }
+}
+
+function renderDistributionSubtabs() {
+  if (!el.distributionSubtabs) return;
+  Array.from(el.distributionSubtabs.querySelectorAll(".nd-subtab")).forEach((button) => {
+    button.classList.toggle("active", button.dataset.subtab === state.distribution.activeSubtab);
+  });
+}
+
+function renderDistributionSubtabContent() {
+  if (!el.distributionSubtabContent) return;
+  const group = state.distribution.activeSubtab;
+  const label = group === "mainland" ? "본토" : "월드";
+  const section = state.distribution.sections[group];
+  const groupClass = group === "mainland" ? "nd-pill-mainland" : "nd-pill-world";
+
+  const deductionRows = section.deductions.map((item) => `
+    <tr>
+      <td><input class="nd-inline-input" type="text" data-role="distribution-deduction-name" data-subtab="${group}" data-id="${item.id}" value="${escapeAttr(item.name)}"></td>
+      <td>
+        <select class="nd-inline-select" data-role="distribution-deduction-type" data-subtab="${group}" data-id="${item.id}">
+          <option value="percent" ${item.type === "percent" ? "selected" : ""}>%</option>
+          <option value="amount" ${item.type === "amount" ? "selected" : ""}>직접금액</option>
+        </select>
+      </td>
+      <td><input class="nd-inline-input" type="number" min="0" step="1" data-role="distribution-deduction-value" data-subtab="${group}" data-id="${item.id}" value="${escapeAttr(item.value)}"></td>
+      <td class="is-right">${formatNumber(item.amount)}</td>
+      <td class="is-center"><button class="btn btn-outline btn-sm" type="button" data-role="distribution-deduction-delete" data-subtab="${group}" data-id="${item.id}">삭제</button></td>
+    </tr>
+  `).join("");
+
+  const logRows = section.logs.map((row, index) => `
+    <tr class="${row.note ? "nd-danger-row" : ""}">
+      <td class="is-center">${index + 1}</td>
+      <td>${escapeHtml(row.date)}</td>
+      <td>${escapeHtml(row.time)}</td>
+      <td>${escapeHtml(row.boss)}</td>
+      <td class="is-center"><span class="nd-pill ${groupClass}">${label}</span></td>
+      <td>${escapeHtml(row.cutter)}</td>
+      <td>${escapeHtml(row.excelParticipants)}</td>
+      <td>${escapeHtml(row.workParticipants)}</td>
+      <td class="is-center"><button class="btn btn-outline btn-sm" type="button" data-role="distribution-log-edit" data-subtab="${group}" data-id="${row.id}">수정</button></td>
+    </tr>
+  `).join("");
+
+  const resultRows = section.results.map((row, index) => `
+    <tr class="${row.note === "탈퇴한 길드원" ? "nd-danger-row" : ""}">
+      <td class="is-center">${index + 1}</td>
+      <td>${escapeHtml(row.memberName)}</td>
+      <td class="is-right">${formatNumber(row.points)}</td>
+      <td class="is-right">${escapeHtml(row.ratio)}</td>
+      <td class="is-right">${formatDecimal(row.rawDiamond, 1)}</td>
+      <td class="is-right">${formatNumber(row.finalDiamond)}</td>
+      <td>${escapeHtml(row.note || "-")}</td>
+    </tr>
+  `).join("");
+
+  el.distributionSubtabContent.innerHTML = `
+    <div class="distribution-section nd-section">
+      <div class="nd-section-head">
+        <h3 class="distribution-section-title">4. ${label} 요약</h3>
+        <div class="nd-section-actions">
+          <button class="btn btn-primary" type="button">계산</button>
+          <button class="btn btn-outline" type="button">작업로그 새로고침</button>
+          <button class="btn btn-gray" type="button">결과 초기화</button>
+        </div>
+      </div>
+      <div class="nd-summary-grid">
+        <div class="distribution-summary-card"><div class="distribution-summary-label">${label} 배정 금액</div><div class="distribution-summary-value">${formatNumber(section.summary.allocatedDiamond)}</div></div>
+        <div class="distribution-summary-card"><div class="distribution-summary-label">${label} 공제 합계</div><div class="distribution-summary-value">${formatNumber(section.summary.deductionTotal)}</div></div>
+        <div class="distribution-summary-card"><div class="distribution-summary-label">실제 분배 다이아</div><div class="distribution-summary-value">${formatNumber(section.summary.actualDiamond)}</div></div>
+        <div class="distribution-summary-card"><div class="distribution-summary-label">전체 참여점수</div><div class="distribution-summary-value">${formatNumber(section.summary.totalPoints)}</div></div>
+        <div class="distribution-summary-card"><div class="distribution-summary-label">1점당 다이아</div><div class="distribution-summary-value">${formatDecimal(section.summary.perPoint, 1)}</div></div>
+        <div class="distribution-summary-card"><div class="distribution-summary-label">남은 다이아</div><div class="distribution-summary-value">${formatNumber(section.summary.remainingDiamond)}</div></div>
+      </div>
+    </div>
+
+    <div class="distribution-section nd-section">
+      <div class="nd-block">
+        <div class="nd-block-head"><h3 class="nd-block-title">5. ${label} 공제 설정</h3></div>
+        <div class="nd-block-body">
+          <div class="nd-chip-wrap">
+            <div class="nd-chip">공제 합계 <strong>${formatNumber(section.summary.deductionTotal)}</strong></div>
+            <div class="nd-chip">실제 분배 다이아 <strong>${formatNumber(section.summary.actualDiamond)}</strong></div>
+          </div>
+          <div class="actions" style="margin-bottom:12px;">
+            <button class="btn btn-outline" type="button" data-role="distribution-deduction-add" data-subtab="${group}">공제 항목 추가</button>
+          </div>
+          <div class="nd-table-wrap">
+            <table class="nd-table">
+              <thead>
+                <tr>
+                  <th>항목명</th>
+                  <th>공제 방식</th>
+                  <th>값 입력</th>
+                  <th class="is-right">공제금액</th>
+                  <th class="is-center">관리</th>
+                </tr>
+              </thead>
+              <tbody>${deductionRows}</tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="distribution-section nd-section">
+      <div class="nd-block">
+        <div class="nd-block-head"><h3 class="nd-block-title">6. ${label} 작업 로그</h3></div>
+        <div class="nd-block-body">
+          <div class="nd-table-wrap">
+            <table class="nd-table">
+              <thead>
+                <tr>
+                  <th class="is-center">No</th>
+                  <th>날짜</th>
+                  <th>시간</th>
+                  <th>보스</th>
+                  <th class="is-center">구분</th>
+                  <th>컷자</th>
+                  <th>엑셀 참여자</th>
+                  <th>작업 참여자</th>
+                  <th class="is-center">예외 수정</th>
+                </tr>
+              </thead>
+              <tbody>${logRows}</tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="distribution-section nd-section">
+      <div class="nd-block">
+        <div class="nd-block-head"><h3 class="nd-block-title">7. ${label} 계산 결과</h3></div>
+        <div class="nd-block-body">
+          <div class="nd-table-wrap">
+            <table class="nd-table">
+              <thead>
+                <tr>
+                  <th class="is-center">No</th>
+                  <th>길드원</th>
+                  <th class="is-right">참여점수</th>
+                  <th class="is-right">참여비율</th>
+                  <th class="is-right">계산 다이아</th>
+                  <th class="is-right">최종 분배 다이아</th>
+                  <th>비고</th>
+                </tr>
+              </thead>
+              <tbody>${resultRows}</tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderDistributionBossManageTable() {
+  if (!el.distributionBossManageTableBody) return;
+  const rows = state.distribution.bossMasters;
+  if (!rows.length) {
+    el.distributionBossManageTableBody.innerHTML = `<tr><td colspan="5" class="empty-row">등록된 보스가 없습니다.</td></tr>`;
+    return;
+  }
+
+  el.distributionBossManageTableBody.innerHTML = rows.map((row, index) => `
+    <tr>
+      <td>${index + 1}</td>
+      <td><input class="nd-inline-input" type="text" data-role="distribution-boss-name" data-id="${row.id}" value="${escapeAttr(row.name)}"></td>
+      <td><input class="nd-inline-input" type="number" min="0" step="1" data-role="distribution-boss-score" data-id="${row.id}" value="${escapeAttr(row.score)}"></td>
+      <td>
+        <select class="nd-inline-select" data-role="distribution-boss-group" data-id="${row.id}">
+          <option value="mainland" ${row.group === "mainland" ? "selected" : ""}>본토</option>
+          <option value="world" ${row.group === "world" ? "selected" : ""}>월드</option>
+        </select>
+      </td>
+      <td><button class="btn btn-outline btn-sm" type="button" data-role="distribution-boss-delete" data-id="${row.id}">삭제</button></td>
+    </tr>
+  `).join("");
+}
+
+function renderDistributionNameRuleTable() {
+  if (!el.distributionNameRuleTableBody) return;
+  const rows = state.distribution.nameRules;
+  if (!rows.length) {
+    el.distributionNameRuleTableBody.innerHTML = `<tr><td colspan="4" class="empty-row">등록된 규칙이 없습니다.</td></tr>`;
+    return;
+  }
+
+  el.distributionNameRuleTableBody.innerHTML = rows.map((row, index) => `
+    <tr>
+      <td>${index + 1}</td>
+      <td><input class="nd-inline-input" type="text" data-role="distribution-name-rule-from" data-id="${row.id}" value="${escapeAttr(row.fromName)}"></td>
+      <td><input class="nd-inline-input" type="text" data-role="distribution-name-rule-to" data-id="${row.id}" value="${escapeAttr(row.toName)}"></td>
+      <td><button class="btn btn-outline btn-sm" type="button" data-role="distribution-name-rule-delete" data-id="${row.id}">삭제</button></td>
+    </tr>
+  `).join("");
+}
+
+function handleDistributionCommonInputChange() {
+  state.distribution.totalDiamond = String(el.distributionCommonTotalDiamondInput?.value ?? "").trim();
+  state.distribution.mainlandRatio = String(el.distributionMainlandRatioInput?.value ?? "").trim();
+  state.distribution.worldRatio = String(el.distributionWorldRatioInput?.value ?? "").trim();
+  renderDistributionCommonSummary();
+}
+
+function handleDistributionWorkbookSelect() {
+  state.distribution.workbookName = el.distributionFileInput?.files?.[0]?.name ?? "";
+  state.distribution.workbookLoaded = false;
+  renderDistributionCommonSummary();
+}
+
+function handleDistributionWorkbookLoad() {
+  const file = el.distributionFileInput?.files?.[0];
+  if (!file) {
+    alert("보스로그 엑셀 파일을 선택해주세요.");
+    return;
+  }
+  state.distribution.workbookName = file.name;
+  state.distribution.workbookLoaded = true;
+  renderDistributionTab();
+  alert("엑셀 로드 UI까지 반영했습니다. 실제 파싱/계산 연결은 다음 단계에서 진행합니다.");
+}
+
+function handleDistributionSubtabClick(event) {
+  const button = event.target.closest("[data-subtab]");
+  if (!button) return;
+  state.distribution.activeSubtab = button.dataset.subtab === "world" ? "world" : "mainland";
+  renderDistributionTab();
+}
+
+function handleDistributionContentClick(event) {
+  const button = event.target.closest("button[data-role]");
+  if (!button) return;
+  const role = button.dataset.role;
+
+  if (role === "distribution-deduction-add") {
+    const section = state.distribution.sections[button.dataset.subtab];
+    section.deductions.push({ id: makeDistributionUid(), name: "", type: "percent", value: "0", amount: 0 });
+    renderDistributionTab();
+    return;
+  }
+
+  if (role === "distribution-deduction-delete") {
+    const section = state.distribution.sections[button.dataset.subtab];
+    section.deductions = section.deductions.filter((item) => item.id !== button.dataset.id);
+    renderDistributionTab();
+    return;
+  }
+
+  if (role === "distribution-log-edit") {
+    openDistributionLogEdit(button.dataset.subtab, button.dataset.id);
+    return;
+  }
+
+  if (role === "distribution-boss-delete") {
+    state.distribution.bossMasters = state.distribution.bossMasters.filter((item) => item.id !== button.dataset.id);
+    renderDistributionBossManageTable();
+    return;
+  }
+
+  if (role === "distribution-name-rule-delete") {
+    state.distribution.nameRules = state.distribution.nameRules.filter((item) => item.id !== button.dataset.id);
+    renderDistributionNameRuleTable();
+  }
+}
+
+function handleDistributionContentInput(event) {
+  const target = event.target;
+  const role = target.dataset.role;
+  if (!role) return;
+
+  if (role.startsWith("distribution-deduction-")) {
+    const section = state.distribution.sections[target.dataset.subtab];
+    const item = section.deductions.find((entry) => entry.id === target.dataset.id);
+    if (!item) return;
+    if (role === "distribution-deduction-name") item.name = target.value;
+    if (role === "distribution-deduction-type") item.type = target.value === "amount" ? "amount" : "percent";
+    if (role === "distribution-deduction-value") item.value = target.value;
+    item.amount = calculateDistributionMockDeductionAmount(item, section.summary.allocatedDiamond);
+    section.summary.deductionTotal = section.deductions.reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
+    section.summary.actualDiamond = Math.max(0, section.summary.allocatedDiamond - section.summary.deductionTotal);
+    renderDistributionTab();
+    return;
+  }
+
+  const boss = state.distribution.bossMasters.find((entry) => entry.id === target.dataset.id);
+  if (role === "distribution-boss-name" && boss) boss.name = target.value;
+  if (role === "distribution-boss-score" && boss) boss.score = Math.max(0, Math.floor(Number(target.value) || 0));
+  if (role === "distribution-boss-group" && boss) boss.group = target.value === "world" ? "world" : "mainland";
+
+  const rule = state.distribution.nameRules.find((entry) => entry.id === target.dataset.id);
+  if (role === "distribution-name-rule-from" && rule) rule.fromName = target.value;
+  if (role === "distribution-name-rule-to" && rule) rule.toName = target.value;
+}
+
+function calculateDistributionMockDeductionAmount(item, allocatedDiamond) {
+  const value = Math.max(0, Number(item.value || 0));
+  if (item.type === "amount") return Math.floor(value);
+  return Math.floor(allocatedDiamond * value / 100);
+}
+
+function openDistributionLogEdit(subtab, logId) {
+  const section = state.distribution.sections[subtab];
+  const row = section.logs.find((entry) => entry.id === logId);
+  if (!row) return;
+  state.distribution.logEditTarget = { subtab, logId };
+  if (el.distributionLogEditCurrentInput) el.distributionLogEditCurrentInput.value = row.workParticipants;
+  if (el.distributionLogEditEditedInput) el.distributionLogEditEditedInput.value = row.workParticipants;
+  openModal(el.distributionLogEditModalBackdrop);
+}
+
+function handleDistributionLogEditApply() {
+  const targetInfo = state.distribution.logEditTarget;
+  if (!targetInfo) return;
+  const section = state.distribution.sections[targetInfo.subtab];
+  const row = section.logs.find((entry) => entry.id === targetInfo.logId);
+  if (!row) return;
+  row.workParticipants = String(el.distributionLogEditEditedInput?.value ?? "").trim();
+  closeModal(el.distributionLogEditModalBackdrop);
+  state.distribution.logEditTarget = null;
+  renderDistributionTab();
+}
+
+function handleDistributionBossAdd() {
+  state.distribution.bossMasters.push({ id: makeDistributionUid(), name: "", score: 1, group: "mainland" });
+  renderDistributionBossManageTable();
+}
+
+function handleDistributionNameRuleAdd() {
+  state.distribution.nameRules.push({ id: makeDistributionUid(), fromName: "", toName: "" });
+  renderDistributionNameRuleTable();
+}
+
+function resetDistributionStateAndRender() {
+  state.distribution = createEmptyDistributionState();
+  if (el.distributionFileInput) el.distributionFileInput.value = "";
+  renderDistributionTab();
 }
