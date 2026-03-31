@@ -50,6 +50,7 @@ const el = {};
 document.addEventListener("DOMContentLoaded", async () => {
   bindElements();
   bindEvents();
+  bindNewDistributionUi();
   initializeDistributionState();
   initializeHistoryState();
   updateTabUi();
@@ -4388,4 +4389,3 @@ function bindNewDistributionUi() {
   });
 }
 
-document.addEventListener("DOMContentLoaded", bindNewDistributionUi);
