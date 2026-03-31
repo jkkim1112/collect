@@ -52,6 +52,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   bindEvents();
   initializeDistributionState();
   initializeHistoryState();
+  bindNewDistributionUi();
   updateTabUi();
   await loadActiveTabData();
   renderAll();
@@ -292,7 +293,7 @@ function updateTabUi() {
   el.distributionContent.classList.toggle("hidden", !isDistribution);
   el.historyContent.classList.toggle("hidden", !isHistory);
   el.mainTableSearch.classList.toggle("hidden", isDistribution || isHistory);
-  el.distributionHeaderActions.classList.toggle("hidden", !isDistribution);
+  el.distributionHeaderActions.classList.add("hidden");
   el.historyHeaderActions.classList.toggle("hidden", !isHistory);
 
   if (isDistribution) {
@@ -3892,4 +3893,54 @@ async function handleImportApply() {
   } catch (error) {
     alert(error.message);
   }
+}
+
+
+function bindNewDistributionUi() {
+  const root = document.querySelector('.newdist-root');
+  if (!root) return;
+
+  const subtabs = Array.from(root.querySelectorAll('.newdist-subtab'));
+  const panels = {
+    mainland: document.getElementById('newdistPanelMainland'),
+    world: document.getElementById('newdistPanelWorld')
+  };
+
+  subtabs.forEach((tab) => {
+    tab.addEventListener('click', () => {
+      subtabs.forEach((btn) => btn.classList.remove('active'));
+      Object.values(panels).forEach((panel) => panel?.classList.remove('active'));
+      tab.classList.add('active');
+      const key = tab.dataset.newdistTab;
+      panels[key]?.classList.add('active');
+    });
+  });
+
+  const bossModal = document.getElementById('newdistBossManageModal');
+  const nameModal = document.getElementById('newdistNameRuleModal');
+  const logModal = document.getElementById('newdistLogEditModal');
+  const logCurrent = document.getElementById('newdistLogEditCurrent');
+  const logEdited = document.getElementById('newdistLogEditEdited');
+  document.getElementById('newdistOpenBossManageBtn')?.addEventListener('click', () => bossModal?.classList.add('open'));
+  document.getElementById('newdistOpenNameRuleBtn')?.addEventListener('click', () => nameModal?.classList.add('open'));
+
+  root.querySelectorAll('.newdist-log-edit-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (logCurrent) logCurrent.value = btn.dataset.current || '';
+      if (logEdited) logEdited.value = btn.dataset.edited || '';
+      logModal?.classList.add('open');
+    });
+  });
+
+  root.querySelectorAll('[data-newdist-close]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.getElementById(btn.dataset.newdistClose)?.classList.remove('open');
+    });
+  });
+
+  [bossModal, nameModal, logModal].forEach((modal) => {
+    modal?.addEventListener('click', (event) => {
+      if (event.target === modal) modal.classList.remove('open');
+    });
+  });
 }
