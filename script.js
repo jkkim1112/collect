@@ -3944,3 +3944,752 @@ function bindNewDistributionUi() {
     });
   });
 }
+
+function createNewDistributionDeductionItem(name = "", type = "percent", value = "") {
+  return {
+    id: `ded-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    name,
+    type: type === "amount" ? "amount" : "percent",
+    value: String(value ?? "")
+  };
+}
+
+function createNewDistributionBossRule(name = "", score = 1, group = "mainland") {
+  return {
+    id: `boss-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    name,
+    score: Math.max(1, Math.floor(Number(score) || 1)),
+    group: group === "world" ? "world" : "mainland"
+  };
+}
+
+function createNewDistributionNameRule(source = "", target = "") {
+  return {
+    id: `name-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    source,
+    target
+  };
+}
+
+function createEmptyNewDistributionGroupState(defaultRows = []) {
+  return {
+    deductions: defaultRows.map((row) => createNewDistributionDeductionItem(row.name, row.type, row.value)),
+    logs: [],
+    resultRows: [],
+    summary: {
+      assignedDiamond: 0,
+      deductionTotal: 0,
+      actualDiamond: 0,
+      totalPoints: 0,
+      diamondPerPoint: 0,
+      remainingDiamond: 0
+    }
+  };
+}
+
+function createEmptyDistributionState() {
+  return {
+    totalDiamond: "",
+    mainlandRatio: "70",
+    worldRatio: "30",
+    workbookName: "",
+    workbookLoaded: false,
+    loadStatus: "대기",
+    rawRows: [],
+    activeSubtab: "mainland",
+    bossRules: [],
+    nameRules: [],
+    logEditTarget: null,
+    mainland: createEmptyNewDistributionGroupState([
+      { name: "길드운영비", type: "percent", value: "0" },
+      { name: "길드장", type: "percent", value: "0" },
+      { name: "총무비", type: "percent", value: "0" }
+    ]),
+    world: createEmptyNewDistributionGroupState([
+      { name: "길드운영비", type: "percent", value: "0" },
+      { name: "길드장", type: "percent", value: "0" },
+      { name: "총무비", type: "percent", value: "0" }
+    ])
+  };
+}
+
+function initializeDistributionState() {
+  state.distribution = createEmptyDistributionState();
+}
+
+function bindNewDistributionUi() {
+  const root = document.querySelector('.newdist-root');
+  if (!root) return;
+
+  const subtabs = Array.from(root.querySelectorAll('.newdist-subtab'));
+  const panels = {
+    mainland: document.getElementById('newdistPanelMainland'),
+    world: document.getElementById('newdistPanelWorld')
+  };
+
+  subtabs.forEach((tab) => {
+    tab.addEventListener('click', () => {
+      const key = tab.dataset.newdistTab === 'world' ? 'world' : 'mainland';
+      state.distribution.activeSubtab = key;
+      subtabs.forEach((btn) => btn.classList.toggle('active', btn === tab));
+      Object.entries(panels).forEach(([panelKey, panel]) => panel?.classList.toggle('active', panelKey === key));
+    });
+  });
+
+  document.getElementById('newdistTotalDiamondInput')?.addEventListener('input', (event) => {
+    state.distribution.totalDiamond = String(event.target.value ?? '').trim();
+    renderDistributionTab();
+  });
+  document.getElementById('newdistMainlandRatioInput')?.addEventListener('input', (event) => {
+    state.distribution.mainlandRatio = String(event.target.value ?? '').trim();
+    renderDistributionTab();
+  });
+  document.getElementById('newdistWorldRatioInput')?.addEventListener('input', (event) => {
+    state.distribution.worldRatio = String(event.target.value ?? '').trim();
+    renderDistributionTab();
+  });
+
+  document.getElementById('newdistResetBtn')?.addEventListener('click', () => {
+    state.distribution = createEmptyDistributionState();
+    const fileInput = document.getElementById('newdistFileInput');
+    if (fileInput) fileInput.value = '';
+    renderDistributionTab();
+  });
+
+  document.getElementById('newdistLoadBtn')?.addEventListener('click', handleNewDistributionLoad);
+  document.getElementById('newdistMainlandCalcBtn')?.addEventListener('click', () => handleNewDistributionCalculate('mainland'));
+  document.getElementById('newdistWorldCalcBtn')?.addEventListener('click', () => handleNewDistributionCalculate('world'));
+  document.getElementById('newdistMainlandRefreshBtn')?.addEventListener('click', () => refreshNewDistributionLogs('mainland', true));
+  document.getElementById('newdistWorldRefreshBtn')?.addEventListener('click', () => refreshNewDistributionLogs('world', true));
+  document.getElementById('newdistMainlandResetBtn')?.addEventListener('click', () => resetNewDistributionGroupResult('mainland'));
+  document.getElementById('newdistWorldResetBtn')?.addEventListener('click', () => resetNewDistributionGroupResult('world'));
+  document.getElementById('newdistMainlandAddDeductionBtn')?.addEventListener('click', () => addNewDistributionDeduction('mainland'));
+  document.getElementById('newdistWorldAddDeductionBtn')?.addEventListener('click', () => addNewDistributionDeduction('world'));
+
+  document.getElementById('newdistOpenBossManageBtn')?.addEventListener('click', () => {
+    renderNewDistributionBossRules();
+    document.getElementById('newdistBossManageModal')?.classList.add('open');
+  });
+  document.getElementById('newdistOpenNameRuleBtn')?.addEventListener('click', () => {
+    renderNewDistributionNameRules();
+    document.getElementById('newdistNameRuleModal')?.classList.add('open');
+  });
+
+  document.getElementById('newdistBossAddBtn')?.addEventListener('click', () => {
+    state.distribution.bossRules.push(createNewDistributionBossRule());
+    renderNewDistributionBossRules();
+  });
+  document.getElementById('newdistBossSaveBtn')?.addEventListener('click', () => {
+    if (!syncNewDistributionBossRulesFromDom()) return;
+    document.getElementById('newdistBossManageModal')?.classList.remove('open');
+    rebuildNewDistributionLogs(false);
+    renderDistributionTab();
+  });
+
+  document.getElementById('newdistNameRuleAddBtn')?.addEventListener('click', () => {
+    state.distribution.nameRules.push(createNewDistributionNameRule());
+    renderNewDistributionNameRules();
+  });
+  document.getElementById('newdistNameRuleSaveBtn')?.addEventListener('click', () => {
+    syncNewDistributionNameRulesFromDom();
+    document.getElementById('newdistNameRuleModal')?.classList.remove('open');
+    rebuildNewDistributionLogs(false);
+    renderDistributionTab();
+  });
+
+  document.getElementById('newdistBossManageBody')?.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-role="newdist-delete-boss"]');
+    if (!button) return;
+    state.distribution.bossRules = state.distribution.bossRules.filter((rule) => rule.id !== button.dataset.id);
+    renderNewDistributionBossRules();
+  });
+
+  document.getElementById('newdistNameRuleBody')?.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-role="newdist-delete-name-rule"]');
+    if (!button) return;
+    state.distribution.nameRules = state.distribution.nameRules.filter((rule) => rule.id !== button.dataset.id);
+    renderNewDistributionNameRules();
+  });
+
+  document.getElementById('newdistMainlandDeductionBody')?.addEventListener('input', (event) => handleNewDistributionDeductionInput(event, 'mainland'));
+  document.getElementById('newdistMainlandDeductionBody')?.addEventListener('click', (event) => handleNewDistributionDeductionClick(event, 'mainland'));
+  document.getElementById('newdistWorldDeductionBody')?.addEventListener('input', (event) => handleNewDistributionDeductionInput(event, 'world'));
+  document.getElementById('newdistWorldDeductionBody')?.addEventListener('click', (event) => handleNewDistributionDeductionClick(event, 'world'));
+
+  ['mainland', 'world'].forEach((groupKey) => {
+    document.getElementById(groupKey === 'mainland' ? 'newdistMainlandLogBody' : 'newdistWorldLogBody')?.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-role="newdist-edit-log"]');
+      if (!button) return;
+      openNewDistributionLogEdit(groupKey, button.dataset.logId);
+    });
+  });
+
+  document.getElementById('newdistLogEditApplyBtn')?.addEventListener('click', applyNewDistributionLogEdit);
+
+  root.querySelectorAll('[data-newdist-close]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.getElementById(btn.dataset.newdistClose)?.classList.remove('open');
+    });
+  });
+
+  ['newdistBossManageModal', 'newdistNameRuleModal', 'newdistLogEditModal'].forEach((id) => {
+    document.getElementById(id)?.addEventListener('click', (event) => {
+      if (event.target.id === id) event.target.classList.remove('open');
+    });
+  });
+}
+
+async function ensureDistributionMembersLoaded() {
+  const membersRes = await supabase.from('guild_members').select('id, name, power, updated_at').order('name', { ascending: true });
+  if (membersRes.error) {
+    throw new Error(`길드원 조회 중 오류가 발생했습니다.\n${membersRes.error.message}`);
+  }
+  state.members = membersRes.data ?? [];
+}
+
+async function handleNewDistributionLoad() {
+  try {
+    await ensureDistributionMembersLoaded();
+    const workbookRows = await readNewDistributionWorkbookRows();
+    state.distribution.workbookName = document.getElementById('newdistFileInput')?.files?.[0]?.name ?? '';
+    state.distribution.rawRows = workbookRows;
+    state.distribution.workbookLoaded = true;
+    rebuildNewDistributionLogs(true);
+    resetNewDistributionGroupResult('mainland', false);
+    resetNewDistributionGroupResult('world', false);
+    renderDistributionTab();
+    alert('엑셀 로드가 완료되었습니다.');
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+async function readNewDistributionWorkbookRows() {
+  const file = document.getElementById('newdistFileInput')?.files?.[0];
+  if (!file) {
+    throw new Error('보스로그 엑셀 파일을 선택해주세요.');
+  }
+  if (typeof XLSX === 'undefined') {
+    throw new Error('엑셀 처리 기능을 사용할 수 없습니다.');
+  }
+
+  const buffer = await file.arrayBuffer();
+  const workbook = XLSX.read(buffer, { type: 'array' });
+  const sheet = workbook.Sheets['보스로그'];
+  if (!sheet) {
+    throw new Error('보스로그 시트를 찾을 수 없습니다.');
+  }
+
+  const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+  return rows
+    .map((row, index) => normalizeNewDistributionLogRow(row, index))
+    .filter((row) => row.date || row.time || row.boss || row.cutter || row.rawParticipants.length > 0);
+}
+
+function normalizeNewDistributionLogRow(row, index) {
+  const rawParticipants = String(row['참여자'] ?? '')
+    .split(',')
+    .map((name) => String(name).trim())
+    .filter(Boolean);
+
+  return {
+    id: `log-${index + 1}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    date: normalizeDistributionDate(row['날짜']),
+    time: normalizeDistributionTime(row['시간']),
+    boss: String(row['보스'] ?? '').trim(),
+    cutter: String(row['컷자'] ?? '').trim(),
+    rawParticipants,
+    editedParticipantsText: ''
+  };
+}
+
+function rebuildNewDistributionLogs(resetStatus) {
+  const distribution = state.distribution;
+  const bossRuleMap = new Map(
+    (distribution.bossRules || [])
+      .map((rule) => [String(rule.name ?? '').trim(), rule])
+      .filter(([name]) => Boolean(name))
+  );
+
+  const mainlandLogs = [];
+  const worldLogs = [];
+  let unknownBossCount = 0;
+
+  (distribution.rawRows || []).forEach((row) => {
+    const bossRule = bossRuleMap.get(String(row.boss ?? '').trim());
+    if (!bossRule) {
+      unknownBossCount += 1;
+      return;
+    }
+
+    const workParticipants = getNewDistributionWorkParticipants(row);
+    const nextRow = {
+      ...row,
+      workParticipants,
+      score: Math.max(1, Math.floor(Number(bossRule.score) || 1)),
+      group: bossRule.group === 'world' ? 'world' : 'mainland'
+    };
+
+    if (nextRow.group === 'world') {
+      worldLogs.push(nextRow);
+    } else {
+      mainlandLogs.push(nextRow);
+    }
+  });
+
+  distribution.mainland.logs = mainlandLogs;
+  distribution.world.logs = worldLogs;
+
+  if (resetStatus || !distribution.workbookLoaded) {
+    distribution.loadStatus = '대기';
+  } else {
+    distribution.loadStatus = unknownBossCount > 0
+      ? `로드 완료 (${unknownBossCount}건 미분류)`
+      : '로드 완료';
+  }
+
+  if (distribution.workbookLoaded && resetStatus) {
+    distribution.loadStatus = unknownBossCount > 0
+      ? `로드 완료 (${unknownBossCount}건 미분류)`
+      : '로드 완료';
+  }
+}
+
+function getNewDistributionWorkParticipants(row) {
+  const baseParticipants = String(row.editedParticipantsText || '').trim()
+    ? String(row.editedParticipantsText).split(',').map((name) => name.trim()).filter(Boolean)
+    : [...(row.rawParticipants || [])];
+
+  return baseParticipants.map((name) => applyNewDistributionNameRules(name)).filter(Boolean);
+}
+
+function applyNewDistributionNameRules(name) {
+  let current = String(name ?? '').trim();
+  if (!current) return '';
+  const rules = state.distribution.nameRules || [];
+  const visited = new Set();
+
+  while (true) {
+    if (visited.has(current)) break;
+    visited.add(current);
+    const rule = rules.find((entry) => String(entry.source ?? '').trim() === current && String(entry.target ?? '').trim());
+    if (!rule) break;
+    current = String(rule.target ?? '').trim();
+  }
+
+  return current;
+}
+
+function addNewDistributionDeduction(groupKey) {
+  state.distribution[groupKey].deductions.push(createNewDistributionDeductionItem());
+  renderDistributionTab();
+}
+
+function handleNewDistributionDeductionInput(event, groupKey) {
+  const row = event.target.closest('[data-deduction-id]');
+  if (!row) return;
+  const deductionId = row.dataset.deductionId;
+  const item = state.distribution[groupKey].deductions.find((entry) => entry.id === deductionId);
+  if (!item) return;
+
+  if (event.target.matches('[data-role="newdist-deduction-name"]')) {
+    item.name = String(event.target.value ?? '');
+  } else if (event.target.matches('[data-role="newdist-deduction-type"]')) {
+    item.type = event.target.value === 'amount' ? 'amount' : 'percent';
+  } else if (event.target.matches('[data-role="newdist-deduction-value"]')) {
+    item.value = String(event.target.value ?? '');
+  }
+
+  renderDistributionTab();
+}
+
+function handleNewDistributionDeductionClick(event, groupKey) {
+  const button = event.target.closest('[data-role="newdist-delete-deduction"]');
+  if (!button) return;
+  state.distribution[groupKey].deductions = state.distribution[groupKey].deductions.filter((entry) => entry.id !== button.dataset.id);
+  renderDistributionTab();
+}
+
+function calculateNewDistributionAssignedDiamonds() {
+  const totalDiamond = normalizeNonNegativeNumber(state.distribution.totalDiamond, '총 분배 다이아를 올바르게 입력해주세요.');
+  const mainlandRatio = normalizeDistributionRatio(state.distribution.mainlandRatio, '본토 비율을 올바르게 입력해주세요.');
+  const worldRatio = normalizeDistributionRatio(state.distribution.worldRatio, '월드 비율을 올바르게 입력해주세요.');
+
+  if (Math.abs((mainlandRatio + worldRatio) - 100) > 0.0001) {
+    throw new Error('본토 비율과 월드 비율의 합은 100이어야 합니다.');
+  }
+
+  const mainlandAssigned = Math.floor(totalDiamond * (mainlandRatio / 100));
+  const worldAssigned = totalDiamond - mainlandAssigned;
+
+  return {
+    totalDiamond,
+    mainlandRatio,
+    worldRatio,
+    mainlandAssigned,
+    worldAssigned
+  };
+}
+
+function normalizeDistributionRatio(value, errorMessage) {
+  const text = String(value ?? '').trim();
+  const number = Number(text);
+  if (!Number.isFinite(number) || number < 0 || number > 100) {
+    throw new Error(errorMessage);
+  }
+  return number;
+}
+
+function calculateNewDistributionDeductionAmount(assignedDiamond, item) {
+  const value = normalizeDistributionDeductionValue(item.value, item.name || '공제 항목');
+  if (item.type === 'amount') return Math.floor(value);
+  return Math.floor(assignedDiamond * (value / 100));
+}
+
+function calculateNewDistributionGroupSummary(groupKey) {
+  const assigned = calculateNewDistributionAssignedDiamonds();
+  const group = state.distribution[groupKey];
+  const assignedDiamond = groupKey === 'world' ? assigned.worldAssigned : assigned.mainlandAssigned;
+  const deductionTotal = group.deductions.reduce((sum, item) => sum + calculateNewDistributionDeductionAmount(assignedDiamond, item), 0);
+  const actualDiamond = assignedDiamond - deductionTotal;
+  if (actualDiamond < 0) {
+    throw new Error(`${groupKey === 'world' ? '월드' : '본토'} 공제 합계가 배정 금액보다 클 수 없습니다.`);
+  }
+
+  return {
+    assignedDiamond,
+    deductionTotal,
+    actualDiamond
+  };
+}
+
+function refreshNewDistributionLogs(groupKey, showAlert) {
+  if (!state.distribution.workbookLoaded) {
+    alert('먼저 엑셀을 로드해주세요.');
+    return;
+  }
+  rebuildNewDistributionLogs(false);
+  resetNewDistributionGroupResult(groupKey, false);
+  renderDistributionTab();
+  if (showAlert) {
+    alert(`${groupKey === 'world' ? '월드' : '본토'} 작업로그를 새로고침했습니다.`);
+  }
+}
+
+function resetNewDistributionGroupResult(groupKey, shouldRender = true) {
+  state.distribution[groupKey].resultRows = [];
+  state.distribution[groupKey].summary = {
+    assignedDiamond: 0,
+    deductionTotal: 0,
+    actualDiamond: 0,
+    totalPoints: 0,
+    diamondPerPoint: 0,
+    remainingDiamond: 0
+  };
+  if (shouldRender) renderDistributionTab();
+}
+
+async function handleNewDistributionCalculate(groupKey) {
+  try {
+    await ensureDistributionMembersLoaded();
+    if (!state.distribution.workbookLoaded) {
+      throw new Error('먼저 엑셀을 로드해주세요.');
+    }
+
+    rebuildNewDistributionLogs(false);
+    const groupCalc = calculateNewDistributionGroupSummary(groupKey);
+    const logs = state.distribution[groupKey].logs || [];
+    const activeMemberNameSet = new Set((state.members || []).map((member) => String(member.name ?? '').trim()).filter(Boolean));
+    const pointMap = new Map();
+
+    logs.forEach((log) => {
+      const score = Math.max(1, Math.floor(Number(log.score) || 1));
+      (log.workParticipants || []).forEach((memberName) => {
+        pointMap.set(memberName, (pointMap.get(memberName) ?? 0) + score);
+      });
+    });
+
+    const entries = Array.from(pointMap.entries()).map(([memberName, points]) => ({
+      memberName,
+      points,
+      isRetired: !activeMemberNameSet.has(memberName)
+    }));
+
+    const totalPoints = entries.filter((entry) => !entry.isRetired).reduce((sum, entry) => sum + entry.points, 0);
+    const diamondPerPoint = totalPoints > 0 ? groupCalc.actualDiamond / totalPoints : 0;
+    const resultRows = entries.map((entry) => {
+      const rawDiamond = entry.isRetired ? 0 : entry.points * diamondPerPoint;
+      return {
+        memberName: entry.memberName,
+        points: entry.points,
+        ratio: totalPoints > 0 && !entry.isRetired ? entry.points / totalPoints : 0,
+        rawDiamond,
+        finalDiamond: Math.floor(rawDiamond),
+        note: entry.isRetired ? '탈퇴한 길드원' : ''
+      };
+    }).sort((left, right) => {
+      if (left.note && !right.note) return 1;
+      if (!left.note && right.note) return -1;
+      if (right.points !== left.points) return right.points - left.points;
+      return left.memberName.localeCompare(right.memberName, 'ko');
+    });
+
+    const distributedDiamond = resultRows.reduce((sum, row) => sum + row.finalDiamond, 0);
+    state.distribution[groupKey].resultRows = resultRows;
+    state.distribution[groupKey].summary = {
+      assignedDiamond: groupCalc.assignedDiamond,
+      deductionTotal: groupCalc.deductionTotal,
+      actualDiamond: groupCalc.actualDiamond,
+      totalPoints,
+      diamondPerPoint,
+      remainingDiamond: groupCalc.actualDiamond - distributedDiamond
+    };
+
+    renderDistributionTab();
+    alert(`${groupKey === 'world' ? '월드' : '본토'} 계산이 완료되었습니다.`);
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+function openNewDistributionLogEdit(groupKey, logId) {
+  const log = state.distribution[groupKey].logs.find((entry) => entry.id === logId);
+  if (!log) return;
+  state.distribution.logEditTarget = { groupKey, logId };
+  const currentEl = document.getElementById('newdistLogEditCurrent');
+  const editedEl = document.getElementById('newdistLogEditEdited');
+  if (currentEl) currentEl.value = (log.workParticipants || []).join(', ');
+  if (editedEl) editedEl.value = String(log.editedParticipantsText || '');
+  document.getElementById('newdistLogEditModal')?.classList.add('open');
+}
+
+function applyNewDistributionLogEdit() {
+  const target = state.distribution.logEditTarget;
+  if (!target) return;
+  const log = state.distribution[target.groupKey].logs.find((entry) => entry.id === target.logId);
+  if (!log) return;
+  log.editedParticipantsText = String(document.getElementById('newdistLogEditEdited')?.value ?? '').trim();
+
+  const rawLog = state.distribution.rawRows.find((entry) => entry.id === target.logId);
+  if (rawLog) {
+    rawLog.editedParticipantsText = log.editedParticipantsText;
+  }
+
+  rebuildNewDistributionLogs(false);
+  resetNewDistributionGroupResult(target.groupKey, false);
+  state.distribution.logEditTarget = null;
+  document.getElementById('newdistLogEditModal')?.classList.remove('open');
+  renderDistributionTab();
+}
+
+function syncNewDistributionBossRulesFromDom() {
+  const rows = Array.from(document.querySelectorAll('#newdistBossManageBody tr[data-boss-id]'));
+  const nextRules = [];
+
+  for (const row of rows) {
+    const id = row.dataset.bossId;
+    const name = String(row.querySelector('[data-role="newdist-boss-name"]')?.value ?? '').trim();
+    const score = Math.max(1, Math.floor(Number(row.querySelector('[data-role="newdist-boss-score"]')?.value) || 1));
+    const group = row.querySelector('[data-role="newdist-boss-group"]')?.value === 'world' ? 'world' : 'mainland';
+    if (!name) continue;
+    if (nextRules.some((rule) => rule.name === name)) {
+      alert('분배 보스명은 중복될 수 없습니다.');
+      return false;
+    }
+    nextRules.push({ id, name, score, group });
+  }
+
+  state.distribution.bossRules = nextRules;
+  return true;
+}
+
+function syncNewDistributionNameRulesFromDom() {
+  const rows = Array.from(document.querySelectorAll('#newdistNameRuleBody tr[data-name-rule-id]'));
+  state.distribution.nameRules = rows.map((row) => ({
+    id: row.dataset.nameRuleId,
+    source: String(row.querySelector('[data-role="newdist-name-source"]')?.value ?? '').trim(),
+    target: String(row.querySelector('[data-role="newdist-name-target"]')?.value ?? '').trim()
+  })).filter((row) => row.source && row.target);
+}
+
+function renderNewDistributionBossRules() {
+  const body = document.getElementById('newdistBossManageBody');
+  if (!body) return;
+  const rows = state.distribution.bossRules || [];
+  if (!rows.length) {
+    body.innerHTML = '<tr><td class="center" colspan="5">등록된 분배 보스가 없습니다.</td></tr>';
+    return;
+  }
+  body.innerHTML = rows.map((row, index) => `
+    <tr data-boss-id="${escapeAttr(row.id)}">
+      <td class="center">${index + 1}</td>
+      <td><input class="newdist-input-sm" type="text" data-role="newdist-boss-name" value="${escapeAttr(row.name)}"></td>
+      <td class="right"><input class="newdist-input-sm" type="number" min="1" step="1" data-role="newdist-boss-score" value="${escapeAttr(row.score)}"></td>
+      <td class="center"><select class="newdist-select-sm" data-role="newdist-boss-group"><option value="mainland" ${row.group !== 'world' ? 'selected' : ''}>본토</option><option value="world" ${row.group === 'world' ? 'selected' : ''}>월드</option></select></td>
+      <td class="center"><button class="btn btn-outline" type="button" data-role="newdist-delete-boss" data-id="${escapeAttr(row.id)}">삭제</button></td>
+    </tr>
+  `).join('');
+}
+
+function renderNewDistributionNameRules() {
+  const body = document.getElementById('newdistNameRuleBody');
+  if (!body) return;
+  const rows = state.distribution.nameRules || [];
+  if (!rows.length) {
+    body.innerHTML = '<tr><td class="center" colspan="4">등록된 이름 정리 규칙이 없습니다.</td></tr>';
+    return;
+  }
+  body.innerHTML = rows.map((row, index) => `
+    <tr data-name-rule-id="${escapeAttr(row.id)}">
+      <td class="center">${index + 1}</td>
+      <td><input class="newdist-input-sm" type="text" data-role="newdist-name-source" value="${escapeAttr(row.source)}"></td>
+      <td><input class="newdist-input-sm" type="text" data-role="newdist-name-target" value="${escapeAttr(row.target)}"></td>
+      <td class="center"><button class="btn btn-outline" type="button" data-role="newdist-delete-name-rule" data-id="${escapeAttr(row.id)}">삭제</button></td>
+    </tr>
+  `).join('');
+}
+
+function renderDistributionTab() {
+  renderNewDistributionCommon();
+  renderNewDistributionGroup('mainland');
+  renderNewDistributionGroup('world');
+}
+
+function renderNewDistributionCommon() {
+  const distribution = state.distribution;
+  const totalEl = document.getElementById('newdistTotalDiamondInput');
+  const mainlandRatioEl = document.getElementById('newdistMainlandRatioInput');
+  const worldRatioEl = document.getElementById('newdistWorldRatioInput');
+  if (totalEl) totalEl.value = distribution.totalDiamond;
+  if (mainlandRatioEl) mainlandRatioEl.value = distribution.mainlandRatio;
+  if (worldRatioEl) worldRatioEl.value = distribution.worldRatio;
+
+  let totalDiamond = 0;
+  let mainlandAssigned = 0;
+  let worldAssigned = 0;
+  try {
+    const assigned = calculateNewDistributionAssignedDiamonds();
+    totalDiamond = assigned.totalDiamond;
+    mainlandAssigned = assigned.mainlandAssigned;
+    worldAssigned = assigned.worldAssigned;
+  } catch (_) {}
+
+  const setText = (id, value) => {
+    const target = document.getElementById(id);
+    if (target) target.textContent = value;
+  };
+
+  setText('newdistSummaryTotalDiamond', formatNumber(totalDiamond));
+  setText('newdistSummaryMainlandAssigned', formatNumber(mainlandAssigned));
+  setText('newdistSummaryWorldAssigned', formatNumber(worldAssigned));
+  setText('newdistSummaryLoadStatus', distribution.loadStatus || '대기');
+}
+
+function renderNewDistributionGroup(groupKey) {
+  const group = state.distribution[groupKey];
+  const prefix = groupKey === 'world' ? 'newdistWorld' : 'newdistMainland';
+  let calcSummary = {
+    assignedDiamond: 0,
+    deductionTotal: 0,
+    actualDiamond: 0
+  };
+  try {
+    calcSummary = calculateNewDistributionGroupSummary(groupKey);
+  } catch (_) {}
+
+  const summary = group.resultRows.length ? group.summary : {
+    ...calcSummary,
+    totalPoints: 0,
+    diamondPerPoint: 0,
+    remainingDiamond: 0
+  };
+
+  const setText = (suffix, value) => {
+    const elTarget = document.getElementById(`${prefix}${suffix}`);
+    if (elTarget) elTarget.textContent = value;
+  };
+
+  setText('Assigned', formatNumber(calcSummary.assignedDiamond));
+  setText('DeductionTotal', formatNumber(calcSummary.deductionTotal));
+  setText('ActualDiamond', formatNumber(calcSummary.actualDiamond));
+  setText('TotalPoints', formatNumber(summary.totalPoints));
+  setText('PerPoint', summary.totalPoints > 0 ? formatDecimal(summary.diamondPerPoint, 1) : '0');
+  setText('Remaining', formatNumber(summary.remainingDiamond));
+  setText('DeductionChip', formatNumber(calcSummary.deductionTotal));
+  setText('ActualChip', formatNumber(calcSummary.actualDiamond));
+
+  renderNewDistributionDeductionRows(groupKey);
+  renderNewDistributionLogs(groupKey);
+  renderNewDistributionResultRows(groupKey);
+}
+
+function renderNewDistributionDeductionRows(groupKey) {
+  const body = document.getElementById(groupKey === 'world' ? 'newdistWorldDeductionBody' : 'newdistMainlandDeductionBody');
+  if (!body) return;
+  const group = state.distribution[groupKey];
+  let assignedDiamond = 0;
+  try {
+    assignedDiamond = calculateNewDistributionGroupSummary(groupKey).assignedDiamond;
+  } catch (_) {}
+
+  if (!group.deductions.length) {
+    body.innerHTML = '<tr><td colspan="5" class="center">등록된 공제 항목이 없습니다.</td></tr>';
+    return;
+  }
+
+  body.innerHTML = group.deductions.map((item) => `
+    <tr data-deduction-id="${escapeAttr(item.id)}">
+      <td><input class="newdist-input-sm" type="text" data-role="newdist-deduction-name" value="${escapeAttr(item.name)}"></td>
+      <td><select class="newdist-select-sm" data-role="newdist-deduction-type"><option value="percent" ${item.type !== 'amount' ? 'selected' : ''}>%</option><option value="amount" ${item.type === 'amount' ? 'selected' : ''}>직접금액</option></select></td>
+      <td><input class="newdist-input-sm" type="number" min="0" step="0.01" data-role="newdist-deduction-value" value="${escapeAttr(item.value)}"></td>
+      <td class="right">${formatNumber(calculateNewDistributionDeductionAmount(assignedDiamond, item))}</td>
+      <td class="center"><button class="btn btn-outline" type="button" data-role="newdist-delete-deduction" data-id="${escapeAttr(item.id)}">삭제</button></td>
+    </tr>
+  `).join('');
+}
+
+function renderNewDistributionLogs(groupKey) {
+  const body = document.getElementById(groupKey === 'world' ? 'newdistWorldLogBody' : 'newdistMainlandLogBody');
+  if (!body) return;
+  const logs = state.distribution[groupKey].logs || [];
+  if (!logs.length) {
+    body.innerHTML = '<tr><td class="center" colspan="9">표시할 작업 로그가 없습니다.</td></tr>';
+    return;
+  }
+
+  body.innerHTML = logs.map((log, index) => `
+    <tr>
+      <td class="center">${index + 1}</td>
+      <td>${escapeHtml(log.date || '-')}</td>
+      <td>${escapeHtml(log.time || '-')}</td>
+      <td>${escapeHtml(log.boss || '-')}</td>
+      <td class="center"><span class="newdist-badge ${groupKey === 'world' ? 'newdist-badge-world' : 'newdist-badge-mainland'}">${groupKey === 'world' ? '월드' : '본토'}</span></td>
+      <td>${escapeHtml(log.cutter || '-')}</td>
+      <td>${escapeHtml((log.rawParticipants || []).join(', ')) || '-'}</td>
+      <td>${escapeHtml((log.workParticipants || []).join(', ')) || '-'}</td>
+      <td class="center"><button class="btn btn-outline" type="button" data-role="newdist-edit-log" data-log-id="${escapeAttr(log.id)}">수정</button></td>
+    </tr>
+  `).join('');
+}
+
+function renderNewDistributionResultRows(groupKey) {
+  const body = document.getElementById(groupKey === 'world' ? 'newdistWorldResultBody' : 'newdistMainlandResultBody');
+  if (!body) return;
+  const rows = state.distribution[groupKey].resultRows || [];
+  if (!rows.length) {
+    body.innerHTML = '<tr><td class="center" colspan="7">계산된 결과가 없습니다.</td></tr>';
+    return;
+  }
+
+  body.innerHTML = rows.map((row, index) => `
+    <tr class="${row.note === '탈퇴한 길드원' ? 'newdist-danger-soft' : ''}">
+      <td class="center">${index + 1}</td>
+      <td>${escapeHtml(row.memberName)}</td>
+      <td class="right">${formatNumber(row.points)}</td>
+      <td class="right">${formatPercent(row.ratio)}</td>
+      <td class="right">${formatDecimal(row.rawDiamond, 1)}</td>
+      <td class="right">${formatNumber(row.finalDiamond)}</td>
+      <td>${escapeHtml(row.note || '-')}</td>
+    </tr>
+  `).join('');
+}
