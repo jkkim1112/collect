@@ -1,0 +1,3856 @@
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+const SUPABASE_URL = "https://mgmvyapblwiwjaytkgwl.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_fzA0-8AjS9D1xtXLkgdo1Q_iCY-dYJV";
+const ADMIN_PASSWORD = "1590";
+const ACCESSORY_PARTS = [
+  { key: "necklace_count", label: "목걸이" },
+  { key: "earring_count", label: "귀걸이" },
+  { key: "ring_count", label: "반지" },
+  { key: "bracelet_count", label: "팔찌" },
+  { key: "belt_count", label: "허리띠" }
+];
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const state = {
+  activeTab: "power",
+  distribution: null,
+  history: null,
+  pendingManageType: null,
+  pendingEditMemberId: null,
+  members: [],
+  mountItems: [],
+  memberMounts: [],
+  bossItems: [],
+  memberBossCollections: [],
+  accessoryGroups: [],
+  memberAccessories: [],
+  searchTerm: "",
+  bossSearchTerm: "",
+  selectedMemberId: null,
+  rowEditMemberId: null,
+  draftMemberId: null,
+  draftTab: null,
+  draftPower: "",
+  draftOwnedMap: {},
+  draftAccessoryMap: {},
+  draftAllRows: {},
+  overallEditMode: false,
+  powerSortDirection: "desc",
+  updatedAtSortDirection: null,
+  hiddenAccessoryGroupIds: {},
+  isBulkSaving: false,
+  bulkSaveProgress: 0,
+  importPreview: null
+};
+
+const el = {};
+
+document.addEventListener("DOMContentLoaded", async () => {
+  bindElements();
+  bindEvents();
+  initializeDistributionState();
+  initializeHistoryState();
+  bindNewDistributionUi();
+  updateTabUi();
+  await loadActiveTabData();
+  renderAll();
+});
+
+function bindElements() {
+  el.tabs = Array.from(document.querySelectorAll(".tab"));
+  el.guildManageBtn = document.getElementById("guildManageBtn");
+  el.bulkEditBtn = document.getElementById("bulkEditBtn");
+  el.bulkSaveBtn = document.getElementById("bulkSaveBtn");
+  el.bulkCancelBtn = document.getElementById("bulkCancelBtn");
+  el.itemManageBtn = document.getElementById("itemManageBtn");
+  el.importOpenBtn = document.getElementById("importOpenBtn");
+  el.tableGuideText = document.getElementById("tableGuideText");
+  el.searchInput = document.getElementById("searchInput");
+  el.bossSearchInput = document.getElementById("bossSearchInput");
+  el.searchBtn = document.getElementById("searchBtn");
+  el.resetBtn = document.getElementById("resetBtn");
+  el.summaryTableHead = document.getElementById("summaryTableHead");
+  el.summaryTableBody = document.getElementById("summaryTableBody");
+
+  el.searchSelectModalBackdrop = document.getElementById("searchSelectModalBackdrop");
+  el.searchSelectGuideText = document.getElementById("searchSelectGuideText");
+  el.searchSelectList = document.getElementById("searchSelectList");
+  el.searchSelectCloseBtn = document.getElementById("searchSelectCloseBtn");
+  el.searchSelectCancelBtn = document.getElementById("searchSelectCancelBtn");
+
+  el.passwordModalBackdrop = document.getElementById("passwordModalBackdrop");
+  el.passwordInput = document.getElementById("passwordInput");
+  el.passwordErrorText = document.getElementById("passwordErrorText");
+  el.passwordCancelBtn = document.getElementById("passwordCancelBtn");
+  el.passwordConfirmBtn = document.getElementById("passwordConfirmBtn");
+
+  el.guildManageModalBackdrop = document.getElementById("guildManageModalBackdrop");
+  el.guildManageTableBody = document.getElementById("guildManageTableBody");
+  el.addMemberBtn = document.getElementById("addMemberBtn");
+  el.guildManageCloseBtn = document.getElementById("guildManageCloseBtn");
+
+  el.itemManageModalBackdrop = document.getElementById("itemManageModalBackdrop");
+  el.itemManageTitle = document.getElementById("itemManageTitle");
+  el.itemNameHeader = document.getElementById("itemNameHeader");
+  el.itemMaxHeader = document.getElementById("itemMaxHeader");
+  el.itemManageTableBody = document.getElementById("itemManageTableBody");
+  el.addItemBtn = document.getElementById("addItemBtn");
+  el.itemManageCloseBtn = document.getElementById("itemManageCloseBtn");
+  el.importModalBackdrop = document.getElementById("importModalBackdrop");
+  el.importModalTitle = document.getElementById("importModalTitle");
+  el.importModalGuideText = document.getElementById("importModalGuideText");
+  el.importTextarea = document.getElementById("importTextarea");
+  el.importPreviewBox = document.getElementById("importPreviewBox");
+  el.importCancelBtn = document.getElementById("importCancelBtn");
+  el.importPreviewBtn = document.getElementById("importPreviewBtn");
+  el.importApplyBtn = document.getElementById("importApplyBtn");
+  el.importCloseBtn = document.getElementById("importCloseBtn");
+  el.mainCard = document.getElementById("mainCard");
+  el.mainCardTitle = document.getElementById("mainCardTitle");
+  el.mainActions = document.getElementById("mainActions");
+  el.mainTableSearch = document.getElementById("mainTableSearch");
+  el.summaryTableWrap = document.getElementById("summaryTableWrap");
+  el.distributionContent = document.getElementById("distributionContent");
+  el.historyContent = document.getElementById("historyContent");
+  el.historyHeaderActions = document.getElementById("historyHeaderActions");
+  el.historyDeleteBtn = document.getElementById("historyDeleteBtn");
+  el.historyExportBtn = document.getElementById("historyExportBtn");
+  el.historyDateInput = document.getElementById("historyDateInput");
+  el.historySortSelect = document.getElementById("historySortSelect");
+  el.historySearchBtn = document.getElementById("historySearchBtn");
+  el.historyListTableHead = document.getElementById("historyListTableHead");
+  el.historyListTableBody = document.getElementById("historyListTableBody");
+  el.historyMemberTableHead = document.getElementById("historyMemberTableHead");
+  el.historyMemberTableBody = document.getElementById("historyMemberTableBody");
+  el.historyLogTableHead = document.getElementById("historyLogTableHead");
+  el.historyLogTableBody = document.getElementById("historyLogTableBody");
+  el.historySummaryPeriod = document.getElementById("historySummaryPeriod");
+  el.historySummaryActualDiamond = document.getElementById("historySummaryActualDiamond");
+  el.historySummaryTotalPoints = document.getElementById("historySummaryTotalPoints");
+  el.historySummaryPerPoint = document.getElementById("historySummaryPerPoint");
+  el.historySummaryRemaining = document.getElementById("historySummaryRemaining");
+  el.historySavedAt = document.getElementById("historySavedAt");
+  el.historyTotalDiamond = document.getElementById("historyTotalDiamond");
+  el.historyGuildFeePercent = document.getElementById("historyGuildFeePercent");
+  el.historyGuildMasterPercent = document.getElementById("historyGuildMasterPercent");
+  el.historyManagerPercent = document.getElementById("historyManagerPercent");
+  el.bulkSaveOverlay = document.getElementById("bulkSaveOverlay");
+  el.bulkSavePercent = document.getElementById("bulkSavePercent");
+  el.bulkSaveBarFill = document.getElementById("bulkSaveBarFill");
+}
+
+function bindEvents() {
+  el.tabs.forEach((tab) => {
+    tab.addEventListener("click", async () => {
+      const nextTab = tab.dataset.tab;
+      if (nextTab === state.activeTab) return;
+
+      state.activeTab = nextTab;
+      resetOverallEditMode();
+      updateTabUi();
+
+      if (nextTab === "distribution") {
+        renderAll();
+        return;
+      }
+
+      if (nextTab === "history") {
+        await loadHistoryData();
+        renderAll();
+        return;
+      }
+
+      await loadActiveTabData();
+      renderAll();
+    });
+  });
+
+  el.searchBtn.addEventListener("click", handleSearch);
+  el.resetBtn.addEventListener("click", handleResetSearch);
+
+  el.searchInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      handleSearch();
+    }
+  });
+
+  el.bossSearchInput.addEventListener("input", handleBossSearchInput);
+  el.bossSearchInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      handleBossSearchInput();
+    }
+  });
+
+  el.searchSelectCloseBtn.addEventListener("click", closeSearchSelectModal);
+  el.searchSelectCancelBtn.addEventListener("click", closeSearchSelectModal);
+  el.searchSelectList.addEventListener("click", handleSearchSelectClick);
+
+  el.summaryTableHead.addEventListener("click", handleSummaryTableHeadClick);
+  el.summaryTableBody.addEventListener("click", handleSummaryTableClick);
+  el.summaryTableBody.addEventListener("input", handleSummaryTableInput);
+  el.historyListTableBody?.addEventListener("click", handleHistoryListClick);
+
+  el.guildManageBtn.addEventListener("click", () => openPasswordModal("guild"));
+  el.bulkEditBtn.addEventListener("click", handleBulkEditButtonClick);
+  el.bulkSaveBtn.addEventListener("click", handleBulkSaveButtonClick);
+  el.bulkCancelBtn.addEventListener("click", handleBulkCancelButtonClick);
+  el.itemManageBtn.addEventListener("click", () => openPasswordModal("item"));
+  el.importOpenBtn.addEventListener("click", () => openPasswordModal("import"));
+
+  el.passwordCancelBtn.addEventListener("click", closePasswordModal);
+  el.passwordConfirmBtn.addEventListener("click", confirmPassword);
+  el.passwordInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      confirmPassword();
+    }
+  });
+
+  el.guildManageCloseBtn.addEventListener("click", () => closeModal(el.guildManageModalBackdrop));
+  el.itemManageCloseBtn.addEventListener("click", () => closeModal(el.itemManageModalBackdrop));
+  el.importCloseBtn.addEventListener("click", closeImportModal);
+  el.importCancelBtn.addEventListener("click", closeImportModal);
+  el.importPreviewBtn.addEventListener("click", handleImportPreview);
+  el.importApplyBtn.addEventListener("click", handleImportApply);
+  el.historySearchBtn.addEventListener("click", handleHistorySearch);
+  el.historyDeleteBtn.addEventListener("click", handleHistoryDelete);
+  el.historyExportBtn.addEventListener("click", handleHistoryExport);
+
+  el.addMemberBtn.addEventListener("click", addMember);
+  el.addItemBtn.addEventListener("click", addItem);
+
+  el.guildManageTableBody.addEventListener("click", handleGuildManageTableClick);
+  el.itemManageTableBody.addEventListener("click", handleItemManageTableClick);
+
+  [el.passwordModalBackdrop, el.guildManageModalBackdrop, el.itemManageModalBackdrop, el.searchSelectModalBackdrop, el.importModalBackdrop].forEach((backdrop) => {
+    backdrop.addEventListener("click", (event) => {
+      if (event.target === backdrop) {
+        closeModal(backdrop);
+      }
+    });
+  });
+}
+
+function updateTabUi() {
+  el.tabs.forEach((tab) => {
+    const active = tab.dataset.tab === state.activeTab;
+    tab.classList.toggle("active", active);
+    tab.classList.toggle("disabled", tab.dataset.tab === "special");
+  });
+
+  const isSpecial = false;
+  const isDistribution = state.activeTab === "distribution";
+  const isHistory = state.activeTab === "history";
+  const isAccessory = state.activeTab === "accessory";
+  const isBoss = state.activeTab === "boss";
+  const isPower = state.activeTab === "power";
+
+  el.mainCard.classList.remove("hidden");
+  el.mainActions.classList.toggle("hidden", isDistribution || isHistory);
+  el.summaryTableWrap.classList.toggle("hidden", isDistribution || isHistory);
+  el.distributionContent.classList.toggle("hidden", !isDistribution);
+  el.historyContent.classList.toggle("hidden", !isHistory);
+  el.mainTableSearch.classList.toggle("hidden", isDistribution || isHistory);
+  el.historyHeaderActions.classList.toggle("hidden", !isHistory);
+
+  if (isDistribution) {
+    el.mainCardTitle.textContent = "분배";
+    el.tableGuideText.textContent = "보스로그 엑셀을 기준으로 기간 내 참여 점수를 집계하여 분배 다이아를 계산합니다.";
+  } else if (isHistory) {
+    el.mainCardTitle.textContent = "분배 이력";
+    el.tableGuideText.textContent = "저장된 분배 이력을 날짜 기준으로 조회하는 화면입니다.";
+  } else {
+    el.mainCardTitle.textContent = "전체 현황";
+  }
+
+  el.guildManageBtn.disabled = isSpecial || isDistribution || isHistory;
+  el.bulkEditBtn.disabled = isSpecial;
+  el.bulkEditBtn.classList.toggle("hidden", state.overallEditMode);
+  el.bulkSaveBtn.classList.toggle("hidden", !state.overallEditMode);
+  el.bulkCancelBtn.classList.toggle("hidden", !state.overallEditMode);
+  el.bulkSaveBtn.disabled = isSpecial || state.isBulkSaving;
+  el.bulkCancelBtn.disabled = isSpecial || state.isBulkSaving;
+  el.itemManageBtn.disabled = isSpecial || isDistribution || isPower || state.isBulkSaving;
+  el.guildManageBtn.disabled = isSpecial || isDistribution || isHistory || state.isBulkSaving;
+  el.bulkEditBtn.disabled = isSpecial || isDistribution || isHistory || state.isBulkSaving;
+  el.searchBtn.disabled = isSpecial || isDistribution || isHistory || state.isBulkSaving;
+  el.resetBtn.disabled = isSpecial || isDistribution || isHistory || state.isBulkSaving;
+  el.searchInput.disabled = isSpecial || isDistribution || isHistory || state.isBulkSaving;
+  el.bossSearchInput.disabled = !isBoss || isSpecial || isDistribution || isHistory || state.isBulkSaving;
+  el.bossSearchInput.classList.toggle("hidden", !isBoss);
+  el.itemManageBtn.classList.toggle("hidden", isPower || isDistribution || isHistory);
+  el.importOpenBtn.classList.toggle("hidden", !(state.activeTab === "mount" || state.activeTab === "boss" || state.activeTab === "accessory"));
+  el.importOpenBtn.disabled = isSpecial || isDistribution || isHistory || isPower || state.isBulkSaving;
+  el.itemManageBtn.textContent = isAccessory ? "악세사리 관리" : isBoss ? "보스컬렉 관리" : "탈것 관리";
+  el.itemManageTitle.textContent = isAccessory ? "악세사리 관리" : isBoss ? "보스컬렉 관리" : "탈것 관리";
+  el.itemNameHeader.textContent = isAccessory ? "악세사리명" : isBoss ? "보스컬렉명" : "탈것명";
+  el.itemMaxHeader.classList.toggle("hidden", !isAccessory);
+  el.addItemBtn.textContent = isAccessory ? "악세사리 추가" : isBoss ? "보스컬렉 추가" : "탈것 추가";
+}
+
+async function loadActiveTabData() {
+  if (state.activeTab === "power") {
+    await loadPowerData();
+    return;
+  }
+
+  if (state.activeTab === "accessory") {
+    await loadAccessoryData();
+    return;
+  }
+
+  if (state.activeTab === "boss") {
+    await loadBossData();
+    return;
+  }
+
+  await loadMountData();
+}
+
+async function loadPowerData() {
+  const membersRes = await supabase.from("guild_members").select("id, name, power, updated_at").order("name", { ascending: true });
+
+  if (membersRes.error) {
+    alert(`길드원 조회 중 오류가 발생했습니다.\n${membersRes.error.message}`);
+    return;
+  }
+
+  state.members = membersRes.data ?? [];
+  syncDraftState();
+}
+
+async function loadMountData() {
+  const [membersRes, itemsRes, memberMountsRes] = await Promise.all([
+    supabase.from("guild_members").select("id, name, power, updated_at").order("name", { ascending: true }),
+    supabase.from("mounts").select("id, name, display_order").order("display_order", { ascending: true }),
+    supabase.from("member_mounts").select("id, member_id, mount_id, owned, updated_at")
+  ]);
+
+  if (membersRes.error) {
+    alert(`길드원 조회 중 오류가 발생했습니다.\n${membersRes.error.message}`);
+    return;
+  }
+
+  if (itemsRes.error) {
+    alert(`탈것 조회 중 오류가 발생했습니다.\n${itemsRes.error.message}`);
+    return;
+  }
+
+  if (memberMountsRes.error) {
+    alert(`보유 정보 조회 중 오류가 발생했습니다.\n${memberMountsRes.error.message}`);
+    return;
+  }
+
+  state.members = membersRes.data ?? [];
+  state.mountItems = itemsRes.data ?? [];
+  state.memberMounts = memberMountsRes.data ?? [];
+  syncDraftState();
+}
+async function loadBossData() {
+  const [membersRes, itemsRes] = await Promise.all([
+    supabase.from("guild_members").select("id, name, power, updated_at").order("name", { ascending: true }),
+    supabase
+      .from("boss_collections")
+      .select("id, name, display_order")
+      .order("display_order", { ascending: true })
+      .order("id", { ascending: true })
+  ]);
+
+  if (membersRes.error) {
+    alert(`길드원 조회 중 오류가 발생했습니다.\n${membersRes.error.message}`);
+    return;
+  }
+
+  if (itemsRes.error) {
+    alert(`보스컬렉 조회 중 오류가 발생했습니다.\n${itemsRes.error.message}`);
+    return;
+  }
+
+  const allBossRows = [];
+  const pageSize = 1000;
+  let from = 0;
+
+  while (true) {
+    const memberBossRes = await supabase
+      .from("member_boss_collections")
+      .select("id, member_id, boss_collection_id, owned, updated_at")
+      .range(from, from + pageSize - 1);
+
+    if (memberBossRes.error) {
+      alert(`보유 정보 조회 중 오류가 발생했습니다.\n${memberBossRes.error.message}`);
+      return;
+    }
+
+    const rows = memberBossRes.data ?? [];
+    allBossRows.push(...rows);
+
+    if (rows.length < pageSize) break;
+    from += pageSize;
+  }
+
+  state.members = membersRes.data ?? [];
+  state.bossItems = itemsRes.data ?? [];
+  state.memberBossCollections = allBossRows;
+  syncDraftState();
+}
+
+async function loadAccessoryData() {
+  const [membersRes, groupsRes, memberAccessoriesRes] = await Promise.all([
+    supabase.from("guild_members").select("id, name, power, updated_at").order("name", { ascending: true }),
+    supabase.from("accessory_groups").select("id, name, display_order, max_count").order("display_order", { ascending: true }),
+    supabase.from("member_accessories").select("id, member_id, accessory_group_id, ring_count, necklace_count, earring_count, belt_count, bracelet_count, updated_at")
+  ]);
+
+  if (membersRes.error) {
+    alert(`길드원 조회 중 오류가 발생했습니다.\n${membersRes.error.message}`);
+    return;
+  }
+
+  if (groupsRes.error) {
+    alert(`악세사리 조회 중 오류가 발생했습니다.\n${groupsRes.error.message}`);
+    return;
+  }
+
+  if (memberAccessoriesRes.error) {
+    alert(`악세사리 정보 조회 중 오류가 발생했습니다.\n${memberAccessoriesRes.error.message}`);
+    return;
+  }
+
+  state.members = membersRes.data ?? [];
+  state.accessoryGroups = groupsRes.data ?? [];
+  state.memberAccessories = memberAccessoriesRes.data ?? [];
+  ensureAccessoryHiddenState();
+  syncDraftState();
+}
+
+function ensureAccessoryHiddenState() {
+  const nextHiddenMap = {};
+  state.accessoryGroups.forEach((group) => {
+    nextHiddenMap[group.id] = Boolean(state.hiddenAccessoryGroupIds[group.id]);
+  });
+  state.hiddenAccessoryGroupIds = nextHiddenMap;
+}
+
+function toggleAccessoryGroupHidden(groupId) {
+  if (state.activeTab !== "accessory") return;
+  state.hiddenAccessoryGroupIds[groupId] = !Boolean(state.hiddenAccessoryGroupIds[groupId]);
+  renderSummaryTable();
+}
+
+function handleBossSearchInput() {
+  state.bossSearchTerm = el.bossSearchInput.value.trim();
+  renderSummaryTable();
+}
+
+function handleSearch() {
+  const keyword = el.searchInput.value.trim();
+  state.searchTerm = keyword;
+
+  if (!keyword) {
+    state.selectedMemberId = null;
+    syncDraftState();
+    renderAll();
+    return;
+  }
+
+  const matchedMembers = getMatchedMembers(keyword);
+
+  if (matchedMembers.length === 0) {
+    state.selectedMemberId = null;
+    state.rowEditMemberId = null;
+    closeSearchSelectModal();
+    syncDraftState();
+    renderAll();
+    return;
+  }
+
+  if (matchedMembers.length === 1) {
+    selectMemberFromSearch(matchedMembers[0].id);
+    return;
+  }
+
+  renderSearchSelectModal(matchedMembers);
+  openModal(el.searchSelectModalBackdrop);
+}
+
+async function handleResetSearch() {
+  state.searchTerm = "";
+  state.bossSearchTerm = "";
+  state.selectedMemberId = null;
+  el.searchInput.value = "";
+  el.bossSearchInput.value = "";
+  closeSearchSelectModal();
+
+  if (state.activeTab !== "special") {
+    await loadActiveTabData();
+  } else {
+    syncDraftState();
+  }
+
+  renderAll();
+}
+
+function getMatchedMembers(keyword) {
+  const exactMatched = state.members.filter((member) => member.name === keyword);
+  if (exactMatched.length > 0) return exactMatched;
+  return state.members.filter((member) => member.name.includes(keyword));
+}
+
+function getFilteredMembers() {
+  const keyword = state.searchTerm.trim();
+  let filteredMembers;
+
+  if (!keyword) {
+    filteredMembers = [...state.members];
+  } else if (!state.selectedMemberId) {
+    const matchedMembers = getMatchedMembers(keyword);
+    filteredMembers = matchedMembers.length === 0 ? [] : [...state.members];
+  } else {
+    filteredMembers = state.members.filter((member) => member.id === state.selectedMemberId);
+  }
+
+  return sortFilteredMembers(filteredMembers);
+}
+
+function sortFilteredMembers(members) {
+  const updatedDirection = state.updatedAtSortDirection;
+  const powerDirection = state.powerSortDirection;
+
+  if (!updatedDirection && !powerDirection) return members;
+
+  return [...members].sort((left, right) => {
+    if (updatedDirection) {
+      const leftTime = getComparableUpdatedAt(left);
+      const rightTime = getComparableUpdatedAt(right);
+
+      if (leftTime !== rightTime) {
+        return updatedDirection === "asc" ? leftTime - rightTime : rightTime - leftTime;
+      }
+    }
+
+    if (powerDirection) {
+      const leftPower = Number(left.power ?? 0);
+      const rightPower = Number(right.power ?? 0);
+
+      if (leftPower !== rightPower) {
+        return powerDirection === "asc" ? leftPower - rightPower : rightPower - leftPower;
+      }
+    }
+
+    return String(left.name ?? "").localeCompare(String(right.name ?? ""), "ko");
+  });
+}
+
+function getEditableMember() {
+  if (state.overallEditMode) return null;
+  if (!state.searchTerm.trim() || !state.selectedMemberId) return null;
+  if (!state.rowEditMemberId || state.rowEditMemberId !== state.selectedMemberId) return null;
+  return state.members.find((member) => member.id === state.selectedMemberId) ?? null;
+}
+
+function syncDraftState() {
+  const editableMember = getEditableMember();
+
+  if (!editableMember) {
+    state.draftMemberId = null;
+    state.draftTab = null;
+    state.draftPower = "";
+    state.draftOwnedMap = {};
+    state.draftAccessoryMap = {};
+    return;
+  }
+
+  if (state.draftMemberId === editableMember.id && state.draftTab === state.activeTab) return;
+
+  state.draftMemberId = editableMember.id;
+  state.draftTab = state.activeTab;
+  state.draftPower = String(editableMember.power ?? 0);
+  state.draftOwnedMap = {};
+  state.draftAccessoryMap = {};
+
+  if (state.activeTab === "accessory") {
+    state.accessoryGroups.forEach((group) => {
+      const record = state.memberAccessories.find(
+        (entry) => entry.member_id === editableMember.id && String(entry.accessory_group_id) === String(group.id)
+      );
+
+      state.draftAccessoryMap[group.id] = {};
+      ACCESSORY_PARTS.forEach((part) => {
+        state.draftAccessoryMap[group.id][part.key] = Number(record?.[part.key] ?? 0);
+      });
+    });
+    return;
+  }
+
+  const simpleItems = getSimpleItems();
+  const simpleRecords = getSimpleMemberRecords();
+  const simpleItemKey = getSimpleItemForeignKey();
+
+  simpleItems.forEach((item) => {
+    const record = simpleRecords.find(
+      (entry) => entry.member_id === editableMember.id && String(entry[simpleItemKey]) === String(item.id)
+    );
+    state.draftOwnedMap[item.id] = Boolean(record?.owned);
+  });
+}
+
+function ensureDraftRow(memberId) {
+  if (!memberId) return null;
+  if (!state.draftAllRows[memberId]) {
+    const member = state.members.find((entry) => entry.id === memberId);
+    const row = { power: String(member?.power ?? 0), ownedMap: {}, accessoryMap: {} };
+
+    if (state.activeTab === "accessory") {
+      state.accessoryGroups.forEach((group) => {
+        const record = state.memberAccessories.find((entry) => entry.member_id === memberId && String(entry.accessory_group_id) === String(group.id));
+        row.accessoryMap[group.id] = {};
+        ACCESSORY_PARTS.forEach((part) => {
+          row.accessoryMap[group.id][part.key] = Number(record?.[part.key] ?? 0);
+        });
+      });
+    } else {
+      const simpleItems = getSimpleItems();
+      const simpleRecords = getSimpleMemberRecords();
+      const simpleItemKey = getSimpleItemForeignKey();
+      simpleItems.forEach((item) => {
+        const record = simpleRecords.find((entry) => entry.member_id === memberId && String(entry[simpleItemKey]) === String(item.id));
+        row.ownedMap[item.id] = Boolean(record?.owned);
+      });
+    }
+
+    state.draftAllRows[memberId] = row;
+  }
+  return state.draftAllRows[memberId];
+}
+
+function isMemberEditable(memberId) {
+  if (state.overallEditMode) return true;
+  const editableMember = getEditableMember();
+  return Boolean(editableMember && editableMember.id === memberId);
+}
+
+function getMemberDraftPower(member) {
+  if (state.overallEditMode) {
+    return ensureDraftRow(member.id)?.power ?? String(member.power ?? 0);
+  }
+  return state.draftPower;
+}
+
+function getMemberDraftOwned(memberId, itemId) {
+  if (state.overallEditMode) {
+    return Boolean(ensureDraftRow(memberId)?.ownedMap?.[itemId]);
+  }
+  return Boolean(state.draftOwnedMap[itemId]);
+}
+
+function getMemberDraftAccessory(memberId, groupId, partKey) {
+  if (state.overallEditMode) {
+    return Number(ensureDraftRow(memberId)?.accessoryMap?.[groupId]?.[partKey] ?? 0);
+  }
+  return Number(state.draftAccessoryMap[groupId]?.[partKey] ?? 0);
+}
+
+function resetOverallEditMode() {
+  state.overallEditMode = false;
+  state.draftAllRows = {};
+}
+
+function handleBulkEditButtonClick() {
+  openPasswordModal("bulk-edit");
+}
+
+async function handleBulkSaveButtonClick() {
+  await saveAllOverallEdits();
+}
+
+function handleBulkCancelButtonClick() {
+  resetOverallEditMode();
+  renderAll();
+}
+
+function setBulkSaveProgress(percent) {
+  const safePercent = Math.max(0, Math.min(100, Math.round(Number(percent) || 0)));
+  state.bulkSaveProgress = safePercent;
+  renderBulkSaveOverlay();
+}
+
+function renderBulkSaveOverlay() {
+  if (!el.bulkSaveOverlay || !el.bulkSavePercent || !el.bulkSaveBarFill) return;
+
+  el.bulkSaveOverlay.classList.toggle("hidden", !state.isBulkSaving);
+  el.bulkSavePercent.textContent = `${state.bulkSaveProgress}%`;
+  el.bulkSaveBarFill.style.width = `${state.bulkSaveProgress}%`;
+}
+
+function renderAll() {
+  updateTabUi();
+
+  if (state.activeTab === "distribution") {
+    renderDistributionTab();
+    return;
+  }
+
+  if (state.activeTab === "history") {
+    renderHistoryTab();
+    return;
+  }
+
+  syncDraftState();
+  renderGuideText();
+  renderSummaryTable();
+  renderGuildManageTable();
+  renderItemManageTable();
+  renderBulkSaveOverlay();
+}
+
+function renderGuideText() {
+  const keyword = state.searchTerm.trim();
+
+  if (state.overallEditMode) {
+    el.tableGuideText.textContent = state.activeTab === "power"
+      ? "전체수정 모드입니다. 전체 목록에서 최고 투력을 수정한 뒤 하단 저장 버튼으로 저장할 수 있습니다."
+      : state.activeTab === "accessory"
+        ? "전체수정 모드입니다. 전체 목록에서 악세사리 수량을 수정한 뒤 하단 저장 버튼으로 저장할 수 있습니다."
+        : "전체수정 모드입니다. 전체 목록에서 보유 상태를 수정한 뒤 하단 저장 버튼으로 저장할 수 있습니다.";
+    return;
+  }
+
+  if (!keyword) {
+    el.tableGuideText.textContent = "전체 목록 상태에서는 수정할 수 없습니다. 길드원을 검색해주세요.";
+    return;
+  }
+
+  if (!state.selectedMemberId) {
+    const matchedMembers = getMatchedMembers(keyword);
+    el.tableGuideText.textContent = matchedMembers.length === 0
+      ? "검색 결과가 없습니다."
+      : "검색 결과 팝업에서 길드원을 선택해주세요.";
+    return;
+  }
+
+  el.tableGuideText.textContent = state.rowEditMemberId === state.selectedMemberId
+    ? state.activeTab === "power"
+      ? "선택된 길드원 1명 수정 모드입니다. 이 행에서 최고 투력을 수정한 뒤 저장할 수 있습니다."
+      : state.activeTab === "accessory"
+        ? "선택된 길드원 1명 수정 모드입니다. 이 행에서 악세사리 수량을 수정한 뒤 저장할 수 있습니다."
+        : "선택된 길드원 1명 수정 모드입니다. 이 행에서 보유 상태를 수정한 뒤 저장할 수 있습니다."
+    : "선택된 길드원 1명만 표시됩니다. 수정 버튼에서 관리자 인증 후 수정할 수 있습니다.";
+}
+
+function renderSummaryTable() {
+  if (state.activeTab === "power") {
+    renderPowerSummaryTable();
+    return;
+  }
+
+  if (state.activeTab === "accessory") {
+    renderAccessorySummaryTable();
+    return;
+  }
+
+  if (state.activeTab === "boss") {
+    renderBossSummaryTable();
+    return;
+  }
+
+  renderMountSummaryTable();
+}
+
+function getRowActionButtonHtml(memberId, saveRole) {
+  if (state.overallEditMode) return `<span class="notice-text action-box">일괄</span>`;
+  if (state.selectedMemberId !== memberId) return `<span class="notice-text action-box">불가</span>`;
+  if (state.rowEditMemberId === memberId) return `<button class="btn btn-primary btn-sm" type="button" data-role="${saveRole}" data-member-id="${memberId}">저장</button>`;
+  return `<button class="btn btn-outline btn-sm" type="button" data-role="edit-row" data-member-id="${memberId}">수정</button>`;
+}
+
+function renderPowerSummaryTable() {
+  const powerSortText = state.powerSortDirection === "asc"
+    ? "▲"
+    : state.powerSortDirection === "desc"
+      ? "▼"
+      : "↕";
+
+  const headers = [
+    `<th>no</th>`,
+    `<th>길드원</th>`,
+    `<th class="sortable-header ${state.powerSortDirection ? "active" : ""}" data-role="power-sort-header"><span class="sort-header-inner"><span>최고 투력</span><span class="sort-indicator">${powerSortText}</span></span></th>`,
+    `<th class="save-col">저장</th>`,
+    `<th class="last-updated-col sortable-header ${state.updatedAtSortDirection ? "active" : ""}" data-role="updated-sort-header"><span class="sort-header-inner"><span class="last-updated-header-text">수정일</span><span class="sort-indicator">${getUpdatedSortText()}</span></span></th>`
+  ];
+
+  el.summaryTableHead.innerHTML = `<tr>${headers.join("")}</tr>`;
+
+  const filteredMembers = getFilteredMembers();
+
+  if (filteredMembers.length === 0) {
+    el.summaryTableBody.innerHTML = `
+      <tr>
+        <td class="empty-row" colspan="5">표시할 길드원이 없습니다.</td>
+      </tr>
+    `;
+    return;
+  }
+
+  el.summaryTableBody.innerHTML = filteredMembers.map((member, index) => {
+    const isEditable = isMemberEditable(member.id);
+    const rowClass = Number(member.power ?? 0) === 0 ? "power-zero-row" : "";
+
+    const powerCell = isEditable
+      ? `<input class="inline-power-input" type="number" min="0" step="1" data-role="power-input" data-member-id="${member.id}" value="${escapeAttr(getMemberDraftPower(member))}">`
+      : `<span class="value-box">${member.power ?? 0}</span>`;
+
+    const saveCell = getRowActionButtonHtml(member.id, "save-row-power");
+
+    const lastUpdatedCell = `<span class="last-updated-box">${formatUpdatedAt(member.updated_at)}</span>`;
+
+    return `
+      <tr class="${rowClass}">
+        <td>${index + 1}</td>
+        <td>${escapeHtml(member.name)}</td>
+        <td>${powerCell}</td>
+        <td>${saveCell}</td>
+        <td>${lastUpdatedCell}</td>
+      </tr>
+    `;
+  }).join("");
+}
+
+function renderMountSummaryTable() {
+  const powerSortText = state.powerSortDirection === "asc"
+    ? "▲"
+    : state.powerSortDirection === "desc"
+      ? "▼"
+      : "↕";
+
+  const headers = [
+    `<th>no</th>`,
+    `<th>길드원</th>`,
+    `<th class="sortable-header ${state.powerSortDirection ? "active" : ""}" data-role="power-sort-header"><span class="sort-header-inner"><span>전투력</span><span class="sort-indicator">${powerSortText}</span></span></th>`,
+    ...state.mountItems.map((item) => `<th class="item-col-header">${escapeHtml(item.name)}</th>`),
+    `<th class="save-col">저장</th>`,
+    `<th class="last-updated-col sortable-header ${state.updatedAtSortDirection ? "active" : ""}" data-role="updated-sort-header"><span class="sort-header-inner"><span class="last-updated-header-text">수정일</span><span class="sort-indicator">${getUpdatedSortText()}</span></span></th>`
+  ];
+
+  el.summaryTableHead.innerHTML = `<tr>${headers.join("")}</tr>`;
+
+  const filteredMembers = getFilteredMembers();
+
+  if (filteredMembers.length === 0) {
+    el.summaryTableBody.innerHTML = `
+      <tr>
+        <td class="empty-row" colspan="${state.mountItems.length + 5}">표시할 길드원이 없습니다.</td>
+      </tr>
+    `;
+    return;
+  }
+
+  el.summaryTableBody.innerHTML = filteredMembers.map((member, index) => {
+    const isEditable = isMemberEditable(member.id);
+    const rowClass = Number(member.power ?? 0) === 0 ? "power-zero-row" : "";
+
+    const powerCell = `<span class="value-box">${member.power ?? 0}</span>`;
+
+    const itemCells = state.mountItems.map((item) => {
+      const currentOwned = isEditable
+        ? getMemberDraftOwned(member.id, item.id)
+        : getOwnedValue(member.id, item.id);
+
+      if (isEditable) {
+        return `
+          <td>
+            <button class="toggle-single-btn ${currentOwned ? "owned" : "not-owned"}" type="button" data-role="owned-toggle" data-member-id="${member.id}" data-item-id="${item.id}">
+              ${currentOwned ? "보유" : "미보유"}
+            </button>
+          </td>
+        `;
+      }
+
+      return `<td><span class="badge ${currentOwned ? "badge-own" : "badge-not"}">${currentOwned ? "보유" : "미보유"}</span></td>`;
+    }).join("");
+
+    const saveCell = getRowActionButtonHtml(member.id, "save-row-mount");
+
+    const lastUpdatedCell = `<span class="last-updated-box">${formatUpdatedAt(getMountLatestUpdatedAt(member.id))}</span>`;
+
+    return `
+      <tr class="${rowClass}">
+        <td>${index + 1}</td>
+        <td>${escapeHtml(member.name)}</td>
+        <td>${powerCell}</td>
+        ${itemCells}
+        <td>${saveCell}</td>
+        <td>${lastUpdatedCell}</td>
+      </tr>
+    `;
+  }).join("");
+}
+
+function getFilteredBossItems() {
+  const keyword = state.bossSearchTerm.trim();
+  if (!keyword) return state.bossItems;
+  return state.bossItems.filter((item) => item.name.includes(keyword));
+}
+
+function renderBossSummaryTable() {
+  const powerSortText = state.powerSortDirection === "asc"
+    ? "▲"
+    : state.powerSortDirection === "desc"
+      ? "▼"
+      : "↕";
+
+  const filteredBossItems = getFilteredBossItems();
+
+  const headers = [
+    `<th>no</th>`,
+    `<th>길드원</th>`,
+    `<th class="sortable-header ${state.powerSortDirection ? "active" : ""}" data-role="power-sort-header"><span class="sort-header-inner"><span>전투력</span><span class="sort-indicator">${powerSortText}</span></span></th>`,
+    ...filteredBossItems.map((item) => `<th class="item-col-header">${escapeHtml(item.name)}</th>`),
+    `<th class="save-col">저장</th>`,
+    `<th class="last-updated-col sortable-header ${state.updatedAtSortDirection ? "active" : ""}" data-role="updated-sort-header"><span class="sort-header-inner"><span class="last-updated-header-text">수정일</span><span class="sort-indicator">${getUpdatedSortText()}</span></span></th>`
+  ];
+
+  el.summaryTableHead.innerHTML = `<tr>${headers.join("")}</tr>`;
+
+  const filteredMembers = getFilteredMembers();
+
+  if (filteredMembers.length === 0) {
+    el.summaryTableBody.innerHTML = `
+      <tr>
+        <td class="empty-row" colspan="${filteredBossItems.length + 5}">표시할 길드원이 없습니다.</td>
+      </tr>
+    `;
+    return;
+  }
+
+  el.summaryTableBody.innerHTML = filteredMembers.map((member, index) => {
+    const isEditable = isMemberEditable(member.id);
+    const rowClass = Number(member.power ?? 0) === 0 ? "power-zero-row" : "";
+
+    const powerCell = `<span class="value-box">${member.power ?? 0}</span>`;
+
+    const itemCells = filteredBossItems.map((item) => {
+      const currentOwned = isEditable
+        ? getMemberDraftOwned(member.id, item.id)
+        : getBossOwnedValue(member.id, item.id);
+
+      if (isEditable) {
+        return `
+          <td>
+            <button class="toggle-single-btn ${currentOwned ? "owned" : "not-owned"}" type="button" data-role="owned-toggle" data-member-id="${member.id}" data-item-id="${item.id}">
+              ${currentOwned ? "보유" : "미보유"}
+            </button>
+          </td>
+        `;
+      }
+
+      return `<td><span class="badge ${currentOwned ? "badge-own" : "badge-not"}">${currentOwned ? "보유" : "미보유"}</span></td>`;
+    }).join("");
+
+    const saveCell = getRowActionButtonHtml(member.id, "save-row-boss");
+
+    const lastUpdatedCell = `<span class="last-updated-box">${formatUpdatedAt(getBossLatestUpdatedAt(member.id))}</span>`;
+
+    return `
+      <tr class="${rowClass}">
+        <td>${index + 1}</td>
+        <td>${escapeHtml(member.name)}</td>
+        <td>${powerCell}</td>
+        ${itemCells}
+        <td>${saveCell}</td>
+        <td>${lastUpdatedCell}</td>
+      </tr>
+    `;
+  }).join("");
+}
+
+function renderAccessorySummaryTable() {
+  const powerSortText = state.powerSortDirection === "asc"
+    ? "▲"
+    : state.powerSortDirection === "desc"
+      ? "▼"
+      : "↕";
+
+  const totalAccessoryColumnCount = state.accessoryGroups.reduce((sum, group) => {
+    return sum + (state.hiddenAccessoryGroupIds[group.id] ? 1 : ACCESSORY_PARTS.length);
+  }, 0);
+
+  const topHeaders = [
+    `<th rowspan="2">no</th>`,
+    `<th rowspan="2">길드원</th>`,
+    `<th rowspan="2" class="sortable-header ${state.powerSortDirection ? "active" : ""}" data-role="power-sort-header"><span class="sort-header-inner"><span>전투력</span><span class="sort-indicator">${powerSortText}</span></span></th>`,
+    ...state.accessoryGroups.map((group) => {
+      const isHidden = Boolean(state.hiddenAccessoryGroupIds[group.id]);
+      const colSpan = isHidden ? 1 : ACCESSORY_PARTS.length;
+      const hiddenClass = isHidden ? ' is-collapsed' : '';
+      return `<th colspan="${colSpan}" class="group-header group-boundary-start group-boundary-end${hiddenClass}"><div class="group-header-inner"><span class="group-header-text">${escapeHtml(group.name)}</span><button class="group-hide-btn ${isHidden ? "is-hidden" : ""}" type="button" data-role="toggle-accessory-group-hidden" data-group-id="${group.id}">${isHidden ? "숨김해제" : "숨김"}</button></div></th>`;
+    }),
+    `<th rowspan="2" class="save-col">저장</th>`,
+    `<th rowspan="2" class="last-updated-col sortable-header ${state.updatedAtSortDirection ? "active" : ""}" data-role="updated-sort-header"><span class="sort-header-inner"><span class="last-updated-header-text">수정일</span><span class="sort-indicator">${getUpdatedSortText()}</span></span></th>`
+  ];
+
+  const subHeaders = state.accessoryGroups.flatMap((group) => {
+    const isHidden = Boolean(state.hiddenAccessoryGroupIds[group.id]);
+
+    if (isHidden) {
+      return [`<th class="accessory-sub-header accessory-collapsed-header group-boundary-start group-boundary-end">숨김</th>`];
+    }
+
+    return ACCESSORY_PARTS.map((part, partIndex) => {
+      const classes = ['accessory-sub-header'];
+      if (partIndex === 0) classes.push('group-boundary-start');
+      if (partIndex === ACCESSORY_PARTS.length - 1) classes.push('group-boundary-end');
+      return `<th class="${classes.join(' ')}">${part.label}</th>`;
+    });
+  });
+
+  el.summaryTableHead.innerHTML = `
+    <tr>${topHeaders.join("")}</tr>
+    <tr>${subHeaders.join("")}</tr>
+  `;
+
+  const filteredMembers = getFilteredMembers();
+
+  if (filteredMembers.length === 0) {
+    el.summaryTableBody.innerHTML = `
+      <tr>
+        <td class="empty-row" colspan="${totalAccessoryColumnCount + 5}">표시할 길드원이 없습니다.</td>
+      </tr>
+    `;
+    return;
+  }
+
+  el.summaryTableBody.innerHTML = filteredMembers.map((member, index) => {
+    const isEditable = isMemberEditable(member.id);
+    const rowClass = Number(member.power ?? 0) === 0 ? "power-zero-row" : "";
+
+    const powerCell = `<span class="value-box">${member.power ?? 0}</span>`;
+
+    const groupCells = state.accessoryGroups.map((group) => {
+      const record = getAccessoryRecord(member.id, group.id);
+      const isHidden = Boolean(state.hiddenAccessoryGroupIds[group.id]);
+
+      if (isHidden) {
+        return `<td class="accessory-collapsed-cell group-boundary-start group-boundary-end"${rowClass ? ` style="${getAccessoryZeroPowerCellStyle()}"` : ""}><span class="accessory-collapsed-text">숨김</span></td>`;
+      }
+
+      return ACCESSORY_PARTS.map((part, partIndex) => {
+        const maxCount = Number(group.max_count ?? 0);
+        const currentValue = isEditable
+          ? getMemberDraftAccessory(member.id, group.id, part.key)
+          : Number(record?.[part.key] ?? 0);
+        const tdClasses = ['accessory-heat-cell'];
+        if (partIndex === 0) tdClasses.push('group-boundary-start');
+        if (partIndex === ACCESSORY_PARTS.length - 1) tdClasses.push('group-boundary-end');
+        const tdClassAttr = ` class="${tdClasses.join(' ')}"`;
+        const tdStyleAttr = ` style="${rowClass ? getAccessoryZeroPowerCellStyle() : getAccessoryHeatCellStyle(currentValue, maxCount)}"`;
+
+        if (isEditable) {
+          return `
+            <td${tdClassAttr}${tdStyleAttr}>
+              <input class="inline-qty-input accessory-heat-input" type="number" min="0" max="${escapeAttr(maxCount)}" step="1" data-role="accessory-qty-input" data-member-id="${member.id}" data-group-id="${group.id}" data-part-key="${part.key}" value="${escapeAttr(currentValue)}">
+            </td>
+          `;
+        }
+
+        return `<td${tdClassAttr}${tdStyleAttr}><span class="value-box qty-box accessory-heat-value">${currentValue}</span></td>`;
+      }).join("");
+    }).join("");
+
+    const saveCell = getRowActionButtonHtml(member.id, "save-row-accessory");
+
+    const lastUpdatedCell = `<span class="last-updated-box">${formatUpdatedAt(getAccessoryLatestUpdatedAt(member.id))}</span>`;
+
+    return `
+      <tr class="${rowClass}">
+        <td>${index + 1}</td>
+        <td>${escapeHtml(member.name)}</td>
+        <td>${powerCell}</td>
+        ${groupCells}
+        <td>${saveCell}</td>
+        <td>${lastUpdatedCell}</td>
+      </tr>
+    `;
+  }).join("");
+}
+
+function renderSearchSelectModal(members) {
+  el.searchSelectGuideText.textContent = "검색 결과에서 길드원을 선택해주세요.";
+
+  if (members.length === 0) {
+    el.searchSelectList.innerHTML = '<div class="search-select-empty">검색 결과가 없습니다.</div>';
+    return;
+  }
+
+  el.searchSelectList.innerHTML = members.map((member) => `
+    <button class="search-select-item" type="button" data-role="search-select-item" data-member-id="${member.id}">
+      ${escapeHtml(member.name)}
+    </button>
+  `).join("");
+}
+
+function handleSearchSelectClick(event) {
+  const button = event.target.closest('[data-role="search-select-item"]');
+  if (!button) return;
+  selectMemberFromSearch(button.dataset.memberId);
+}
+
+function selectMemberFromSearch(memberId) {
+  const member = state.members.find((entry) => entry.id === memberId);
+  if (!member) return;
+
+  state.searchTerm = member.name;
+  state.selectedMemberId = member.id;
+  state.rowEditMemberId = null;
+  el.searchInput.value = member.name;
+  closeSearchSelectModal();
+  syncDraftState();
+  renderAll();
+}
+
+function closeSearchSelectModal() {
+  closeModal(el.searchSelectModalBackdrop);
+}
+
+function initializeDistributionState() {
+  state.distribution = {
+    activeSubtab: "mainland"
+  };
+}
+
+function renderDistributionTab() {
+  return;
+}
+
+async function loadHistoryData() {
+  const sortKey = state.history?.sortKey || "saved_desc";
+  const filterDate = String(state.history?.filterDate || "").trim();
+
+  let query = supabase
+    .from("distribution_histories")
+    .select("id, period_start, period_end, total_diamond, guild_fee_percent, guild_master_percent, manager_percent, guild_fee_amount, guild_master_amount, manager_amount, actual_diamond, total_points, diamond_per_point, remaining_diamond, workbook_name, saved_at, created_at, updated_at")
+    .limit(2000);
+
+  if (filterDate) {
+    query = query.lte("period_start", filterDate).gte("period_end", filterDate);
+  }
+
+  if (sortKey === "saved_asc") {
+    query = query.order("saved_at", { ascending: true });
+  } else if (sortKey === "period_desc") {
+    query = query.order("period_end", { ascending: false }).order("period_start", { ascending: false });
+  } else if (sortKey === "period_asc") {
+    query = query.order("period_start", { ascending: true }).order("period_end", { ascending: true });
+  } else {
+    query = query.order("saved_at", { ascending: false });
+  }
+
+  const historyRes = await query;
+  if (historyRes.error) {
+    alert(`분배 이력 조회 중 오류가 발생했습니다.
+${historyRes.error.message}`);
+    return;
+  }
+
+  const historyRows = historyRes.data ?? [];
+  const nextItems = historyRows.map((row) => ({
+    id: row.id,
+    savedAt: formatDateTime(row.saved_at),
+    startDate: row.period_start,
+    endDate: row.period_end,
+    totalDiamond: Number(row.total_diamond ?? 0),
+    guildFeePercent: Number(row.guild_fee_percent ?? 0),
+    guildMasterPercent: Number(row.guild_master_percent ?? 0),
+    managerPercent: Number(row.manager_percent ?? 0),
+    actualDiamond: Number(row.actual_diamond ?? 0),
+    totalPoints: Number(row.total_points ?? 0),
+    diamondPerPoint: Number(row.diamond_per_point ?? 0),
+    remainingDiamond: Number(row.remaining_diamond ?? 0),
+    workbookName: row.workbook_name || ""
+  }));
+
+  const visibleIds = new Set(nextItems.map((item) => item.id));
+  const nextCache = {};
+  Object.entries(state.history?.detailCache || {}).forEach(([historyId, detail]) => {
+    if (visibleIds.has(historyId)) {
+      nextCache[historyId] = detail;
+    }
+  });
+
+  state.history.items = nextItems;
+  state.history.detailCache = nextCache;
+
+  if (state.history.selectedId && !visibleIds.has(state.history.selectedId)) {
+    state.history.selectedId = null;
+  }
+}
+
+function initializeHistoryState() {
+  state.history = {
+    filterDate: "",
+    sortKey: "saved_desc",
+    selectedId: null,
+    items: [],
+    detailCache: {},
+    loadingDetailId: null
+  };
+}
+
+function renderHistoryTab() {
+  renderHistoryInputs();
+  renderHistoryListTable();
+  renderHistoryDetail();
+}
+
+function renderHistoryInputs() {
+  el.historyDateInput.value = state.history.filterDate || "";
+  el.historySortSelect.value = state.history.sortKey || "saved_desc";
+}
+
+function getFilteredHistoryItems() {
+  const filterDate = String(state.history.filterDate || "").trim();
+  const sortKey = state.history.sortKey || "saved_desc";
+  let items = [...(state.history.items || [])];
+
+  if (filterDate) {
+    items = items.filter((item) => item.startDate <= filterDate && item.endDate >= filterDate);
+  }
+
+  items.sort((left, right) => {
+    if (sortKey === "saved_asc") return String(left.savedAt).localeCompare(String(right.savedAt));
+    if (sortKey === "period_desc") return String(right.endDate).localeCompare(String(left.endDate));
+    if (sortKey === "period_asc") return String(left.startDate).localeCompare(String(right.startDate));
+    return String(right.savedAt).localeCompare(String(left.savedAt));
+  });
+
+  return items;
+}
+
+function renderHistoryListTable() {
+  el.historyListTableHead.innerHTML = `
+    <tr>
+      <th class="is-center">No</th>
+      <th>저장일시</th>
+      <th>대상 기간</th>
+      <th class="is-right">실제 분배 다이아</th>
+      <th class="is-right">전체 참여점수</th>
+      <th class="is-right">남은 다이아</th>
+    </tr>
+  `;
+
+  const items = getFilteredHistoryItems();
+  if (!items.length) {
+    el.historyListTableBody.innerHTML = `<tr><td class="distribution-empty-row" colspan="6">조회된 분배 이력이 없습니다.</td></tr>`;
+    return;
+  }
+
+  if (state.history.selectedId && !items.some((item) => item.id === state.history.selectedId)) {
+    state.history.selectedId = null;
+  }
+
+  el.historyListTableBody.innerHTML = items.map((item, index) => `
+    <tr class="${item.id === state.history.selectedId ? "history-selected-row" : ""}" data-role="history-select-row" data-history-id="${item.id}">
+      <td class="is-center">${index + 1}</td>
+      <td>${escapeHtml(item.savedAt)}</td>
+      <td>${escapeHtml(`${item.startDate} ~ ${item.endDate}`)}</td>
+      <td class="is-right">${formatNumber(item.actualDiamond)}</td>
+      <td class="is-right">${formatNumber(item.totalPoints)}</td>
+      <td class="is-right">${formatNumber(item.remainingDiamond)}</td>
+    </tr>
+  `).join("");
+}
+
+async function loadHistoryDetail(historyId, forceReload = false) {
+  const targetId = String(historyId || "").trim();
+  if (!targetId) return null;
+
+  if (!forceReload && state.history?.detailCache?.[targetId]) {
+    return state.history.detailCache[targetId];
+  }
+
+  state.history.loadingDetailId = targetId;
+  renderHistoryDetail();
+
+  const [memberRes, logRes] = await Promise.all([
+    supabase
+      .from("distribution_history_members")
+      .select("distribution_history_id, member_id, member_name, points, ratio, raw_diamond, final_diamond, note, is_retired, display_order")
+      .eq("distribution_history_id", targetId)
+      .order("display_order", { ascending: true }),
+    supabase
+      .from("distribution_history_logs")
+      .select("distribution_history_id, log_date, log_time, boss_name, cutter_name, participants_text, participants, display_order")
+      .eq("distribution_history_id", targetId)
+      .order("display_order", { ascending: true })
+  ]);
+
+  if (memberRes.error) {
+    state.history.loadingDetailId = null;
+    alert(`분배 이력 길드원 결과 조회 중 오류가 발생했습니다.
+${memberRes.error.message}`);
+    return null;
+  }
+
+  if (logRes.error) {
+    state.history.loadingDetailId = null;
+    alert(`분배 이력 보스로그 조회 중 오류가 발생했습니다.
+${logRes.error.message}`);
+    return null;
+  }
+
+  const detail = {
+    memberRows: (memberRes.data ?? []).map((row) => ({
+      memberId: row.member_id ?? null,
+      memberName: row.member_name,
+      points: Number(row.points ?? 0),
+      ratio: Number(row.ratio ?? 0),
+      rawDiamond: Number(row.raw_diamond ?? 0),
+      finalDiamond: Number(row.final_diamond ?? 0),
+      note: row.note || (row.is_retired ? "탈퇴한 길드원" : "")
+    })),
+    logRows: (logRes.data ?? []).map((row) => ({
+      date: row.log_date || "",
+      time: row.log_time || "",
+      boss: row.boss_name || "",
+      cutter: row.cutter_name || "",
+      participants: Array.isArray(row.participants)
+        ? row.participants.map((item) => String(item).trim()).filter(Boolean)
+        : String(row.participants_text || "").split(",").map((item) => item.trim()).filter(Boolean)
+    }))
+  };
+
+  state.history.detailCache[targetId] = detail;
+  if (state.history.loadingDetailId === targetId) {
+    state.history.loadingDetailId = null;
+  }
+  return detail;
+}
+
+function getSelectedHistoryDetail() {
+  const selectedId = String(state.history?.selectedId || "").trim();
+  if (!selectedId) return null;
+  return state.history?.detailCache?.[selectedId] ?? null;
+}
+
+function getSelectedHistoryItem() {
+  const items = getFilteredHistoryItems();
+  if (!state.history.selectedId) return null;
+  return items.find((item) => item.id === state.history.selectedId) || null;
+}
+
+function renderHistoryDetail() {
+  const item = getSelectedHistoryItem();
+
+  if (!item) {
+    el.historySummaryPeriod.textContent = "-";
+    el.historySummaryActualDiamond.textContent = "0";
+    el.historySummaryTotalPoints.textContent = "0";
+    el.historySummaryPerPoint.textContent = "0";
+    el.historySummaryRemaining.textContent = "0";
+    el.historySavedAt.textContent = "-";
+    el.historyTotalDiamond.textContent = "0";
+    el.historyGuildFeePercent.textContent = "0";
+    el.historyGuildMasterPercent.textContent = "0";
+    el.historyManagerPercent.textContent = "0";
+    renderHistoryMemberTable([]);
+    renderHistoryLogTable([]);
+    return;
+  }
+
+  el.historySummaryPeriod.textContent = `${item.startDate} ~ ${item.endDate}`;
+  el.historySummaryActualDiamond.textContent = formatNumber(item.actualDiamond);
+  el.historySummaryTotalPoints.textContent = formatNumber(item.totalPoints);
+  el.historySummaryPerPoint.textContent = formatDecimal(item.diamondPerPoint, 1);
+  el.historySummaryRemaining.textContent = formatNumber(item.remainingDiamond);
+  el.historySavedAt.textContent = item.savedAt;
+  el.historyTotalDiamond.textContent = formatNumber(item.totalDiamond);
+  el.historyGuildFeePercent.textContent = String(item.guildFeePercent);
+  el.historyGuildMasterPercent.textContent = String(item.guildMasterPercent);
+  el.historyManagerPercent.textContent = String(item.managerPercent);
+
+  const detail = getSelectedHistoryDetail();
+  const isLoading = state.history?.loadingDetailId === item.id && !detail;
+
+  if (isLoading) {
+    renderHistoryMemberTable(null);
+    renderHistoryLogTable(null);
+    return;
+  }
+
+  renderHistoryMemberTable(detail?.memberRows || []);
+  renderHistoryLogTable(detail?.logRows || []);
+}
+
+function renderHistoryMemberTable(rows) {
+  el.historyMemberTableHead.innerHTML = `
+    <tr>
+      <th class="is-center">No</th>
+      <th>길드원</th>
+      <th class="is-right">참여점수</th>
+      <th class="is-right">참여비율</th>
+      <th class="is-right">계산 다이아</th>
+      <th class="is-right">최종 분배 다이아</th>
+      <th>비고</th>
+    </tr>
+  `;
+
+  if (rows === null) {
+    el.historyMemberTableBody.innerHTML = `<tr><td class="distribution-empty-row" colspan="7">상세 데이터를 불러오는 중입니다.</td></tr>`;
+    return;
+  }
+
+  if (!rows.length) {
+    el.historyMemberTableBody.innerHTML = `<tr><td class="distribution-empty-row" colspan="7">표시할 길드원별 분배 결과가 없습니다.</td></tr>`;
+    return;
+  }
+
+  el.historyMemberTableBody.innerHTML = rows.map((row, index) => `
+    <tr class="${row.note === "탈퇴한 길드원" ? "distribution-retired-row" : ""}">
+      <td class="is-center">${index + 1}</td>
+      <td>${escapeHtml(row.memberName)}</td>
+      <td class="is-right">${formatNumber(row.points)}</td>
+      <td class="is-right">${formatPercent(row.ratio)}</td>
+      <td class="is-right">${formatDecimal(row.rawDiamond, 1)}</td>
+      <td class="is-right">${formatNumber(row.finalDiamond)}</td>
+      <td>${escapeHtml(row.note || "-")}</td>
+    </tr>
+  `).join("");
+}
+
+function renderHistoryLogTable(rows) {
+  el.historyLogTableHead.innerHTML = `
+    <tr>
+      <th class="is-center">No</th>
+      <th>날짜</th>
+      <th>시간</th>
+      <th>보스</th>
+      <th>컷자</th>
+      <th>참여자</th>
+    </tr>
+  `;
+
+  if (rows === null) {
+    el.historyLogTableBody.innerHTML = `<tr><td class="distribution-empty-row" colspan="6">상세 데이터를 불러오는 중입니다.</td></tr>`;
+    return;
+  }
+
+  if (!rows.length) {
+    el.historyLogTableBody.innerHTML = `<tr><td class="distribution-empty-row" colspan="6">표시할 보스로그가 없습니다.</td></tr>`;
+    return;
+  }
+
+  el.historyLogTableBody.innerHTML = rows.map((row, index) => `
+    <tr>
+      <td class="is-center">${index + 1}</td>
+      <td>${escapeHtml(row.date)}</td>
+      <td>${escapeHtml(row.time)}</td>
+      <td>${escapeHtml(row.boss)}</td>
+      <td>${escapeHtml(row.cutter)}</td>
+      <td>${escapeHtml((row.participants || []).join(", "))}</td>
+    </tr>
+  `).join("");
+}
+
+async function handleHistoryListClick(event) {
+  const row = event.target.closest('[data-role="history-select-row"]');
+  if (!row) return;
+  const historyId = row.dataset.historyId;
+  if (!historyId) return;
+
+  state.history.selectedId = historyId;
+  renderHistoryTab();
+  await loadHistoryDetail(historyId);
+  renderHistoryTab();
+}
+
+async function handleHistorySearch() {
+  state.history.filterDate = String(el.historyDateInput.value || "").trim();
+  state.history.sortKey = String(el.historySortSelect.value || "saved_desc").trim();
+  await loadHistoryData();
+  renderHistoryTab();
+}
+
+async function handleHistoryDelete() {
+  const selectedId = String(state.history?.selectedId || "").trim();
+  if (!selectedId) {
+    alert("삭제할 분배 이력을 먼저 선택해주세요.");
+    return;
+  }
+
+  const selectedItem = getSelectedHistoryItem();
+  const periodText = selectedItem ? `${selectedItem.startDate} ~ ${selectedItem.endDate}` : "선택 이력";
+  const confirmed = window.confirm(`${periodText} 분배 이력을 삭제하시겠습니까?`);
+  if (!confirmed) return;
+
+  const deleteRes = await supabase
+    .from("distribution_histories")
+    .delete()
+    .eq("id", selectedId);
+
+  if (deleteRes.error) {
+    alert(`분배 이력 삭제 중 오류가 발생했습니다.
+${deleteRes.error.message}`);
+    return;
+  }
+
+  state.history.selectedId = null;
+  delete state.history.detailCache[selectedId];
+  await loadHistoryData();
+  renderHistoryTab();
+  alert("분배 이력이 삭제되었습니다.");
+}
+
+function handleHistoryExport() {
+  alert("분배 이력 엑셀 저장 기능은 다음 단계에서 연결할 예정입니다.");
+}
+
+function renderPlaceholderTable() {
+  el.tableGuideText.textContent = "현재는 특수 탭만 준비중입니다.";
+  el.summaryTableHead.innerHTML = `
+    <tr>
+      <th>no</th>
+      <th>항목</th>
+      <th>상태</th>
+    </tr>
+  `;
+  el.summaryTableBody.innerHTML = `
+    <tr>
+      <td>1</td>
+      <td>특수</td>
+      <td>준비중</td>
+    </tr>
+  `;
+}
+
+function renderGuildManageTable() {
+  if (state.members.length === 0) {
+    el.guildManageTableBody.innerHTML = `<tr><td colspan="4">등록된 길드원이 없습니다.</td></tr>`;
+    return;
+  }
+
+  el.guildManageTableBody.innerHTML = state.members.map((member, index) => `
+    <tr>
+      <td>${index + 1}</td>
+      <td>${escapeHtml(member.name)}</td>
+      <td>${member.power ?? 0}</td>
+      <td>
+        <div class="row-actions">
+          <button class="text-btn" type="button" data-action="edit-member" data-id="${member.id}">수정</button>
+          <button class="text-btn danger" type="button" data-action="delete-member" data-id="${member.id}">삭제</button>
+        </div>
+      </td>
+    </tr>
+  `).join("");
+}
+
+function renderItemManageTable() {
+  const items = state.activeTab === "accessory" ? state.accessoryGroups : state.activeTab === "boss" ? state.bossItems : state.mountItems;
+  const emptyText = state.activeTab === "accessory" ? "등록된 악세사리가 없습니다." : state.activeTab === "boss" ? "등록된 보스컬렉이 없습니다." : "등록된 탈것이 없습니다.";
+
+  if (items.length === 0) {
+    el.itemManageTableBody.innerHTML = `<tr><td colspan="${state.activeTab === "accessory" ? 4 : 3}">${emptyText}</td></tr>`;
+    return;
+  }
+
+  el.itemManageTableBody.innerHTML = items.map((item, index) => `
+    <tr>
+      <td>${index + 1}</td>
+      <td>${escapeHtml(item.name)}</td>
+      ${state.activeTab === "accessory" ? `<td>${Number(item.max_count ?? 0)}</td>` : ""}
+      <td>
+        <div class="row-actions">
+          <button class="text-btn" type="button" data-action="edit-item" data-id="${item.id}">수정</button>
+          <button class="text-btn danger" type="button" data-action="delete-item" data-id="${item.id}">삭제</button>
+        </div>
+      </td>
+    </tr>
+  `).join("");
+}
+
+function handleSummaryTableInput(event) {
+  const target = event.target;
+
+  if (target.matches('[data-role="power-input"]')) {
+    const memberId = target.dataset.memberId;
+    if (state.overallEditMode) {
+      ensureDraftRow(memberId).power = target.value;
+    } else {
+      state.draftPower = target.value;
+    }
+    return;
+  }
+
+  if (target.matches('[data-role="accessory-qty-input"]')) {
+    const memberId = target.dataset.memberId;
+    const groupId = target.dataset.groupId;
+    const partKey = target.dataset.partKey;
+    if (!state.overallEditMode && memberId !== state.draftMemberId) return;
+
+    const group = state.accessoryGroups.find((entry) => String(entry.id) === String(groupId));
+    const maxCount = Number(group?.max_count ?? 0);
+    const value = Math.min(maxCount, Math.max(0, Math.floor(Number(target.value) || 0)));
+    if (state.overallEditMode) {
+      const draftRow = ensureDraftRow(memberId);
+      if (!draftRow.accessoryMap[groupId]) {
+        draftRow.accessoryMap[groupId] = {};
+      }
+      draftRow.accessoryMap[groupId][partKey] = value;
+    } else {
+      if (!state.draftAccessoryMap[groupId]) {
+        state.draftAccessoryMap[groupId] = {};
+      }
+      state.draftAccessoryMap[groupId][partKey] = value;
+    }
+    target.value = String(value);
+  }
+}
+
+function getUpdatedSortText() {
+  return state.updatedAtSortDirection === "asc"
+    ? "▲"
+    : state.updatedAtSortDirection === "desc"
+      ? "▼"
+      : "↕";
+}
+
+function getComparableUpdatedAt(member) {
+  const value = state.activeTab === "accessory"
+    ? getAccessoryLatestUpdatedAt(member.id)
+    : state.activeTab === "boss"
+      ? getBossLatestUpdatedAt(member.id)
+      : state.activeTab === "mount"
+        ? getMountLatestUpdatedAt(member.id)
+        : member?.updated_at;
+
+  if (!value) return -1;
+
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) ? time : -1;
+}
+
+function handleSummaryTableHeadClick(event) {
+  const hideButton = event.target.closest('[data-role="toggle-accessory-group-hidden"]');
+  if (hideButton) {
+    toggleAccessoryGroupHidden(hideButton.dataset.groupId);
+    return;
+  }
+
+  const updatedHeader = event.target.closest('[data-role="updated-sort-header"]');
+  if (updatedHeader) {
+    if (state.updatedAtSortDirection === "asc") {
+      state.updatedAtSortDirection = "desc";
+    } else if (state.updatedAtSortDirection === "desc") {
+      state.updatedAtSortDirection = null;
+    } else {
+      state.updatedAtSortDirection = "asc";
+    }
+
+    renderSummaryTable();
+    return;
+  }
+
+  const header = event.target.closest('[data-role="power-sort-header"]');
+  if (!header) return;
+
+  if (state.powerSortDirection === "asc") {
+    state.powerSortDirection = "desc";
+  } else if (state.powerSortDirection === "desc") {
+    state.powerSortDirection = null;
+  } else {
+    state.powerSortDirection = "asc";
+  }
+
+  renderSummaryTable();
+}
+
+function handleSummaryTableClick(event) {
+  const button = event.target.closest("button");
+  if (!button) return;
+
+  const role = button.dataset.role;
+
+  if (role === "owned-toggle") {
+    const memberId = button.dataset.memberId;
+    const itemId = button.dataset.itemId;
+    if (!state.overallEditMode && memberId !== state.draftMemberId) return;
+
+    if (state.overallEditMode) {
+      const draftRow = ensureDraftRow(memberId);
+      draftRow.ownedMap[itemId] = !Boolean(draftRow.ownedMap[itemId]);
+    } else {
+      state.draftOwnedMap[itemId] = !Boolean(state.draftOwnedMap[itemId]);
+    }
+    renderSummaryTable();
+    return;
+  }
+
+  if (role === "toggle-accessory-group-hidden") {
+    toggleAccessoryGroupHidden(button.dataset.groupId);
+    return;
+  }
+
+  if (role === "edit-row") {
+    openPasswordModal("row-edit", button.dataset.memberId);
+    return;
+  }
+
+  if (role === "save-row-power") {
+    savePowerEditableRow(button.dataset.memberId);
+    return;
+  }
+
+  if (role === "save-row-mount") {
+    saveMountEditableRow(button.dataset.memberId);
+    return;
+  }
+
+  if (role === "save-row-accessory") {
+    saveAccessoryEditableRow(button.dataset.memberId);
+    return;
+  }
+
+  if (role === "save-row-boss") {
+    saveBossEditableRow(button.dataset.memberId);
+  }
+}
+
+async function updateMemberPower(memberId, power, updatedAt) {
+  const updateMemberRes = await supabase
+    .from("guild_members")
+    .update({ power: Math.floor(power), updated_at: updatedAt })
+    .eq("id", memberId);
+
+  if (updateMemberRes.error) {
+    throw new Error(`전투력 저장 중 오류가 발생했습니다.\n${updateMemberRes.error.message}`);
+  }
+}
+
+async function persistPowerRow(memberId, draftRow, power) {
+  await updateMemberPower(memberId, power, new Date().toISOString());
+}
+
+async function persistMountRow(memberId, draftRow) {
+  const now = new Date().toISOString();
+
+  const upsertPayload = state.mountItems.map((item) => ({
+    member_id: memberId,
+    mount_id: item.id,
+    owned: Boolean(draftRow?.ownedMap?.[item.id]),
+    updated_at: now
+  }));
+
+  const upsertRes = await supabase
+    .from("member_mounts")
+    .upsert(upsertPayload, { onConflict: "member_id,mount_id" });
+
+  if (upsertRes.error) {
+    throw new Error(`보유 상태 저장 중 오류가 발생했습니다.\n${upsertRes.error.message}`);
+  }
+}
+
+async function persistAccessoryRow(memberId, draftRow) {
+  const now = new Date().toISOString();
+
+  const upsertPayload = state.accessoryGroups.map((group) => {
+    const maxCount = Number(group.max_count ?? 0);
+    const normalizeCount = (value) => Math.min(maxCount, Math.max(0, Math.floor(Number(value) || 0)));
+
+    return {
+      member_id: memberId,
+      accessory_group_id: group.id,
+      ring_count: normalizeCount(draftRow?.accessoryMap?.[group.id]?.ring_count),
+      necklace_count: normalizeCount(draftRow?.accessoryMap?.[group.id]?.necklace_count),
+      earring_count: normalizeCount(draftRow?.accessoryMap?.[group.id]?.earring_count),
+      belt_count: normalizeCount(draftRow?.accessoryMap?.[group.id]?.belt_count),
+      bracelet_count: normalizeCount(draftRow?.accessoryMap?.[group.id]?.bracelet_count),
+      updated_at: now
+    };
+  });
+
+  const upsertRes = await supabase
+    .from("member_accessories")
+    .upsert(upsertPayload, { onConflict: "member_id,accessory_group_id" });
+
+  if (upsertRes.error) {
+    throw new Error(`악세사리 저장 중 오류가 발생했습니다.\n${upsertRes.error.message}`);
+  }
+}
+
+async function persistBossRow(memberId, draftRow) {
+  const now = new Date().toISOString();
+
+  const upsertPayload = state.bossItems.map((item) => ({
+    member_id: memberId,
+    boss_collection_id: item.id,
+    owned: Boolean(draftRow?.ownedMap?.[item.id]),
+    updated_at: now
+  }));
+
+  const upsertRes = await supabase
+    .from("member_boss_collections")
+    .upsert(upsertPayload, { onConflict: "member_id,boss_collection_id" });
+
+  if (upsertRes.error) {
+    throw new Error(`보스컬렉 저장 중 오류가 발생했습니다.\n${upsertRes.error.message}`);
+  }
+}
+
+async function saveAllOverallEdits() {
+  if (!state.overallEditMode || state.isBulkSaving) return;
+
+  const memberIds = Object.keys(state.draftAllRows);
+  if (memberIds.length === 0) {
+    alert("저장할 변경사항이 없습니다.");
+    return;
+  }
+
+  state.isBulkSaving = true;
+  setBulkSaveProgress(0);
+  updateTabUi();
+
+  try {
+    for (let index = 0; index < memberIds.length; index += 1) {
+      const memberId = memberIds[index];
+      const draftRow = ensureDraftRow(memberId);
+      const power = Number(draftRow?.power);
+
+      if (state.activeTab === "power") {
+        if (!Number.isFinite(power) || power < 0) {
+          throw new Error("전투력을 올바르게 입력해주세요.");
+        }
+        await persistPowerRow(memberId, draftRow, power);
+      } else if (state.activeTab === "accessory") {
+        await persistAccessoryRow(memberId, draftRow);
+      } else if (state.activeTab === "boss") {
+        await persistBossRow(memberId, draftRow);
+      } else {
+        await persistMountRow(memberId, draftRow);
+      }
+
+      setBulkSaveProgress(((index + 1) / memberIds.length) * 100);
+    }
+
+    resetOverallEditMode();
+
+    if (state.activeTab === "power") {
+      await loadPowerData();
+    } else if (state.activeTab === "accessory") {
+      await loadAccessoryData();
+    } else if (state.activeTab === "boss") {
+      await loadBossData();
+    } else {
+      await loadMountData();
+    }
+
+    renderAll();
+    alert("저장되었습니다.");
+  } catch (error) {
+    alert(error.message);
+  } finally {
+    setBulkSaveProgress(100);
+    state.isBulkSaving = false;
+    renderAll();
+  }
+}
+
+async function savePowerEditableRow(memberId) {
+  if (!state.overallEditMode && memberId !== state.draftMemberId) return;
+
+  const draftRow = state.overallEditMode
+    ? ensureDraftRow(memberId)
+    : { power: state.draftPower };
+  const power = Number(draftRow?.power);
+  if (!Number.isFinite(power) || power < 0) {
+    alert("전투력을 올바르게 입력해주세요.");
+    return;
+  }
+
+  try {
+    await persistPowerRow(memberId, draftRow, power);
+  } catch (error) {
+    alert(error.message);
+    return;
+  }
+
+  if (!state.overallEditMode) {
+    resetSearchState();
+  }
+  await loadPowerData();
+  if (state.overallEditMode) {
+    state.draftAllRows = {};
+  }
+  state.rowEditMemberId = null;
+  renderAll();
+  alert("저장되었습니다.");
+}
+
+async function saveMountEditableRow(memberId) {
+  if (!state.overallEditMode && memberId !== state.draftMemberId) return;
+
+  const draftRow = state.overallEditMode
+    ? ensureDraftRow(memberId)
+    : { power: state.draftPower, ownedMap: { ...state.draftOwnedMap } };
+  try {
+    await persistMountRow(memberId, draftRow);
+  } catch (error) {
+    alert(error.message);
+    return;
+  }
+
+  if (!state.overallEditMode) {
+    resetSearchState();
+  }
+  await loadMountData();
+  if (state.overallEditMode) {
+    state.draftAllRows = {};
+  }
+  state.rowEditMemberId = null;
+  renderAll();
+  alert("저장되었습니다.");
+}
+
+async function saveAccessoryEditableRow(memberId) {
+  if (!state.overallEditMode && memberId !== state.draftMemberId) return;
+
+  const draftRow = state.overallEditMode
+    ? ensureDraftRow(memberId)
+    : { power: state.draftPower, accessoryMap: structuredClone(state.draftAccessoryMap) };
+  try {
+    await persistAccessoryRow(memberId, draftRow);
+  } catch (error) {
+    alert(error.message);
+    return;
+  }
+
+  if (!state.overallEditMode) {
+    resetSearchState();
+  }
+  await loadAccessoryData();
+  if (state.overallEditMode) {
+    state.draftAllRows = {};
+  }
+  state.rowEditMemberId = null;
+  renderAll();
+  alert("저장되었습니다.");
+}
+
+async function saveBossEditableRow(memberId) {
+  if (!state.overallEditMode && memberId !== state.draftMemberId) return;
+
+  const draftRow = state.overallEditMode
+    ? ensureDraftRow(memberId)
+    : { power: state.draftPower, ownedMap: { ...state.draftOwnedMap } };
+  try {
+    await persistBossRow(memberId, draftRow);
+  } catch (error) {
+    alert(error.message);
+    return;
+  }
+
+  if (!state.overallEditMode) {
+    resetSearchState();
+  }
+  await loadBossData();
+  if (state.overallEditMode) {
+    state.draftAllRows = {};
+  }
+  state.rowEditMemberId = null;
+  renderAll();
+  alert("저장되었습니다.");
+}
+
+function resetSearchState() {
+  state.searchTerm = "";
+  state.selectedMemberId = null;
+  state.rowEditMemberId = null;
+  state.draftTab = null;
+  el.searchInput.value = "";
+}
+
+function openPasswordModal(type, memberId = null) {
+  state.pendingManageType = type;
+  state.pendingEditMemberId = memberId;
+  el.passwordInput.value = "";
+  el.passwordErrorText.classList.add("hidden");
+  openModal(el.passwordModalBackdrop);
+  setTimeout(() => el.passwordInput.focus(), 0);
+}
+
+function closePasswordModal() {
+  state.pendingManageType = null;
+  state.pendingEditMemberId = null;
+  closeModal(el.passwordModalBackdrop);
+}
+
+function confirmPassword() {
+  if (el.passwordInput.value !== ADMIN_PASSWORD) {
+    el.passwordErrorText.classList.remove("hidden");
+    return;
+  }
+
+  closeModal(el.passwordModalBackdrop);
+  el.passwordErrorText.classList.add("hidden");
+
+  if (state.pendingManageType === "guild") {
+    openModal(el.guildManageModalBackdrop);
+  }
+
+  if (state.pendingManageType === "item") {
+    openModal(el.itemManageModalBackdrop);
+  }
+
+  if (state.pendingManageType === "bulk-edit") {
+    state.overallEditMode = true;
+    state.draftAllRows = {};
+    renderAll();
+  }
+
+  if (state.pendingManageType === "import") {
+    openImportModal();
+  }
+
+  if (state.pendingManageType === "row-edit") {
+    state.rowEditMemberId = state.pendingEditMemberId;
+    renderAll();
+  }
+
+  state.pendingManageType = null;
+  state.pendingEditMemberId = null;
+}
+
+function handleGuildManageTableClick(event) {
+  const button = event.target.closest("button[data-action]");
+  if (!button) return;
+
+  if (button.dataset.action === "edit-member") {
+    editMember(button.dataset.id);
+    return;
+  }
+
+  if (button.dataset.action === "delete-member") {
+    deleteMember(button.dataset.id);
+  }
+}
+
+function handleItemManageTableClick(event) {
+  const button = event.target.closest("button[data-action]");
+  if (!button) return;
+
+  if (button.dataset.action === "edit-item") {
+    editItem(button.dataset.id);
+    return;
+  }
+
+  if (button.dataset.action === "delete-item") {
+    deleteItem(button.dataset.id);
+  }
+}
+
+async function addMember() {
+  const nameValue = prompt("추가할 길드원명을 입력해주세요.");
+  if (nameValue === null) return;
+
+  const name = nameValue.trim();
+  if (!name) {
+    alert("길드원명을 입력해주세요.");
+    return;
+  }
+
+  if (state.members.some((member) => member.name === name)) {
+    alert("이미 존재하는 길드원명입니다.");
+    return;
+  }
+
+  const powerValue = prompt("전투력을 입력해주세요.", "0");
+  if (powerValue === null) return;
+
+  const power = Number(powerValue);
+  if (!Number.isFinite(power) || power < 0) {
+    alert("전투력을 올바르게 입력해주세요.");
+    return;
+  }
+
+  const insertRes = await supabase
+    .from("guild_members")
+    .insert({ name, power: Math.floor(power) })
+    .select("id, name, power, updated_at")
+    .single();
+
+  if (insertRes.error) {
+    alert(`길드원 추가 중 오류가 발생했습니다.\n${insertRes.error.message}`);
+    return;
+  }
+
+  const newMember = insertRes.data;
+
+  if (state.mountItems.length > 0) {
+    const now = new Date().toISOString();
+    const memberMountPayload = state.mountItems.map((item) => ({
+      member_id: newMember.id,
+      mount_id: item.id,
+      owned: false,
+      updated_at: now
+    }));
+
+    const memberMountRes = await supabase
+      .from("member_mounts")
+      .upsert(memberMountPayload, { onConflict: "member_id,mount_id" });
+
+    if (memberMountRes.error) {
+      alert(`길드원 기본 탈것 정보 생성 중 오류가 발생했습니다.\n${memberMountRes.error.message}`);
+      return;
+    }
+  }
+
+  if (state.accessoryGroups.length > 0) {
+    const now = new Date().toISOString();
+    const memberAccessoryPayload = state.accessoryGroups.map((group) => ({
+      member_id: newMember.id,
+      accessory_group_id: group.id,
+      ring_count: Number(group.max_count ?? 0),
+      necklace_count: Number(group.max_count ?? 0),
+      earring_count: Number(group.max_count ?? 0),
+      belt_count: Number(group.max_count ?? 0),
+      bracelet_count: Number(group.max_count ?? 0),
+      updated_at: now
+    }));
+
+    const memberAccessoryRes = await supabase
+      .from("member_accessories")
+      .upsert(memberAccessoryPayload, { onConflict: "member_id,accessory_group_id" });
+
+    if (memberAccessoryRes.error) {
+      alert(`길드원 기본 악세사리 정보 생성 중 오류가 발생했습니다.\n${memberAccessoryRes.error.message}`);
+      return;
+    }
+  }
+
+  if (state.bossItems.length > 0) {
+    const now = new Date().toISOString();
+    const memberBossPayload = state.bossItems.map((item) => ({
+      member_id: newMember.id,
+      boss_collection_id: item.id,
+      owned: false,
+      updated_at: now
+    }));
+
+    const memberBossRes = await supabase
+      .from("member_boss_collections")
+      .upsert(memberBossPayload, { onConflict: "member_id,boss_collection_id" });
+
+    if (memberBossRes.error) {
+      alert(`길드원 기본 보스컬렉 정보 생성 중 오류가 발생했습니다.\n${memberBossRes.error.message}`);
+      return;
+    }
+  }
+
+  await loadActiveTabData();
+  renderAll();
+}
+
+async function editMember(memberId) {
+  const member = state.members.find((entry) => entry.id === memberId);
+  if (!member) return;
+
+  const nextNameValue = prompt("길드원명을 수정해주세요.", member.name);
+  if (nextNameValue === null) return;
+
+  const nextName = nextNameValue.trim();
+  if (!nextName) {
+    alert("길드원명을 입력해주세요.");
+    return;
+  }
+
+  if (state.members.some((entry) => entry.id !== memberId && entry.name === nextName)) {
+    alert("이미 존재하는 길드원명입니다.");
+    return;
+  }
+
+  const nextPowerValue = prompt("전투력을 수정해주세요.", String(member.power ?? 0));
+  if (nextPowerValue === null) return;
+
+  const nextPower = Number(nextPowerValue);
+  if (!Number.isFinite(nextPower) || nextPower < 0) {
+    alert("전투력을 올바르게 입력해주세요.");
+    return;
+  }
+
+  const updateRes = await supabase
+    .from("guild_members")
+    .update({ name: nextName, power: Math.floor(nextPower), updated_at: new Date().toISOString() })
+    .eq("id", memberId);
+
+  if (updateRes.error) {
+    alert(`길드원 수정 중 오류가 발생했습니다.\n${updateRes.error.message}`);
+    return;
+  }
+
+  await loadActiveTabData();
+  renderAll();
+}
+
+async function deleteMember(memberId) {
+  const member = state.members.find((entry) => entry.id === memberId);
+  if (!member) return;
+
+  if (!confirm(`${member.name} 길드원을 삭제하시겠습니까?`)) return;
+
+  const deleteRes = await supabase
+    .from("guild_members")
+    .delete()
+    .eq("id", memberId);
+
+  if (deleteRes.error) {
+    alert(`길드원 삭제 중 오류가 발생했습니다.\n${deleteRes.error.message}`);
+    return;
+  }
+
+  if (state.draftMemberId === memberId) {
+    resetSearchState();
+  }
+
+  await loadActiveTabData();
+  renderAll();
+}
+
+async function addItem() {
+  if (state.activeTab === "accessory") {
+    await addAccessoryGroup();
+    return;
+  }
+
+  if (state.activeTab === "boss") {
+    await addBossItem();
+    return;
+  }
+
+  const nameValue = prompt("추가할 탈것명을 입력해주세요.");
+  if (nameValue === null) return;
+
+  const name = nameValue.trim();
+  if (!name) {
+    alert("탈것명을 입력해주세요.");
+    return;
+  }
+
+  if (state.mountItems.some((item) => item.name === name)) {
+    alert("이미 존재하는 탈것명입니다.");
+    return;
+  }
+
+  const nextDisplayOrder = state.mountItems.length === 0
+    ? 1
+    : Math.max(...state.mountItems.map((item) => Number(item.display_order ?? 0))) + 1;
+
+  const insertRes = await supabase
+    .from("mounts")
+    .insert({ name, display_order: nextDisplayOrder })
+    .select("id, name, display_order")
+    .single();
+
+  if (insertRes.error) {
+    alert(`탈것 추가 중 오류가 발생했습니다.\n${insertRes.error.message}`);
+    return;
+  }
+
+  const newItem = insertRes.data;
+
+  if (state.members.length > 0) {
+    const now = new Date().toISOString();
+    const memberMountPayload = state.members.map((member) => ({
+      member_id: member.id,
+      mount_id: newItem.id,
+      owned: false,
+      updated_at: now
+    }));
+
+    const memberMountRes = await supabase
+      .from("member_mounts")
+      .upsert(memberMountPayload, { onConflict: "member_id,mount_id" });
+
+    if (memberMountRes.error) {
+      alert(`탈것 기본 보유 정보 생성 중 오류가 발생했습니다.\n${memberMountRes.error.message}`);
+      return;
+    }
+  }
+
+  await loadMountData();
+  renderAll();
+}
+
+async function addBossItem() {
+  const nameValue = prompt("추가할 보스컬렉명을 입력해주세요.");
+  if (nameValue === null) return;
+
+  const name = nameValue.trim();
+  if (!name) {
+    alert("보스컬렉명을 입력해주세요.");
+    return;
+  }
+
+  if (state.bossItems.some((item) => item.name === name)) {
+    alert("이미 존재하는 보스컬렉명입니다.");
+    return;
+  }
+
+  const nextDisplayOrder = state.bossItems.length === 0
+    ? 1
+    : Math.max(...state.bossItems.map((item) => Number(item.display_order ?? 0))) + 1;
+
+  const insertRes = await supabase
+    .from("boss_collections")
+    .insert({ name, display_order: nextDisplayOrder, updated_at: new Date().toISOString() })
+    .select("id, name, display_order")
+    .single();
+
+  if (insertRes.error) {
+    alert(`보스컬렉 추가 중 오류가 발생했습니다.\n${insertRes.error.message}`);
+    return;
+  }
+
+  const newItem = insertRes.data;
+
+  if (state.members.length > 0) {
+    const now = new Date().toISOString();
+    const memberBossPayload = state.members.map((member) => ({
+      member_id: member.id,
+      boss_collection_id: newItem.id,
+      owned: false,
+      updated_at: now
+    }));
+
+    const memberBossRes = await supabase
+      .from("member_boss_collections")
+      .upsert(memberBossPayload, { onConflict: "member_id,boss_collection_id" });
+
+    if (memberBossRes.error) {
+      alert(`보스컬렉 기본 보유 정보 생성 중 오류가 발생했습니다.\n${memberBossRes.error.message}`);
+      return;
+    }
+  }
+
+  await loadBossData();
+  renderAll();
+}
+
+async function addAccessoryGroup() {
+  const nameValue = prompt("추가할 악세사리명을 입력해주세요.");
+  if (nameValue === null) return;
+
+  const name = nameValue.trim();
+  if (!name) {
+    alert("악세사리명을 입력해주세요.");
+    return;
+  }
+
+  const maxCountValue = prompt("최대값을 입력해주세요.", "0");
+  if (maxCountValue === null) return;
+
+  const maxCount = Math.floor(Number(maxCountValue));
+  if (!Number.isFinite(maxCount) || maxCount < 0) {
+    alert("최대값을 올바르게 입력해주세요.");
+    return;
+  }
+
+  if (state.accessoryGroups.some((item) => item.name === name)) {
+    alert("이미 존재하는 악세사리명입니다.");
+    return;
+  }
+
+  const nextDisplayOrder = state.accessoryGroups.length === 0
+    ? 1
+    : Math.max(...state.accessoryGroups.map((item) => Number(item.display_order ?? 0))) + 1;
+
+  const insertRes = await supabase
+    .from("accessory_groups")
+    .insert({ name, display_order: nextDisplayOrder, max_count: maxCount, updated_at: new Date().toISOString() })
+    .select("id, name, display_order, max_count")
+    .single();
+
+  if (insertRes.error) {
+    alert(`악세사리 추가 중 오류가 발생했습니다.\n${insertRes.error.message}`);
+    return;
+  }
+
+  const newGroup = insertRes.data;
+
+  if (state.members.length > 0) {
+    const now = new Date().toISOString();
+    const memberAccessoryPayload = state.members.map((member) => ({
+      member_id: member.id,
+      accessory_group_id: newGroup.id,
+      ring_count: Number(newGroup.max_count ?? 0),
+      necklace_count: Number(newGroup.max_count ?? 0),
+      earring_count: Number(newGroup.max_count ?? 0),
+      belt_count: Number(newGroup.max_count ?? 0),
+      bracelet_count: Number(newGroup.max_count ?? 0),
+      updated_at: now
+    }));
+
+    const memberAccessoryRes = await supabase
+      .from("member_accessories")
+      .upsert(memberAccessoryPayload, { onConflict: "member_id,accessory_group_id" });
+
+    if (memberAccessoryRes.error) {
+      alert(`악세사리 기본 수량 생성 중 오류가 발생했습니다.\n${memberAccessoryRes.error.message}`);
+      return;
+    }
+  }
+
+  await loadAccessoryData();
+  renderAll();
+}
+
+async function editItem(itemId) {
+  if (state.activeTab === "accessory") {
+    await editAccessoryGroup(itemId);
+    return;
+  }
+
+  if (state.activeTab === "boss") {
+    await editBossItem(itemId);
+    return;
+  }
+
+  const item = state.mountItems.find((entry) => String(entry.id) === String(itemId));
+  if (!item) return;
+
+  const nextNameValue = prompt("탈것명을 수정해주세요.", item.name);
+  if (nextNameValue === null) return;
+
+  const nextName = nextNameValue.trim();
+  if (!nextName) {
+    alert("탈것명을 입력해주세요.");
+    return;
+  }
+
+  if (state.mountItems.some((entry) => String(entry.id) !== String(itemId) && entry.name === nextName)) {
+    alert("이미 존재하는 탈것명입니다.");
+    return;
+  }
+
+  const updateRes = await supabase
+    .from("mounts")
+    .update({ name: nextName })
+    .eq("id", itemId);
+
+  if (updateRes.error) {
+    alert(`탈것 수정 중 오류가 발생했습니다.\n${updateRes.error.message}`);
+    return;
+  }
+
+  await loadMountData();
+  renderAll();
+}
+
+async function editBossItem(itemId) {
+  const item = state.bossItems.find((entry) => String(entry.id) === String(itemId));
+  if (!item) return;
+
+  const nextNameValue = prompt("보스컬렉명을 수정해주세요.", item.name);
+  if (nextNameValue === null) return;
+
+  const nextName = nextNameValue.trim();
+  if (!nextName) {
+    alert("보스컬렉명을 입력해주세요.");
+    return;
+  }
+
+  if (state.bossItems.some((entry) => String(entry.id) !== String(itemId) && entry.name === nextName)) {
+    alert("이미 존재하는 보스컬렉명입니다.");
+    return;
+  }
+
+  const updateRes = await supabase
+    .from("boss_collections")
+    .update({ name: nextName, updated_at: new Date().toISOString() })
+    .eq("id", itemId);
+
+  if (updateRes.error) {
+    alert(`보스컬렉 수정 중 오류가 발생했습니다.\n${updateRes.error.message}`);
+    return;
+  }
+
+  await loadBossData();
+  renderAll();
+}
+
+async function editAccessoryGroup(itemId) {
+  const item = state.accessoryGroups.find((entry) => String(entry.id) === String(itemId));
+  if (!item) return;
+
+  const nextNameValue = prompt("악세사리명을 수정해주세요.", item.name);
+  if (nextNameValue === null) return;
+
+  const nextName = nextNameValue.trim();
+  if (!nextName) {
+    alert("악세사리명을 입력해주세요.");
+    return;
+  }
+
+  const nextMaxCountValue = prompt("최대값을 수정해주세요.", String(Number(item.max_count ?? 0)));
+  if (nextMaxCountValue === null) return;
+
+  const nextMaxCount = Math.floor(Number(nextMaxCountValue));
+  if (!Number.isFinite(nextMaxCount) || nextMaxCount < 0) {
+    alert("최대값을 올바르게 입력해주세요.");
+    return;
+  }
+
+  if (state.accessoryGroups.some((entry) => String(entry.id) !== String(itemId) && entry.name === nextName)) {
+    alert("이미 존재하는 악세사리명입니다.");
+    return;
+  }
+
+  const updateRes = await supabase
+    .from("accessory_groups")
+    .update({ name: nextName, max_count: nextMaxCount, updated_at: new Date().toISOString() })
+    .eq("id", itemId);
+
+  if (updateRes.error) {
+    alert(`악세사리 수정 중 오류가 발생했습니다.\n${updateRes.error.message}`);
+    return;
+  }
+
+  await loadAccessoryData();
+  renderAll();
+}
+
+async function deleteItem(itemId) {
+  if (state.activeTab === "accessory") {
+    await deleteAccessoryGroup(itemId);
+    return;
+  }
+
+  if (state.activeTab === "boss") {
+    await deleteBossItem(itemId);
+    return;
+  }
+
+  const item = state.mountItems.find((entry) => String(entry.id) === String(itemId));
+  if (!item) return;
+
+  if (!confirm(`${item.name} 탈것을 삭제하시겠습니까?`)) return;
+
+  const deleteRes = await supabase
+    .from("mounts")
+    .delete()
+    .eq("id", itemId);
+
+  if (deleteRes.error) {
+    alert(`탈것 삭제 중 오류가 발생했습니다.\n${deleteRes.error.message}`);
+    return;
+  }
+
+  await loadMountData();
+  renderAll();
+}
+
+async function deleteBossItem(itemId) {
+  const item = state.bossItems.find((entry) => String(entry.id) === String(itemId));
+  if (!item) return;
+
+  if (!confirm(`${item.name} 보스컬렉을 삭제하시겠습니까?`)) return;
+
+  const deleteRes = await supabase
+    .from("boss_collections")
+    .delete()
+    .eq("id", itemId);
+
+  if (deleteRes.error) {
+    alert(`보스컬렉 삭제 중 오류가 발생했습니다.\n${deleteRes.error.message}`);
+    return;
+  }
+
+  await loadBossData();
+  renderAll();
+}
+
+async function deleteAccessoryGroup(itemId) {
+  const item = state.accessoryGroups.find((entry) => String(entry.id) === String(itemId));
+  if (!item) return;
+
+  if (!confirm(`${item.name} 악세사리를 삭제하시겠습니까?`)) return;
+
+  const deleteRes = await supabase
+    .from("accessory_groups")
+    .delete()
+    .eq("id", itemId);
+
+  if (deleteRes.error) {
+    alert(`악세사리 삭제 중 오류가 발생했습니다.\n${deleteRes.error.message}`);
+    return;
+  }
+
+  await loadAccessoryData();
+  renderAll();
+}
+
+function getOwnedValue(memberId, itemId) {
+  const record = state.memberMounts.find(
+    (entry) => entry.member_id === memberId && entry.mount_id === itemId
+  );
+  return Boolean(record?.owned);
+}
+
+function getMountLatestUpdatedAt(memberId) {
+  const records = state.memberMounts.filter((entry) => entry.member_id === memberId);
+  if (records.length === 0) return null;
+
+  return records.reduce((latest, current) => {
+    if (!current?.updated_at) return latest;
+    if (!latest) return current.updated_at;
+    return new Date(current.updated_at) > new Date(latest) ? current.updated_at : latest;
+  }, null);
+}
+
+function getBossOwnedValue(memberId, itemId) {
+  const record = state.memberBossCollections.find(
+    (entry) => entry.member_id === memberId && String(entry.boss_collection_id) === String(itemId)
+  );
+  return Boolean(record?.owned);
+}
+
+function getBossLatestUpdatedAt(memberId) {
+  const records = state.memberBossCollections.filter((entry) => entry.member_id === memberId);
+  if (records.length === 0) return null;
+
+  return records.reduce((latest, current) => {
+    if (!current?.updated_at) return latest;
+    if (!latest) return current.updated_at;
+    return new Date(current.updated_at) > new Date(latest) ? current.updated_at : latest;
+  }, null);
+}
+
+function getSimpleItems() {
+  return state.activeTab === "boss" ? state.bossItems : state.mountItems;
+}
+
+function getSimpleMemberRecords() {
+  return state.activeTab === "boss" ? state.memberBossCollections : state.memberMounts;
+}
+
+function getSimpleItemForeignKey() {
+  return state.activeTab === "boss" ? "boss_collection_id" : "mount_id";
+}
+
+function getAccessoryZeroPowerCellStyle() {
+  return "background-color: #fdecec;";
+}
+
+function getAccessoryZeroPowerHoverCellStyle() {
+  return "background-color: #f9dede;";
+}
+
+function getAccessoryHeatCellStyle(value, maxCount) {
+  const safeMax = Math.max(Number(maxCount ?? 0), 0);
+  const safeValue = Math.max(0, Math.min(Number(value ?? 0), safeMax));
+
+  if (safeMax <= 0 || safeValue <= 0) {
+    return "background-color: #ffffff;";
+  }
+
+  const ratio = safeValue / safeMax;
+  const saturation = 75;
+  const lightness = 97 - (ratio * 14);
+
+  return `background-color: hsl(215 ${saturation}% ${lightness}%);`;
+}
+
+function getAccessoryRecord(memberId, groupId) {
+  return state.memberAccessories.find(
+    (entry) => entry.member_id === memberId && String(entry.accessory_group_id) === String(groupId)
+  ) ?? null;
+}
+
+function getAccessoryLatestUpdatedAt(memberId) {
+  const records = state.memberAccessories.filter((entry) => entry.member_id === memberId);
+  if (records.length === 0) return null;
+
+  return records.reduce((latest, current) => {
+    if (!latest) return current.updated_at;
+    return new Date(current.updated_at) > new Date(latest) ? current.updated_at : latest;
+  }, null);
+}
+
+function openModal(backdrop) {
+  backdrop.classList.remove("hidden");
+}
+
+function closeModal(backdrop) {
+  backdrop.classList.add("hidden");
+}
+
+function formatUpdatedAt(value) {
+  if (!value) return "-";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${month}/${day}`;
+}
+
+function formatDateTime(value) {
+  if (!value) return "-";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hour = String(date.getHours()).padStart(2, "0");
+  const minute = String(date.getMinutes()).padStart(2, "0");
+  const second = String(date.getSeconds()).padStart(2, "0");
+  return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function escapeAttr(value) {
+  return escapeHtml(value);
+}
+
+function openImportModal() {
+  state.importPreview = null;
+  const isBoss = state.activeTab === "boss";
+  const isAccessory = state.activeTab === "accessory";
+  el.importModalTitle.textContent = isAccessory
+    ? "악세사리 초기값 붙여넣기"
+    : isBoss
+      ? "보스컬렉 초기값 붙여넣기"
+      : "탈것 초기값 붙여넣기";
+  el.importModalGuideText.textContent = isAccessory
+    ? "첫 줄에 헤더를 포함해서 붙여넣어주세요. 첫 칸은 이름, 나머지 칸은 그룹명_부위명입니다."
+    : isBoss
+      ? "첫 줄에 헤더를 포함해서 붙여넣어주세요. 첫 칸은 이름, 나머지 칸은 보스컬렉명입니다."
+      : "첫 줄에 헤더를 포함해서 붙여넣어주세요. 첫 칸은 이름, 나머지 칸은 탈것명입니다.";
+  el.importTextarea.value = "";
+  el.importPreviewBox.textContent = "미리보기를 누르면 반영 예정 내용을 보여드립니다.";
+  el.importApplyBtn.disabled = true;
+  openModal(el.importModalBackdrop);
+  setTimeout(() => el.importTextarea.focus(), 0);
+}
+
+function closeImportModal() {
+  state.importPreview = null;
+  el.importApplyBtn.disabled = true;
+  closeModal(el.importModalBackdrop);
+}
+
+function getImportTargetConfig() {
+  if (state.activeTab === "accessory") {
+    return {
+      tabLabel: "악세사리",
+      tableName: "member_accessories",
+      conflictKey: "member_id,accessory_group_id"
+    };
+  }
+
+  if (state.activeTab === "boss") {
+    return {
+      tabLabel: "보스컬렉",
+      items: state.bossItems,
+      conflictKey: "member_id,boss_collection_id",
+      makeRow: (memberId, itemId) => ({
+        member_id: memberId,
+        boss_collection_id: itemId,
+        owned: true
+      }),
+      applyOwned: (row, owned) => {
+        row.owned = owned;
+        row.updated_at = new Date().toISOString();
+      },
+      tableName: "member_boss_collections"
+    };
+  }
+
+  return {
+    tabLabel: "탈것",
+    items: state.mountItems,
+    conflictKey: "member_id,mount_id",
+    makeRow: (memberId, itemId) => ({
+      member_id: memberId,
+      mount_id: itemId,
+      owned: true
+    }),
+    applyOwned: (row, owned) => {
+      row.owned = owned;
+    },
+    tableName: "member_mounts"
+  };
+}
+
+function parseImportOwnedValue(rawValue) {
+  const value = String(rawValue ?? "").trim();
+  if (!value) return { kind: "blank" };
+
+  const normalized = value.toLowerCase();
+  if (["1", "true", "보유", "o", "y"].includes(normalized)) return { kind: "value", owned: true };
+  if (["0", "false", "미보유", "x", "n"].includes(normalized)) return { kind: "value", owned: false };
+  return { kind: "invalid", value };
+}
+
+function parseImportAccessoryHeader(headerValue) {
+  const raw = String(headerValue ?? "").trim();
+  if (!raw) return null;
+
+  const separators = ["_", "-", "/", ":", " "];
+  for (const separator of separators) {
+    const lastIndex = raw.lastIndexOf(separator);
+    if (lastIndex <= 0 || lastIndex >= raw.length - 1) continue;
+
+    const groupName = raw.slice(0, lastIndex).trim();
+    const partLabel = raw.slice(lastIndex + 1).trim();
+    if (!groupName || !partLabel) continue;
+
+    const part = ACCESSORY_PARTS.find((entry) => entry.label === partLabel);
+    if (!part) continue;
+
+    return {
+      groupName,
+      partKey: part.key,
+      partLabel: part.label
+    };
+  }
+
+  return null;
+}
+
+function parseImportAccessoryValue(rawValue) {
+  const value = String(rawValue ?? "").trim();
+  if (!value) return { kind: "blank" };
+
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < 0) {
+    return { kind: "invalid", value };
+  }
+
+  return {
+    kind: "value",
+    count: Math.max(0, Math.floor(number))
+  };
+}
+
+function buildImportPreview() {
+  if (!(state.activeTab === "mount" || state.activeTab === "boss" || state.activeTab === "accessory")) {
+    throw new Error("탈것, 악세사리 또는 보스컬렉 탭에서만 사용할 수 있습니다.");
+  }
+
+  const raw = String(el.importTextarea.value ?? "").split("\r").join("").trim();
+  if (!raw) {
+    throw new Error("붙여넣을 데이터를 입력해주세요.");
+  }
+
+  const rows = raw.split("\n").map((line) => line.split("\t"));
+  if (rows.length < 2) {
+    throw new Error("헤더 포함 2줄 이상 데이터를 붙여넣어주세요.");
+  }
+
+  const config = getImportTargetConfig();
+  const headerRow = rows[0].map((value) => String(value ?? "").trim());
+  const memberMap = new Map(state.members.map((member) => [member.name.trim(), member]));
+
+  if (state.activeTab === "accessory") {
+    const groupMap = new Map(state.accessoryGroups.map((group) => [group.name.trim(), group]));
+    const headerInfos = [];
+    const unknownHeaders = [];
+
+    for (let colIndex = 1; colIndex < headerRow.length; colIndex += 1) {
+      const headerName = headerRow[colIndex];
+      if (!headerName) {
+        headerInfos.push(null);
+        continue;
+      }
+
+      const parsedHeader = parseImportAccessoryHeader(headerName);
+      if (!parsedHeader) {
+        unknownHeaders.push(headerName);
+        headerInfos.push(null);
+        continue;
+      }
+
+      const group = groupMap.get(parsedHeader.groupName);
+      if (!group) {
+        unknownHeaders.push(headerName);
+        headerInfos.push(null);
+        continue;
+      }
+
+      headerInfos.push({
+        headerName,
+        groupId: group.id,
+        groupName: group.name,
+        partKey: parsedHeader.partKey,
+        maxCount: Number(group.max_count ?? 0)
+      });
+    }
+
+    const unknownMembers = new Set();
+    const invalidValues = [];
+    const appliedMap = new Map();
+
+    for (let rowIndex = 1; rowIndex < rows.length; rowIndex += 1) {
+      const row = rows[rowIndex];
+      const memberName = String(row[0] ?? "").trim();
+      if (!memberName) continue;
+
+      const member = memberMap.get(memberName);
+      if (!member) {
+        unknownMembers.add(memberName);
+        continue;
+      }
+
+      for (let colIndex = 1; colIndex < headerRow.length; colIndex += 1) {
+        const headerInfo = headerInfos[colIndex - 1];
+        if (!headerInfo) continue;
+
+        const parsedValue = parseImportAccessoryValue(row[colIndex] ?? "");
+        if (parsedValue.kind === "blank") continue;
+        if (parsedValue.kind === "invalid") {
+          invalidValues.push(`${memberName} / ${headerInfo.headerName} / ${parsedValue.value}`);
+          continue;
+        }
+
+        const key = `${member.id}__${headerInfo.groupId}`;
+        const existing = appliedMap.get(key) ?? {
+          member_id: member.id,
+          accessory_group_id: headerInfo.groupId
+        };
+
+        existing[headerInfo.partKey] = Math.min(headerInfo.maxCount, parsedValue.count);
+        appliedMap.set(key, existing);
+      }
+    }
+
+    return {
+      tableName: config.tableName,
+      conflictKey: config.conflictKey,
+      updates: Array.from(appliedMap.values()),
+      summaryText: [
+        `${config.tabLabel} 초기값 미리보기`,
+        `반영 예정 행 수: ${appliedMap.size}건`,
+        `없는 헤더 수: ${unknownHeaders.length}건`,
+        `없는 길드원 수: ${unknownMembers.size}건`,
+        `잘못된 값 수: ${invalidValues.length}건`,
+        unknownHeaders.length ? `없는 헤더: ${unknownHeaders.join(", ")}` : "",
+        unknownMembers.size ? `없는 길드원: ${Array.from(unknownMembers).join(", ")}` : "",
+        invalidValues.length ? `잘못된 값 예시: ${invalidValues.slice(0, 10).join(" | ")}` : ""
+      ].filter(Boolean).join("\n")
+    };
+  }
+
+  const itemMap = new Map(config.items.map((item) => [item.name.trim(), item]));
+  const unknownHeaders = [];
+  const headerItems = [];
+  for (let colIndex = 1; colIndex < headerRow.length; colIndex += 1) {
+    const headerName = headerRow[colIndex];
+    if (!headerName) {
+      headerItems.push(null);
+      continue;
+    }
+
+    const item = itemMap.get(headerName) ?? null;
+    if (!item) unknownHeaders.push(headerName);
+    headerItems.push(item);
+  }
+
+  const unknownMembers = new Set();
+  const invalidValues = [];
+  const appliedMap = new Map();
+
+  for (let rowIndex = 1; rowIndex < rows.length; rowIndex += 1) {
+    const row = rows[rowIndex];
+    const memberName = String(row[0] ?? "").trim();
+    if (!memberName) continue;
+
+    const member = memberMap.get(memberName);
+    if (!member) {
+      unknownMembers.add(memberName);
+      continue;
+    }
+
+    for (let colIndex = 1; colIndex < headerRow.length; colIndex += 1) {
+      const item = headerItems[colIndex - 1];
+      if (!item) continue;
+
+      const parsed = parseImportOwnedValue(row[colIndex] ?? "");
+      if (parsed.kind === "blank") continue;
+      if (parsed.kind === "invalid") {
+        invalidValues.push(`${memberName} / ${headerRow[colIndex]} / ${parsed.value}`);
+        continue;
+      }
+
+      const key = `${member.id}__${item.id}`;
+      const targetRow = config.makeRow(member.id, item.id);
+      config.applyOwned(targetRow, parsed.owned);
+      appliedMap.set(key, targetRow);
+    }
+  }
+
+  return {
+    tableName: config.tableName,
+    conflictKey: config.conflictKey,
+    updates: Array.from(appliedMap.values()),
+    summaryText: [
+      `${config.tabLabel} 초기값 미리보기`,
+      `반영 예정 셀 수: ${appliedMap.size}건`,
+      `없는 항목 수: ${unknownHeaders.length}건`,
+      `없는 길드원 수: ${unknownMembers.size}건`,
+      `잘못된 값 수: ${invalidValues.length}건`,
+      unknownHeaders.length ? `없는 항목: ${unknownHeaders.join(", ")}` : "",
+      unknownMembers.size ? `없는 길드원: ${Array.from(unknownMembers).join(", ")}` : "",
+      invalidValues.length ? `잘못된 값 예시: ${invalidValues.slice(0, 10).join(" | ")}` : ""
+    ].filter(Boolean).join("\n")
+  };
+}
+
+function handleImportPreview() {
+  try {
+    const preview = buildImportPreview();
+    state.importPreview = preview;
+    el.importPreviewBox.textContent = preview.summaryText;
+    el.importApplyBtn.disabled = preview.updates.length === 0;
+    if (preview.updates.length === 0) {
+      el.importPreviewBox.textContent += "\n\n반영할 데이터가 없습니다.";
+    }
+  } catch (error) {
+    state.importPreview = null;
+    el.importApplyBtn.disabled = true;
+    el.importPreviewBox.textContent = error.message;
+  }
+}
+
+async function handleImportApply() {
+  if (!state.importPreview || state.importPreview.updates.length === 0) {
+    alert("먼저 미리보기를 확인해주세요.");
+    return;
+  }
+
+  try {
+    const res = await supabase
+      .from(state.importPreview.tableName)
+      .upsert(state.importPreview.updates, { onConflict: state.importPreview.conflictKey });
+
+    if (res.error) {
+      throw new Error(`초기값 저장 중 오류가 발생했습니다.\n${res.error.message}`);
+    }
+
+    closeImportModal();
+    await loadActiveTabData();
+    renderAll();
+    alert("초기값이 저장되었습니다.");
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+function bindNewDistributionUi() {
+  const root = document.querySelector('.newdist-root');
+  if (!root) return;
+
+  const subtabs = Array.from(root.querySelectorAll('.newdist-subtab'));
+  const panels = {
+    mainland: document.getElementById('newdistPanelMainland'),
+    world: document.getElementById('newdistPanelWorld')
+  };
+
+  subtabs.forEach((tab) => {
+    tab.addEventListener('click', () => {
+      subtabs.forEach((btn) => btn.classList.remove('active'));
+      Object.values(panels).forEach((panel) => panel?.classList.remove('active'));
+      tab.classList.add('active');
+      const key = tab.dataset.newdistTab;
+      panels[key]?.classList.add('active');
+    });
+  });
+
+  const bossModal = document.getElementById('newdistBossManageModal');
+  const nameModal = document.getElementById('newdistNameRuleModal');
+  const logModal = document.getElementById('newdistLogEditModal');
+  const logCurrent = document.getElementById('newdistLogEditCurrent');
+  const logEdited = document.getElementById('newdistLogEditEdited');
+  document.getElementById('newdistOpenBossManageBtn')?.addEventListener('click', () => bossModal?.classList.add('open'));
+  document.getElementById('newdistOpenNameRuleBtn')?.addEventListener('click', () => nameModal?.classList.add('open'));
+
+  root.querySelectorAll('.newdist-log-edit-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (logCurrent) logCurrent.value = btn.dataset.current || '';
+      if (logEdited) logEdited.value = btn.dataset.edited || '';
+      logModal?.classList.add('open');
+    });
+  });
+
+  root.querySelectorAll('[data-newdist-close]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.getElementById(btn.dataset.newdistClose)?.classList.remove('open');
+    });
+  });
+
+  [bossModal, nameModal, logModal].forEach((modal) => {
+    modal?.addEventListener('click', (event) => {
+      if (event.target === modal) modal.classList.remove('open');
+    });
+  });
+}
+
+function createNewDistributionDeductionItem(name = "", type = "percent", value = "") {
+  return {
+    id: `ded-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    name,
+    type: type === "amount" ? "amount" : "percent",
+    value: String(value ?? "")
+  };
+}
+
+function createNewDistributionBossRule(name = "", score = 1, group = "mainland") {
+  return {
+    id: `boss-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    name,
+    score: Math.max(1, Math.floor(Number(score) || 1)),
+    group: group === "world" ? "world" : "mainland"
+  };
+}
+
+function createNewDistributionNameRule(source = "", target = "") {
+  return {
+    id: `name-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    source,
+    target
+  };
+}
+
+function createEmptyNewDistributionGroupState(defaultRows = []) {
+  return {
+    deductions: defaultRows.map((row) => createNewDistributionDeductionItem(row.name, row.type, row.value)),
+    logs: [],
+    resultRows: [],
+    summary: {
+      assignedDiamond: 0,
+      deductionTotal: 0,
+      actualDiamond: 0,
+      totalPoints: 0,
+      diamondPerPoint: 0,
+      remainingDiamond: 0
+    }
+  };
+}
+
+function createEmptyDistributionState() {
+  return {
+    totalDiamond: "",
+    mainlandRatio: "70",
+    worldRatio: "30",
+    workbookName: "",
+    workbookLoaded: false,
+    loadStatus: "대기",
+    rawRows: [],
+    activeSubtab: "mainland",
+    bossRules: [],
+    nameRules: [],
+    logEditTarget: null,
+    mainland: createEmptyNewDistributionGroupState([
+      { name: "길드운영비", type: "percent", value: "0" },
+      { name: "길드장", type: "percent", value: "0" },
+      { name: "총무비", type: "percent", value: "0" }
+    ]),
+    world: createEmptyNewDistributionGroupState([
+      { name: "길드운영비", type: "percent", value: "0" },
+      { name: "길드장", type: "percent", value: "0" },
+      { name: "총무비", type: "percent", value: "0" }
+    ])
+  };
+}
+
+function initializeDistributionState() {
+  state.distribution = createEmptyDistributionState();
+}
+
+function bindNewDistributionUi() {
+  const root = document.querySelector('.newdist-root');
+  if (!root) return;
+
+  const subtabs = Array.from(root.querySelectorAll('.newdist-subtab'));
+  const panels = {
+    mainland: document.getElementById('newdistPanelMainland'),
+    world: document.getElementById('newdistPanelWorld')
+  };
+
+  subtabs.forEach((tab) => {
+    tab.addEventListener('click', () => {
+      const key = tab.dataset.newdistTab === 'world' ? 'world' : 'mainland';
+      state.distribution.activeSubtab = key;
+      subtabs.forEach((btn) => btn.classList.toggle('active', btn === tab));
+      Object.entries(panels).forEach(([panelKey, panel]) => panel?.classList.toggle('active', panelKey === key));
+    });
+  });
+
+  document.getElementById('newdistTotalDiamondInput')?.addEventListener('input', (event) => {
+    state.distribution.totalDiamond = String(event.target.value ?? '').trim();
+    renderDistributionTab();
+  });
+  document.getElementById('newdistMainlandRatioInput')?.addEventListener('input', (event) => {
+    state.distribution.mainlandRatio = String(event.target.value ?? '').trim();
+    renderDistributionTab();
+  });
+  document.getElementById('newdistWorldRatioInput')?.addEventListener('input', (event) => {
+    state.distribution.worldRatio = String(event.target.value ?? '').trim();
+    renderDistributionTab();
+  });
+
+  document.getElementById('newdistResetBtn')?.addEventListener('click', () => {
+    state.distribution = createEmptyDistributionState();
+    const fileInput = document.getElementById('newdistFileInput');
+    if (fileInput) fileInput.value = '';
+    renderDistributionTab();
+  });
+
+  document.getElementById('newdistLoadBtn')?.addEventListener('click', handleNewDistributionLoad);
+  document.getElementById('newdistMainlandCalcBtn')?.addEventListener('click', () => handleNewDistributionCalculate('mainland'));
+  document.getElementById('newdistWorldCalcBtn')?.addEventListener('click', () => handleNewDistributionCalculate('world'));
+  document.getElementById('newdistMainlandRefreshBtn')?.addEventListener('click', () => refreshNewDistributionLogs('mainland', true));
+  document.getElementById('newdistWorldRefreshBtn')?.addEventListener('click', () => refreshNewDistributionLogs('world', true));
+  document.getElementById('newdistMainlandResetBtn')?.addEventListener('click', () => resetNewDistributionGroupResult('mainland'));
+  document.getElementById('newdistWorldResetBtn')?.addEventListener('click', () => resetNewDistributionGroupResult('world'));
+  document.getElementById('newdistMainlandAddDeductionBtn')?.addEventListener('click', () => addNewDistributionDeduction('mainland'));
+  document.getElementById('newdistWorldAddDeductionBtn')?.addEventListener('click', () => addNewDistributionDeduction('world'));
+
+  document.getElementById('newdistOpenBossManageBtn')?.addEventListener('click', () => {
+    renderNewDistributionBossRules();
+    document.getElementById('newdistBossManageModal')?.classList.add('open');
+  });
+  document.getElementById('newdistOpenNameRuleBtn')?.addEventListener('click', () => {
+    renderNewDistributionNameRules();
+    document.getElementById('newdistNameRuleModal')?.classList.add('open');
+  });
+
+  document.getElementById('newdistBossAddBtn')?.addEventListener('click', () => {
+    state.distribution.bossRules.push(createNewDistributionBossRule());
+    renderNewDistributionBossRules();
+  });
+  document.getElementById('newdistBossSaveBtn')?.addEventListener('click', () => {
+    if (!syncNewDistributionBossRulesFromDom()) return;
+    document.getElementById('newdistBossManageModal')?.classList.remove('open');
+    rebuildNewDistributionLogs(false);
+    renderDistributionTab();
+  });
+
+  document.getElementById('newdistNameRuleAddBtn')?.addEventListener('click', () => {
+    state.distribution.nameRules.push(createNewDistributionNameRule());
+    renderNewDistributionNameRules();
+  });
+  document.getElementById('newdistNameRuleSaveBtn')?.addEventListener('click', () => {
+    syncNewDistributionNameRulesFromDom();
+    document.getElementById('newdistNameRuleModal')?.classList.remove('open');
+    rebuildNewDistributionLogs(false);
+    renderDistributionTab();
+  });
+
+  document.getElementById('newdistBossManageBody')?.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-role="newdist-delete-boss"]');
+    if (!button) return;
+    state.distribution.bossRules = state.distribution.bossRules.filter((rule) => rule.id !== button.dataset.id);
+    renderNewDistributionBossRules();
+  });
+
+  document.getElementById('newdistNameRuleBody')?.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-role="newdist-delete-name-rule"]');
+    if (!button) return;
+    state.distribution.nameRules = state.distribution.nameRules.filter((rule) => rule.id !== button.dataset.id);
+    renderNewDistributionNameRules();
+  });
+
+  document.getElementById('newdistMainlandDeductionBody')?.addEventListener('input', (event) => handleNewDistributionDeductionInput(event, 'mainland'));
+  document.getElementById('newdistMainlandDeductionBody')?.addEventListener('click', (event) => handleNewDistributionDeductionClick(event, 'mainland'));
+  document.getElementById('newdistWorldDeductionBody')?.addEventListener('input', (event) => handleNewDistributionDeductionInput(event, 'world'));
+  document.getElementById('newdistWorldDeductionBody')?.addEventListener('click', (event) => handleNewDistributionDeductionClick(event, 'world'));
+
+  ['mainland', 'world'].forEach((groupKey) => {
+    document.getElementById(groupKey === 'mainland' ? 'newdistMainlandLogBody' : 'newdistWorldLogBody')?.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-role="newdist-edit-log"]');
+      if (!button) return;
+      openNewDistributionLogEdit(groupKey, button.dataset.logId);
+    });
+  });
+
+  document.getElementById('newdistLogEditApplyBtn')?.addEventListener('click', applyNewDistributionLogEdit);
+
+  root.querySelectorAll('[data-newdist-close]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.getElementById(btn.dataset.newdistClose)?.classList.remove('open');
+    });
+  });
+
+  ['newdistBossManageModal', 'newdistNameRuleModal', 'newdistLogEditModal'].forEach((id) => {
+    document.getElementById(id)?.addEventListener('click', (event) => {
+      if (event.target.id === id) event.target.classList.remove('open');
+    });
+  });
+}
+
+async function ensureDistributionMembersLoaded() {
+  const membersRes = await supabase.from('guild_members').select('id, name, power, updated_at').order('name', { ascending: true });
+  if (membersRes.error) {
+    throw new Error(`길드원 조회 중 오류가 발생했습니다.\n${membersRes.error.message}`);
+  }
+  state.members = membersRes.data ?? [];
+}
+
+async function handleNewDistributionLoad() {
+  try {
+    await ensureDistributionMembersLoaded();
+    const workbookRows = await readNewDistributionWorkbookRows();
+    state.distribution.workbookName = document.getElementById('newdistFileInput')?.files?.[0]?.name ?? '';
+    state.distribution.rawRows = workbookRows;
+    state.distribution.workbookLoaded = true;
+    rebuildNewDistributionLogs(true);
+    resetNewDistributionGroupResult('mainland', false);
+    resetNewDistributionGroupResult('world', false);
+    renderDistributionTab();
+    alert('엑셀 로드가 완료되었습니다.');
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+async function readNewDistributionWorkbookRows() {
+  const file = document.getElementById('newdistFileInput')?.files?.[0];
+  if (!file) {
+    throw new Error('보스로그 엑셀 파일을 선택해주세요.');
+  }
+  if (typeof XLSX === 'undefined') {
+    throw new Error('엑셀 처리 기능을 사용할 수 없습니다.');
+  }
+
+  const buffer = await file.arrayBuffer();
+  const workbook = XLSX.read(buffer, { type: 'array' });
+  const sheet = workbook.Sheets['보스로그'];
+  if (!sheet) {
+    throw new Error('보스로그 시트를 찾을 수 없습니다.');
+  }
+
+  const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+  return rows
+    .map((row, index) => normalizeNewDistributionLogRow(row, index))
+    .filter((row) => row.date || row.time || row.boss || row.cutter || row.rawParticipants.length > 0);
+}
+
+function normalizeNewDistributionLogRow(row, index) {
+  const rawParticipants = String(row['참여자'] ?? '')
+    .split(',')
+    .map((name) => String(name).trim())
+    .filter(Boolean);
+
+  return {
+    id: `log-${index + 1}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    date: normalizeDistributionDate(row['날짜']),
+    time: normalizeDistributionTime(row['시간']),
+    boss: String(row['보스'] ?? '').trim(),
+    cutter: String(row['컷자'] ?? '').trim(),
+    rawParticipants,
+    editedParticipantsText: ''
+  };
+}
+
+function rebuildNewDistributionLogs(resetStatus) {
+  const distribution = state.distribution;
+  const bossRuleMap = new Map(
+    (distribution.bossRules || [])
+      .map((rule) => [String(rule.name ?? '').trim(), rule])
+      .filter(([name]) => Boolean(name))
+  );
+
+  const mainlandLogs = [];
+  const worldLogs = [];
+  let unknownBossCount = 0;
+
+  (distribution.rawRows || []).forEach((row) => {
+    const bossRule = bossRuleMap.get(String(row.boss ?? '').trim());
+    if (!bossRule) {
+      unknownBossCount += 1;
+      return;
+    }
+
+    const workParticipants = getNewDistributionWorkParticipants(row);
+    const nextRow = {
+      ...row,
+      workParticipants,
+      score: Math.max(1, Math.floor(Number(bossRule.score) || 1)),
+      group: bossRule.group === 'world' ? 'world' : 'mainland'
+    };
+
+    if (nextRow.group === 'world') {
+      worldLogs.push(nextRow);
+    } else {
+      mainlandLogs.push(nextRow);
+    }
+  });
+
+  distribution.mainland.logs = mainlandLogs;
+  distribution.world.logs = worldLogs;
+
+  if (resetStatus || !distribution.workbookLoaded) {
+    distribution.loadStatus = '대기';
+  } else {
+    distribution.loadStatus = unknownBossCount > 0
+      ? `로드 완료 (${unknownBossCount}건 미분류)`
+      : '로드 완료';
+  }
+
+  if (distribution.workbookLoaded && resetStatus) {
+    distribution.loadStatus = unknownBossCount > 0
+      ? `로드 완료 (${unknownBossCount}건 미분류)`
+      : '로드 완료';
+  }
+}
+
+function getNewDistributionWorkParticipants(row) {
+  const baseParticipants = String(row.editedParticipantsText || '').trim()
+    ? String(row.editedParticipantsText).split(',').map((name) => name.trim()).filter(Boolean)
+    : [...(row.rawParticipants || [])];
+
+  return baseParticipants.map((name) => applyNewDistributionNameRules(name)).filter(Boolean);
+}
+
+function applyNewDistributionNameRules(name) {
+  let current = String(name ?? '').trim();
+  if (!current) return '';
+  const rules = state.distribution.nameRules || [];
+  const visited = new Set();
+
+  while (true) {
+    if (visited.has(current)) break;
+    visited.add(current);
+    const rule = rules.find((entry) => String(entry.source ?? '').trim() === current && String(entry.target ?? '').trim());
+    if (!rule) break;
+    current = String(rule.target ?? '').trim();
+  }
+
+  return current;
+}
+
+function addNewDistributionDeduction(groupKey) {
+  state.distribution[groupKey].deductions.push(createNewDistributionDeductionItem());
+  renderDistributionTab();
+}
+
+function handleNewDistributionDeductionInput(event, groupKey) {
+  const row = event.target.closest('[data-deduction-id]');
+  if (!row) return;
+  const deductionId = row.dataset.deductionId;
+  const item = state.distribution[groupKey].deductions.find((entry) => entry.id === deductionId);
+  if (!item) return;
+
+  if (event.target.matches('[data-role="newdist-deduction-name"]')) {
+    item.name = String(event.target.value ?? '');
+  } else if (event.target.matches('[data-role="newdist-deduction-type"]')) {
+    item.type = event.target.value === 'amount' ? 'amount' : 'percent';
+  } else if (event.target.matches('[data-role="newdist-deduction-value"]')) {
+    item.value = String(event.target.value ?? '');
+  }
+
+  renderDistributionTab();
+}
+
+function handleNewDistributionDeductionClick(event, groupKey) {
+  const button = event.target.closest('[data-role="newdist-delete-deduction"]');
+  if (!button) return;
+  state.distribution[groupKey].deductions = state.distribution[groupKey].deductions.filter((entry) => entry.id !== button.dataset.id);
+  renderDistributionTab();
+}
+
+function calculateNewDistributionAssignedDiamonds() {
+  const totalDiamond = normalizeNonNegativeNumber(state.distribution.totalDiamond, '총 분배 다이아를 올바르게 입력해주세요.');
+  const mainlandRatio = normalizeDistributionRatio(state.distribution.mainlandRatio, '본토 비율을 올바르게 입력해주세요.');
+  const worldRatio = normalizeDistributionRatio(state.distribution.worldRatio, '월드 비율을 올바르게 입력해주세요.');
+
+  if (Math.abs((mainlandRatio + worldRatio) - 100) > 0.0001) {
+    throw new Error('본토 비율과 월드 비율의 합은 100이어야 합니다.');
+  }
+
+  const mainlandAssigned = Math.floor(totalDiamond * (mainlandRatio / 100));
+  const worldAssigned = totalDiamond - mainlandAssigned;
+
+  return {
+    totalDiamond,
+    mainlandRatio,
+    worldRatio,
+    mainlandAssigned,
+    worldAssigned
+  };
+}
+
+function normalizeDistributionRatio(value, errorMessage) {
+  const text = String(value ?? '').trim();
+  const number = Number(text);
+  if (!Number.isFinite(number) || number < 0 || number > 100) {
+    throw new Error(errorMessage);
+  }
+  return number;
+}
+
+function calculateNewDistributionDeductionAmount(assignedDiamond, item) {
+  const value = normalizeDistributionDeductionValue(item.value, item.name || '공제 항목');
+  if (item.type === 'amount') return Math.floor(value);
+  return Math.floor(assignedDiamond * (value / 100));
+}
+
+function calculateNewDistributionGroupSummary(groupKey) {
+  const assigned = calculateNewDistributionAssignedDiamonds();
+  const group = state.distribution[groupKey];
+  const assignedDiamond = groupKey === 'world' ? assigned.worldAssigned : assigned.mainlandAssigned;
+  const deductionTotal = group.deductions.reduce((sum, item) => sum + calculateNewDistributionDeductionAmount(assignedDiamond, item), 0);
+  const actualDiamond = assignedDiamond - deductionTotal;
+  if (actualDiamond < 0) {
+    throw new Error(`${groupKey === 'world' ? '월드' : '본토'} 공제 합계가 배정 금액보다 클 수 없습니다.`);
+  }
+
+  return {
+    assignedDiamond,
+    deductionTotal,
+    actualDiamond
+  };
+}
+
+function refreshNewDistributionLogs(groupKey, showAlert) {
+  if (!state.distribution.workbookLoaded) {
+    alert('먼저 엑셀을 로드해주세요.');
+    return;
+  }
+  rebuildNewDistributionLogs(false);
+  resetNewDistributionGroupResult(groupKey, false);
+  renderDistributionTab();
+  if (showAlert) {
+    alert(`${groupKey === 'world' ? '월드' : '본토'} 작업로그를 새로고침했습니다.`);
+  }
+}
+
+function resetNewDistributionGroupResult(groupKey, shouldRender = true) {
+  state.distribution[groupKey].resultRows = [];
+  state.distribution[groupKey].summary = {
+    assignedDiamond: 0,
+    deductionTotal: 0,
+    actualDiamond: 0,
+    totalPoints: 0,
+    diamondPerPoint: 0,
+    remainingDiamond: 0
+  };
+  if (shouldRender) renderDistributionTab();
+}
+
+async function handleNewDistributionCalculate(groupKey) {
+  try {
+    await ensureDistributionMembersLoaded();
+    if (!state.distribution.workbookLoaded) {
+      throw new Error('먼저 엑셀을 로드해주세요.');
+    }
+
+    rebuildNewDistributionLogs(false);
+    const groupCalc = calculateNewDistributionGroupSummary(groupKey);
+    const logs = state.distribution[groupKey].logs || [];
+    const activeMemberNameSet = new Set((state.members || []).map((member) => String(member.name ?? '').trim()).filter(Boolean));
+    const pointMap = new Map();
+
+    logs.forEach((log) => {
+      const score = Math.max(1, Math.floor(Number(log.score) || 1));
+      (log.workParticipants || []).forEach((memberName) => {
+        pointMap.set(memberName, (pointMap.get(memberName) ?? 0) + score);
+      });
+    });
+
+    const entries = Array.from(pointMap.entries()).map(([memberName, points]) => ({
+      memberName,
+      points,
+      isRetired: !activeMemberNameSet.has(memberName)
+    }));
+
+    const totalPoints = entries.filter((entry) => !entry.isRetired).reduce((sum, entry) => sum + entry.points, 0);
+    const diamondPerPoint = totalPoints > 0 ? groupCalc.actualDiamond / totalPoints : 0;
+    const resultRows = entries.map((entry) => {
+      const rawDiamond = entry.isRetired ? 0 : entry.points * diamondPerPoint;
+      return {
+        memberName: entry.memberName,
+        points: entry.points,
+        ratio: totalPoints > 0 && !entry.isRetired ? entry.points / totalPoints : 0,
+        rawDiamond,
+        finalDiamond: Math.floor(rawDiamond),
+        note: entry.isRetired ? '탈퇴한 길드원' : ''
+      };
+    }).sort((left, right) => {
+      if (left.note && !right.note) return 1;
+      if (!left.note && right.note) return -1;
+      if (right.points !== left.points) return right.points - left.points;
+      return left.memberName.localeCompare(right.memberName, 'ko');
+    });
+
+    const distributedDiamond = resultRows.reduce((sum, row) => sum + row.finalDiamond, 0);
+    state.distribution[groupKey].resultRows = resultRows;
+    state.distribution[groupKey].summary = {
+      assignedDiamond: groupCalc.assignedDiamond,
+      deductionTotal: groupCalc.deductionTotal,
+      actualDiamond: groupCalc.actualDiamond,
+      totalPoints,
+      diamondPerPoint,
+      remainingDiamond: groupCalc.actualDiamond - distributedDiamond
+    };
+
+    renderDistributionTab();
+    alert(`${groupKey === 'world' ? '월드' : '본토'} 계산이 완료되었습니다.`);
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+function openNewDistributionLogEdit(groupKey, logId) {
+  const log = state.distribution[groupKey].logs.find((entry) => entry.id === logId);
+  if (!log) return;
+  state.distribution.logEditTarget = { groupKey, logId };
+  const currentEl = document.getElementById('newdistLogEditCurrent');
+  const editedEl = document.getElementById('newdistLogEditEdited');
+  if (currentEl) currentEl.value = (log.workParticipants || []).join(', ');
+  if (editedEl) editedEl.value = String(log.editedParticipantsText || '');
+  document.getElementById('newdistLogEditModal')?.classList.add('open');
+}
+
+function applyNewDistributionLogEdit() {
+  const target = state.distribution.logEditTarget;
+  if (!target) return;
+  const log = state.distribution[target.groupKey].logs.find((entry) => entry.id === target.logId);
+  if (!log) return;
+  log.editedParticipantsText = String(document.getElementById('newdistLogEditEdited')?.value ?? '').trim();
+
+  const rawLog = state.distribution.rawRows.find((entry) => entry.id === target.logId);
+  if (rawLog) {
+    rawLog.editedParticipantsText = log.editedParticipantsText;
+  }
+
+  rebuildNewDistributionLogs(false);
+  resetNewDistributionGroupResult(target.groupKey, false);
+  state.distribution.logEditTarget = null;
+  document.getElementById('newdistLogEditModal')?.classList.remove('open');
+  renderDistributionTab();
+}
+
+function syncNewDistributionBossRulesFromDom() {
+  const rows = Array.from(document.querySelectorAll('#newdistBossManageBody tr[data-boss-id]'));
+  const nextRules = [];
+
+  for (const row of rows) {
+    const id = row.dataset.bossId;
+    const name = String(row.querySelector('[data-role="newdist-boss-name"]')?.value ?? '').trim();
+    const score = Math.max(1, Math.floor(Number(row.querySelector('[data-role="newdist-boss-score"]')?.value) || 1));
+    const group = row.querySelector('[data-role="newdist-boss-group"]')?.value === 'world' ? 'world' : 'mainland';
+    if (!name) continue;
+    if (nextRules.some((rule) => rule.name === name)) {
+      alert('분배 보스명은 중복될 수 없습니다.');
+      return false;
+    }
+    nextRules.push({ id, name, score, group });
+  }
+
+  state.distribution.bossRules = nextRules;
+  return true;
+}
+
+function syncNewDistributionNameRulesFromDom() {
+  const rows = Array.from(document.querySelectorAll('#newdistNameRuleBody tr[data-name-rule-id]'));
+  state.distribution.nameRules = rows.map((row) => ({
+    id: row.dataset.nameRuleId,
+    source: String(row.querySelector('[data-role="newdist-name-source"]')?.value ?? '').trim(),
+    target: String(row.querySelector('[data-role="newdist-name-target"]')?.value ?? '').trim()
+  })).filter((row) => row.source && row.target);
+}
+
+function renderNewDistributionBossRules() {
+  const body = document.getElementById('newdistBossManageBody');
+  if (!body) return;
+  const rows = state.distribution.bossRules || [];
+  if (!rows.length) {
+    body.innerHTML = '<tr><td class="center" colspan="5">등록된 분배 보스가 없습니다.</td></tr>';
+    return;
+  }
+  body.innerHTML = rows.map((row, index) => `
+    <tr data-boss-id="${escapeAttr(row.id)}">
+      <td class="center">${index + 1}</td>
+      <td><input class="newdist-input-sm" type="text" data-role="newdist-boss-name" value="${escapeAttr(row.name)}"></td>
+      <td class="right"><input class="newdist-input-sm" type="number" min="1" step="1" data-role="newdist-boss-score" value="${escapeAttr(row.score)}"></td>
+      <td class="center"><select class="newdist-select-sm" data-role="newdist-boss-group"><option value="mainland" ${row.group !== 'world' ? 'selected' : ''}>본토</option><option value="world" ${row.group === 'world' ? 'selected' : ''}>월드</option></select></td>
+      <td class="center"><button class="btn btn-outline" type="button" data-role="newdist-delete-boss" data-id="${escapeAttr(row.id)}">삭제</button></td>
+    </tr>
+  `).join('');
+}
+
+function renderNewDistributionNameRules() {
+  const body = document.getElementById('newdistNameRuleBody');
+  if (!body) return;
+  const rows = state.distribution.nameRules || [];
+  if (!rows.length) {
+    body.innerHTML = '<tr><td class="center" colspan="4">등록된 이름 정리 규칙이 없습니다.</td></tr>';
+    return;
+  }
+  body.innerHTML = rows.map((row, index) => `
+    <tr data-name-rule-id="${escapeAttr(row.id)}">
+      <td class="center">${index + 1}</td>
+      <td><input class="newdist-input-sm" type="text" data-role="newdist-name-source" value="${escapeAttr(row.source)}"></td>
+      <td><input class="newdist-input-sm" type="text" data-role="newdist-name-target" value="${escapeAttr(row.target)}"></td>
+      <td class="center"><button class="btn btn-outline" type="button" data-role="newdist-delete-name-rule" data-id="${escapeAttr(row.id)}">삭제</button></td>
+    </tr>
+  `).join('');
+}
+
+function renderDistributionTab() {
+  renderNewDistributionCommon();
+  renderNewDistributionGroup('mainland');
+  renderNewDistributionGroup('world');
+}
+
+function renderNewDistributionCommon() {
+  const distribution = state.distribution;
+  const totalEl = document.getElementById('newdistTotalDiamondInput');
+  const mainlandRatioEl = document.getElementById('newdistMainlandRatioInput');
+  const worldRatioEl = document.getElementById('newdistWorldRatioInput');
+  if (totalEl) totalEl.value = distribution.totalDiamond;
+  if (mainlandRatioEl) mainlandRatioEl.value = distribution.mainlandRatio;
+  if (worldRatioEl) worldRatioEl.value = distribution.worldRatio;
+
+  let totalDiamond = 0;
+  let mainlandAssigned = 0;
+  let worldAssigned = 0;
+  try {
+    const assigned = calculateNewDistributionAssignedDiamonds();
+    totalDiamond = assigned.totalDiamond;
+    mainlandAssigned = assigned.mainlandAssigned;
+    worldAssigned = assigned.worldAssigned;
+  } catch (_) {}
+
+  const setText = (id, value) => {
+    const target = document.getElementById(id);
+    if (target) target.textContent = value;
+  };
+
+  setText('newdistSummaryTotalDiamond', formatNumber(totalDiamond));
+  setText('newdistSummaryMainlandAssigned', formatNumber(mainlandAssigned));
+  setText('newdistSummaryWorldAssigned', formatNumber(worldAssigned));
+  setText('newdistSummaryLoadStatus', distribution.loadStatus || '대기');
+}
+
+function renderNewDistributionGroup(groupKey) {
+  const group = state.distribution[groupKey];
+  const prefix = groupKey === 'world' ? 'newdistWorld' : 'newdistMainland';
+  let calcSummary = {
+    assignedDiamond: 0,
+    deductionTotal: 0,
+    actualDiamond: 0
+  };
+  try {
+    calcSummary = calculateNewDistributionGroupSummary(groupKey);
+  } catch (_) {}
+
+  const summary = group.resultRows.length ? group.summary : {
+    ...calcSummary,
+    totalPoints: 0,
+    diamondPerPoint: 0,
+    remainingDiamond: 0
+  };
+
+  const setText = (suffix, value) => {
+    const elTarget = document.getElementById(`${prefix}${suffix}`);
+    if (elTarget) elTarget.textContent = value;
+  };
+
+  setText('Assigned', formatNumber(calcSummary.assignedDiamond));
+  setText('DeductionTotal', formatNumber(calcSummary.deductionTotal));
+  setText('ActualDiamond', formatNumber(calcSummary.actualDiamond));
+  setText('TotalPoints', formatNumber(summary.totalPoints));
+  setText('PerPoint', summary.totalPoints > 0 ? formatDecimal(summary.diamondPerPoint, 1) : '0');
+  setText('Remaining', formatNumber(summary.remainingDiamond));
+  setText('DeductionChip', formatNumber(calcSummary.deductionTotal));
+  setText('ActualChip', formatNumber(calcSummary.actualDiamond));
+
+  renderNewDistributionDeductionRows(groupKey);
+  renderNewDistributionLogs(groupKey);
+  renderNewDistributionResultRows(groupKey);
+}
+
+function renderNewDistributionDeductionRows(groupKey) {
+  const body = document.getElementById(groupKey === 'world' ? 'newdistWorldDeductionBody' : 'newdistMainlandDeductionBody');
+  if (!body) return;
+  const group = state.distribution[groupKey];
+  let assignedDiamond = 0;
+  try {
+    assignedDiamond = calculateNewDistributionGroupSummary(groupKey).assignedDiamond;
+  } catch (_) {}
+
+  if (!group.deductions.length) {
+    body.innerHTML = '<tr><td colspan="5" class="center">등록된 공제 항목이 없습니다.</td></tr>';
+    return;
+  }
+
+  body.innerHTML = group.deductions.map((item) => `
+    <tr data-deduction-id="${escapeAttr(item.id)}">
+      <td><input class="newdist-input-sm" type="text" data-role="newdist-deduction-name" value="${escapeAttr(item.name)}"></td>
+      <td><select class="newdist-select-sm" data-role="newdist-deduction-type"><option value="percent" ${item.type !== 'amount' ? 'selected' : ''}>%</option><option value="amount" ${item.type === 'amount' ? 'selected' : ''}>직접금액</option></select></td>
+      <td><input class="newdist-input-sm" type="number" min="0" step="0.01" data-role="newdist-deduction-value" value="${escapeAttr(item.value)}"></td>
+      <td class="right">${formatNumber(calculateNewDistributionDeductionAmount(assignedDiamond, item))}</td>
+      <td class="center"><button class="btn btn-outline" type="button" data-role="newdist-delete-deduction" data-id="${escapeAttr(item.id)}">삭제</button></td>
+    </tr>
+  `).join('');
+}
+
+function renderNewDistributionLogs(groupKey) {
+  const body = document.getElementById(groupKey === 'world' ? 'newdistWorldLogBody' : 'newdistMainlandLogBody');
+  if (!body) return;
+  const logs = state.distribution[groupKey].logs || [];
+  if (!logs.length) {
+    body.innerHTML = '<tr><td class="center" colspan="9">표시할 작업 로그가 없습니다.</td></tr>';
+    return;
+  }
+
+  body.innerHTML = logs.map((log, index) => `
+    <tr>
+      <td class="center">${index + 1}</td>
+      <td>${escapeHtml(log.date || '-')}</td>
+      <td>${escapeHtml(log.time || '-')}</td>
+      <td>${escapeHtml(log.boss || '-')}</td>
+      <td class="center"><span class="newdist-badge ${groupKey === 'world' ? 'newdist-badge-world' : 'newdist-badge-mainland'}">${groupKey === 'world' ? '월드' : '본토'}</span></td>
+      <td>${escapeHtml(log.cutter || '-')}</td>
+      <td>${escapeHtml((log.rawParticipants || []).join(', ')) || '-'}</td>
+      <td>${escapeHtml((log.workParticipants || []).join(', ')) || '-'}</td>
+      <td class="center"><button class="btn btn-outline" type="button" data-role="newdist-edit-log" data-log-id="${escapeAttr(log.id)}">수정</button></td>
+    </tr>
+  `).join('');
+}
+
+function renderNewDistributionResultRows(groupKey) {
+  const body = document.getElementById(groupKey === 'world' ? 'newdistWorldResultBody' : 'newdistMainlandResultBody');
+  if (!body) return;
+  const rows = state.distribution[groupKey].resultRows || [];
+  if (!rows.length) {
+    body.innerHTML = '<tr><td class="center" colspan="7">계산된 결과가 없습니다.</td></tr>';
+    return;
+  }
+
+  body.innerHTML = rows.map((row, index) => `
+    <tr class="${row.note === '탈퇴한 길드원' ? 'newdist-danger-soft' : ''}">
+      <td class="center">${index + 1}</td>
+      <td>${escapeHtml(row.memberName)}</td>
+      <td class="right">${formatNumber(row.points)}</td>
+      <td class="right">${formatPercent(row.ratio)}</td>
+      <td class="right">${formatDecimal(row.rawDiamond, 1)}</td>
+      <td class="right">${formatNumber(row.finalDiamond)}</td>
+      <td>${escapeHtml(row.note || '-')}</td>
+    </tr>
+  `).join('');
+}

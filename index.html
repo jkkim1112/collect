@@ -26,7 +26,6 @@
         <button class="tab" type="button" data-tab="history">분배 이력</button>
       </div>
 
-
     </section>
 
     <section class="card" id="mainCard">
@@ -44,10 +43,6 @@
           <input type="text" id="searchInput" placeholder="길드원 검색">
           <button class="btn btn-dark btn-icon" id="searchBtn" type="button" aria-label="검색" title="검색">🔍</button>
           <button class="btn btn-gray" id="resetBtn" type="button">새로고침</button>
-        </div>
-        <div class="distribution-header-actions hidden" id="distributionHeaderActions" style="display:none;">
-          <button class="btn btn-gray" id="distributionSaveBtn" type="button">엑셀 저장</button>
-          <button class="btn btn-primary" id="distributionFinalSaveBtn" type="button">최종 저장</button>
         </div>
         <div class="history-header-actions hidden" id="historyHeaderActions">
           <button class="btn btn-gray" id="historyDeleteBtn" type="button">이력 삭제</button>
@@ -185,161 +180,6 @@
   <div class="newdist-modal-backdrop" id="newdistNameRuleModal"><div class="newdist-modal"><div class="newdist-modal-head"><h3 class="newdist-modal-title">참여자 이름 정리</h3><button class="newdist-close-btn" type="button" data-newdist-close="newdistNameRuleModal">×</button></div><div class="newdist-modal-body"><div class="newdist-actions"><button class="btn btn-outline" type="button">규칙 추가</button><button class="btn btn-primary" type="button">저장</button></div><div class="newdist-table-wrap"><table class="newdist-table"><thead><tr><th class="center">No</th><th>원본 이름</th><th>통합 이름</th><th class="center">관리</th></tr></thead><tbody><tr><td class="center">1</td><td>김김김2</td><td><input class="newdist-input-sm" type="text" value="김김김1"></td><td class="center"><button class="btn btn-outline" type="button">삭제</button></td></tr><tr><td class="center">2</td><td>김김김_부캐</td><td><input class="newdist-input-sm" type="text" value="김김김1"></td><td class="center"><button class="btn btn-outline" type="button">삭제</button></td></tr></tbody></table></div></div></div></div>
   <div class="newdist-modal-backdrop" id="newdistLogEditModal"><div class="newdist-modal"><div class="newdist-modal-head"><h3 class="newdist-modal-title">로그 예외 수정</h3><button class="newdist-close-btn" type="button" data-newdist-close="newdistLogEditModal">×</button></div><div class="newdist-modal-body"><div class="newdist-editor-grid"><div class="newdist-field"><label>현재 작업 참여자</label><textarea class="newdist-control" id="newdistLogEditCurrent" readonly></textarea></div><div class="newdist-field"><label>예외 수정 참여자</label><textarea class="newdist-control" id="newdistLogEditEdited"></textarea></div></div><div class="newdist-actions"><button class="btn btn-gray" type="button" data-newdist-close="newdistLogEditModal">취소</button><button class="btn btn-primary" type="button">적용</button></div></div></div></div>
 </div>
-<div class="hidden" id="legacyDistributionContent">
-<div class="distribution-section">
-          <h3 class="distribution-section-title">공제 설정</h3>
-          <div class="distribution-total-row">
-            <div class="distribution-field distribution-total-field">
-              <label for="distributionTotalDiamondInput">총 분배 다이아</label>
-              <input type="number" id="distributionTotalDiamondInput" min="0" step="1" placeholder="총 분배 다이아를 입력해주세요">
-            </div>
-            <div class="distribution-button-row distribution-deduction-button-row">
-              <button class="btn btn-primary" id="distributionDeductionCalcBtn" type="button">공제 계산</button>
-            </div>
-          </div>
-          <div class="distribution-deduction-table-wrap">
-            <table class="distribution-deduction-table">
-              <thead>
-                <tr>
-                  <th>항목</th>
-                  <th>공제 방식</th>
-                  <th>값 입력</th>
-                  <th class="is-right">공제금액</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>길드운영비</td>
-                  <td>
-                    <select id="distributionGuildFeeTypeInput" class="distribution-deduction-select">
-                      <option value="percent">%</option>
-                      <option value="amount">직접금액</option>
-                    </select>
-                  </td>
-                  <td>
-                    <input type="number" id="distributionGuildFeeValueInput" class="distribution-deduction-input" min="0" step="0.01" placeholder="0">
-                  </td>
-                  <td class="is-right"><span id="distributionGuildFeeAmount">0</span></td>
-                </tr>
-                <tr>
-                  <td>길드장</td>
-                  <td>
-                    <select id="distributionGuildMasterTypeInput" class="distribution-deduction-select">
-                      <option value="percent">%</option>
-                      <option value="amount">직접금액</option>
-                    </select>
-                  </td>
-                  <td>
-                    <input type="number" id="distributionGuildMasterValueInput" class="distribution-deduction-input" min="0" step="0.01" placeholder="0">
-                  </td>
-                  <td class="is-right"><span id="distributionGuildMasterAmount">0</span></td>
-                </tr>
-                <tr>
-                  <td>총무비</td>
-                  <td>
-                    <select id="distributionManagerTypeInput" class="distribution-deduction-select">
-                      <option value="percent">%</option>
-                      <option value="amount">직접금액</option>
-                    </select>
-                  </td>
-                  <td>
-                    <input type="number" id="distributionManagerValueInput" class="distribution-deduction-input" min="0" step="0.01" placeholder="0">
-                  </td>
-                  <td class="is-right"><span id="distributionManagerAmount">0</span></td>
-                </tr>
-                <tr class="distribution-deduction-total-row">
-                  <td colspan="3">실제 분배 다이아</td>
-                  <td class="is-right"><span class="distribution-deduction-total-value" id="distributionActualDiamondAmount">0</span></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="distribution-section">
-          <h3 class="distribution-section-title">분배 조건</h3>
-          <div class="distribution-main-grid">
-            <div class="distribution-field">
-              <label for="distributionStartDateInput">시작일</label>
-              <input type="date" id="distributionStartDateInput">
-            </div>
-            <div class="distribution-field">
-              <label for="distributionEndDateInput">종료일</label>
-              <input type="date" id="distributionEndDateInput">
-            </div>
-            <div class="distribution-field">
-              <label for="distributionFileInput">보스로그 엑셀 파일</label>
-              <input type="file" id="distributionFileInput" accept=".xlsx,.xls,.csv">
-            </div>
-            <div class="distribution-button-row">
-              <button class="btn btn-primary" id="distributionCalculateBtn" type="button">계산</button>
-            </div>
-            <div class="distribution-button-row">
-              <button class="btn btn-gray" id="distributionResetBtn" type="button">초기화</button>
-            </div>
-          </div>
-          <p class="distribution-muted">기간은 날짜 컬럼 기준으로 적용하며, 참여자 1명당 1점으로 계산합니다.</p>
-        </div>
-
-
-        <div class="distribution-section">
-          <h3 class="distribution-section-title">보스 점수 설정</h3>
-          <p class="distribution-muted">엑셀 파일을 선택하면 보스 목록이 표시됩니다. 기본 점수는 1점이며, 특정 보스만 다른 점수로 변경할 수 있습니다.</p>
-          <div class="distribution-table-wrap distribution-boss-point-table-wrap">
-            <table class="distribution-table distribution-boss-point-table">
-              <thead id="distributionBossPointTableHead"></thead>
-              <tbody id="distributionBossPointTableBody"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="distribution-section">
-          <h3 class="distribution-section-title">분배 요약</h3>
-          <div class="distribution-summary-grid">
-            <div class="distribution-summary-card">
-              <div class="distribution-summary-label">대상 기간</div>
-              <div class="distribution-summary-value" id="distributionSummaryPeriod">-</div>
-            </div>
-            <div class="distribution-summary-card">
-              <div class="distribution-summary-label">실제 분배 다이아</div>
-              <div class="distribution-summary-value" id="distributionSummaryActualDiamond">0</div>
-            </div>
-            <div class="distribution-summary-card">
-              <div class="distribution-summary-label">전체 참여점수</div>
-              <div class="distribution-summary-value" id="distributionSummaryTotalPoints">0</div>
-            </div>
-            <div class="distribution-summary-card">
-              <div class="distribution-summary-label">1점당 다이아</div>
-              <div class="distribution-summary-value" id="distributionSummaryPerPoint">0</div>
-            </div>
-            <div class="distribution-summary-card">
-              <div class="distribution-summary-label">남은 다이아</div>
-              <div class="distribution-summary-value" id="distributionSummaryRemaining">0</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="distribution-section">
-          <h3 class="distribution-section-title">길드원별 분배 결과</h3>
-          <div class="distribution-table-wrap distribution-member-table-wrap">
-            <table class="distribution-table">
-              <thead id="distributionMemberTableHead"></thead>
-              <tbody id="distributionMemberTableBody"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="distribution-section">
-          <h3 class="distribution-section-title">사용된 보스로그</h3>
-          <div class="distribution-table-wrap distribution-log-table-wrap">
-            <table class="distribution-table distribution-log-table">
-              <thead id="distributionLogTableHead"></thead>
-              <tbody id="distributionLogTableBody"></tbody>
-            </table>
-          </div>
-        </div>
-</div>
-</div>
 <div class="history-content hidden" id="historyContent">
         <div class="distribution-section">
           <h3 class="distribution-section-title">분배 이력 조회</h3>
@@ -462,7 +302,6 @@
     </div>
   </div>
 
-
     <div class="modal-backdrop hidden" id="passwordModalBackdrop">
     <div class="modal">
       <h3>비밀번호 입력</h3>
@@ -532,7 +371,6 @@
     </div>
   </div>
 
-
   <div class="modal-backdrop hidden" id="searchSelectModalBackdrop">
     <div class="modal">
       <div class="modal-header">
@@ -547,7 +385,6 @@
     </div>
   </div>
 
-
   <div class="bulk-save-overlay hidden" id="bulkSaveOverlay">
     <div class="bulk-save-overlay-card">
       <p class="bulk-save-title">저장 중입니다...</p>
@@ -557,7 +394,6 @@
       <p class="bulk-save-percent" id="bulkSavePercent">0%</p>
     </div>
   </div>
-
 
   <div class="modal-backdrop hidden" id="importModalBackdrop">
     <div class="modal modal-lg import-modal">
@@ -582,6 +418,6 @@
     </div>
   </div>
 
-  <script type="module" src="script.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
