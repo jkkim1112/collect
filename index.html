@@ -64,17 +64,17 @@
     <div class="newdist-section-head">
       <h3 class="newdist-section-title">1. 공통 설정</h3>
       <div class="newdist-actions">
-        <button class="btn btn-gray" type="button">초기화</button>
+        <button class="btn btn-gray" type="button" id="newdistResetBtn">초기화</button>
       </div>
     </div>
     <div class="newdist-common-grid">
-      <div class="newdist-field"><label>총 분배 다이아</label><input class="newdist-control" type="number" value="100000"></div>
-      <div class="newdist-field"><label>본토 비율(%)</label><input class="newdist-control" type="number" value="70"></div>
-      <div class="newdist-field"><label>월드 비율(%)</label><input class="newdist-control" type="number" value="30"></div>
+      <div class="newdist-field"><label for="newdistTotalDiamondInput">총 분배 다이아</label><input class="newdist-control" id="newdistTotalDiamondInput" type="number" min="0" step="1" value="0"></div>
+      <div class="newdist-field"><label for="newdistMainlandRatioInput">본토 비율(%)</label><input class="newdist-control" id="newdistMainlandRatioInput" type="number" min="0" max="100" step="1" value="70"></div>
+      <div class="newdist-field"><label for="newdistWorldRatioInput">월드 비율(%)</label><input class="newdist-control" id="newdistWorldRatioInput" type="number" min="0" max="100" step="1" value="30"></div>
     </div>
     <div class="newdist-file-row">
-      <div class="newdist-field"><label>보스로그 엑셀 파일</label><input class="newdist-control" type="file"></div>
-      <div class="newdist-actions"><button class="btn btn-primary" type="button">엑셀 로드</button></div>
+      <div class="newdist-field"><label for="newdistFileInput">보스로그 엑셀 파일</label><input class="newdist-control" id="newdistFileInput" type="file" accept=".xlsx,.xls,.csv"></div>
+      <div class="newdist-actions"><button class="btn btn-primary" id="newdistLoadBtn" type="button">엑셀 로드</button></div>
     </div>
     <div class="newdist-manage-actions">
       <button class="btn btn-outline" type="button" id="newdistOpenBossManageBtn">분배 보스 관리</button>
@@ -84,10 +84,10 @@
   <div class="newdist-section">
     <div class="newdist-section-head"><h3 class="newdist-section-title">2. 공통 요약</h3></div>
     <div class="newdist-stats-grid">
-      <div class="newdist-stat"><div class="newdist-stat-label">총 분배 다이아</div><div class="newdist-stat-value">100,000</div></div>
-      <div class="newdist-stat"><div class="newdist-stat-label">본토 배정 금액</div><div class="newdist-stat-value newdist-emphasis">70,000</div></div>
-      <div class="newdist-stat"><div class="newdist-stat-label">월드 배정 금액</div><div class="newdist-stat-value newdist-emphasis">30,000</div></div>
-      <div class="newdist-stat"><div class="newdist-stat-label">작업 로그 생성 상태</div><div class="newdist-stat-value">완료</div></div>
+      <div class="newdist-stat"><div class="newdist-stat-label">총 분배 다이아</div><div class="newdist-stat-value" id="newdistSummaryTotalDiamond">0</div></div>
+      <div class="newdist-stat"><div class="newdist-stat-label">본토 배정 금액</div><div class="newdist-stat-value newdist-emphasis" id="newdistSummaryMainlandAssigned">0</div></div>
+      <div class="newdist-stat"><div class="newdist-stat-label">월드 배정 금액</div><div class="newdist-stat-value newdist-emphasis" id="newdistSummaryWorldAssigned">0</div></div>
+      <div class="newdist-stat"><div class="newdist-stat-label">작업 로그 생성 상태</div><div class="newdist-stat-value newdist-status-value" id="newdistSummaryStatus">대기</div></div>
     </div>
   </div>
   <div class="newdist-section">
@@ -104,82 +104,61 @@
       <div class="newdist-section-head">
         <h3 class="newdist-section-title">4. 본토 요약</h3>
         <div class="newdist-actions">
-          <button class="btn btn-primary" type="button">본토 계산</button>
-          <button class="btn btn-outline" type="button">작업로그 새로고침</button>
-          <button class="btn btn-gray" type="button">결과 초기화</button>
+          <button class="btn btn-primary" type="button" id="newdistMainlandCalcBtn">본토 계산</button>
+          <button class="btn btn-outline" type="button" id="newdistMainlandRefreshBtn">작업로그 새로고침</button>
+          <button class="btn btn-gray" type="button" id="newdistMainlandClearBtn">결과 초기화</button>
         </div>
       </div>
       <div class="newdist-summary-panel">
-        <div class="newdist-panel-card"><div class="newdist-panel-label">본토 배정 금액</div><div class="newdist-panel-value">70,000</div></div>
-        <div class="newdist-panel-card"><div class="newdist-panel-label">본토 공제 합계</div><div class="newdist-panel-value">17,600</div></div>
-        <div class="newdist-panel-card"><div class="newdist-panel-label">실제 분배 다이아</div><div class="newdist-panel-value">52,400</div></div>
-        <div class="newdist-panel-card"><div class="newdist-panel-label">전체 참여점수</div><div class="newdist-panel-value">208</div></div>
-        <div class="newdist-panel-card"><div class="newdist-panel-label">1점당 다이아</div><div class="newdist-panel-value">251.9</div></div>
-        <div class="newdist-panel-card"><div class="newdist-panel-label">남은 다이아</div><div class="newdist-panel-value">19</div></div>
+        <div class="newdist-panel-card"><div class="newdist-panel-label">본토 배정 금액</div><div class="newdist-panel-value" id="newdistMainlandAssigned">0</div></div>
+        <div class="newdist-panel-card"><div class="newdist-panel-label">본토 공제 합계</div><div class="newdist-panel-value" id="newdistMainlandDeductionTotal">0</div></div>
+        <div class="newdist-panel-card"><div class="newdist-panel-label">실제 분배 다이아</div><div class="newdist-panel-value" id="newdistMainlandActualDiamond">0</div></div>
+        <div class="newdist-panel-card"><div class="newdist-panel-label">전체 참여점수</div><div class="newdist-panel-value" id="newdistMainlandTotalPoints">0</div></div>
+        <div class="newdist-panel-card"><div class="newdist-panel-label">1점당 다이아</div><div class="newdist-panel-value" id="newdistMainlandPerPoint">0</div></div>
+        <div class="newdist-panel-card"><div class="newdist-panel-label">남은 다이아</div><div class="newdist-panel-value" id="newdistMainlandRemaining">0</div></div>
       </div>
     </div>
     <div class="newdist-section">
       <div class="newdist-block"><div class="newdist-block-head"><h4 class="newdist-block-title">5. 본토 공제 설정</h4></div><div class="newdist-block-body">
-        <div class="newdist-deduction-toolbar"><div class="newdist-actions"><button class="btn btn-outline" type="button">공제 항목 추가</button></div><div class="newdist-deduction-summary"><div class="newdist-chip">공제 합계 <strong>17,600</strong></div><div class="newdist-chip">실제 분배 다이아 <strong>52,400</strong></div></div></div>
-        <div class="newdist-table-wrap"><table class="newdist-table"><thead><tr><th>항목명</th><th>공제 방식</th><th>값 입력</th><th class="right">공제금액</th><th class="center">관리</th></tr></thead><tbody>
-          <tr><td><input class="newdist-input-sm" type="text" value="길드운영비"></td><td><select class="newdist-select-sm"><option>%</option><option>직접금액</option></select></td><td><input class="newdist-input-sm" type="number" value="10"></td><td class="right">7,000</td><td class="center"><button class="btn btn-outline" type="button">삭제</button></td></tr>
-          <tr><td><input class="newdist-input-sm" type="text" value="길드장"></td><td><select class="newdist-select-sm"><option>%</option><option>직접금액</option></select></td><td><input class="newdist-input-sm" type="number" value="5"></td><td class="right">3,500</td><td class="center"><button class="btn btn-outline" type="button">삭제</button></td></tr>
-          <tr><td><input class="newdist-input-sm" type="text" value="총무비"></td><td><select class="newdist-select-sm"><option>%</option><option>직접금액</option></select></td><td><input class="newdist-input-sm" type="number" value="3"></td><td class="right">2,100</td><td class="center"><button class="btn btn-outline" type="button">삭제</button></td></tr>
-          <tr><td><input class="newdist-input-sm" type="text" value="이벤트비"></td><td><select class="newdist-select-sm"><option>직접금액</option><option>%</option></select></td><td><input class="newdist-input-sm" type="number" value="5000"></td><td class="right">5,000</td><td class="center"><button class="btn btn-outline" type="button">삭제</button></td></tr>
-        </tbody></table></div></div></div>
+        <div class="newdist-deduction-toolbar"><div class="newdist-actions"><button class="btn btn-outline" type="button" id="newdistMainlandAddDeductionBtn">공제 항목 추가</button></div><div class="newdist-deduction-summary"><div class="newdist-chip">공제 합계 <strong id="newdistMainlandDeductionChip">0</strong></div><div class="newdist-chip">실제 분배 다이아 <strong id="newdistMainlandActualChip">0</strong></div></div></div>
+        <div class="newdist-table-wrap"><table class="newdist-table"><thead><tr><th>항목명</th><th>공제 방식</th><th>값 입력</th><th class="right">공제금액</th><th class="center">관리</th></tr></thead><tbody id="newdistMainlandDeductionBody"></tbody></table></div></div></div>
     </div>
     <div class="newdist-section">
-      <div class="newdist-block"><div class="newdist-block-head"><h4 class="newdist-block-title">6. 본토 작업 로그</h4></div><div class="newdist-block-body"><div class="newdist-table-wrap"><table class="newdist-table"><thead><tr><th class="center">No</th><th>날짜</th><th>시간</th><th>보스</th><th class="center">구분</th><th>컷자</th><th>엑셀 참여자</th><th>작업 참여자</th><th class="center">예외 수정</th></tr></thead><tbody>
-        <tr><td class="center">1</td><td>2026-03-31</td><td>21:00</td><td>본토 보스 A</td><td class="center"><span class="newdist-badge newdist-badge-mainland">본토</span></td><td>길드원A</td><td>김김김1, 김김김2, 박박박</td><td>김김김1, 박박박</td><td class="center">-</td></tr>
-        <tr><td class="center">2</td><td>2026-03-31</td><td>21:30</td><td>본토 보스 B</td><td class="center"><span class="newdist-badge newdist-badge-mainland">본토</span></td><td>길드원B</td><td>길드원A, 길드원B, 길드원C</td><td>길드원A, 길드원B, 길드원C</td><td class="center"><button class="btn btn-outline newdist-log-edit-btn" type="button" data-current="길드원A, 길드원B, 길드원C" data-edited="길드원A, 길드원B">수정</button></td></tr>
-      </tbody></table></div></div></div>
+      <div class="newdist-block"><div class="newdist-block-head"><h4 class="newdist-block-title">6. 본토 작업 로그</h4></div><div class="newdist-block-body"><div class="newdist-table-wrap"><table class="newdist-table"><thead><tr><th class="center">No</th><th>날짜</th><th>시간</th><th>보스</th><th class="center">구분</th><th>컷자</th><th>엑셀 참여자</th><th>작업 참여자</th><th class="center">예외 수정</th></tr></thead><tbody id="newdistMainlandLogBody"></tbody></table></div></div></div>
     </div>
     <div class="newdist-section">
-      <div class="newdist-block"><div class="newdist-block-head"><h4 class="newdist-block-title">7. 본토 계산 결과</h4></div><div class="newdist-block-body"><div class="newdist-table-wrap"><table class="newdist-table"><thead><tr><th class="center">No</th><th>길드원</th><th class="right">참여점수</th><th class="right">참여비율</th><th class="right">계산 다이아</th><th class="right">최종 분배 다이아</th><th>비고</th></tr></thead><tbody>
-        <tr><td class="center">1</td><td>김김김1</td><td class="right">28</td><td class="right">13.46%</td><td class="right">7,054.4</td><td class="right">7,054</td><td>-</td></tr>
-        <tr><td class="center">2</td><td>박박박</td><td class="right">24</td><td class="right">11.54%</td><td class="right">6,045.6</td><td class="right">6,045</td><td>-</td></tr>
-      </tbody></table></div></div></div>
+      <div class="newdist-block"><div class="newdist-block-head"><h4 class="newdist-block-title">7. 본토 계산 결과</h4></div><div class="newdist-block-body"><div class="newdist-table-wrap"><table class="newdist-table"><thead><tr><th class="center">No</th><th>길드원</th><th class="right">참여점수</th><th class="right">참여비율</th><th class="right">계산 다이아</th><th class="right">최종 분배 다이아</th><th>비고</th></tr></thead><tbody id="newdistMainlandResultBody"></tbody></table></div></div></div>
     </div>
   </div>
   <div class="newdist-tabpanel" id="newdistPanelWorld">
     <div class="newdist-section">
       <div class="newdist-section-head">
         <h3 class="newdist-section-title">4. 월드 요약</h3>
-        <div class="newdist-actions"><button class="btn btn-primary" type="button">월드 계산</button><button class="btn btn-outline" type="button">작업로그 새로고침</button><button class="btn btn-gray" type="button">결과 초기화</button></div>
+        <div class="newdist-actions"><button class="btn btn-primary" type="button" id="newdistWorldCalcBtn">월드 계산</button><button class="btn btn-outline" type="button" id="newdistWorldRefreshBtn">작업로그 새로고침</button><button class="btn btn-gray" type="button" id="newdistWorldClearBtn">결과 초기화</button></div>
       </div>
       <div class="newdist-summary-panel">
-        <div class="newdist-panel-card"><div class="newdist-panel-label">월드 배정 금액</div><div class="newdist-panel-value">30,000</div></div>
-        <div class="newdist-panel-card"><div class="newdist-panel-label">월드 공제 합계</div><div class="newdist-panel-value">4,400</div></div>
-        <div class="newdist-panel-card"><div class="newdist-panel-label">실제 분배 다이아</div><div class="newdist-panel-value">25,600</div></div>
-        <div class="newdist-panel-card"><div class="newdist-panel-label">전체 참여점수</div><div class="newdist-panel-value">72</div></div>
-        <div class="newdist-panel-card"><div class="newdist-panel-label">1점당 다이아</div><div class="newdist-panel-value">355.5</div></div>
-        <div class="newdist-panel-card"><div class="newdist-panel-label">남은 다이아</div><div class="newdist-panel-value">4</div></div>
+        <div class="newdist-panel-card"><div class="newdist-panel-label">월드 배정 금액</div><div class="newdist-panel-value" id="newdistWorldAssigned">0</div></div>
+        <div class="newdist-panel-card"><div class="newdist-panel-label">월드 공제 합계</div><div class="newdist-panel-value" id="newdistWorldDeductionTotal">0</div></div>
+        <div class="newdist-panel-card"><div class="newdist-panel-label">실제 분배 다이아</div><div class="newdist-panel-value" id="newdistWorldActualDiamond">0</div></div>
+        <div class="newdist-panel-card"><div class="newdist-panel-label">전체 참여점수</div><div class="newdist-panel-value" id="newdistWorldTotalPoints">0</div></div>
+        <div class="newdist-panel-card"><div class="newdist-panel-label">1점당 다이아</div><div class="newdist-panel-value" id="newdistWorldPerPoint">0</div></div>
+        <div class="newdist-panel-card"><div class="newdist-panel-label">남은 다이아</div><div class="newdist-panel-value" id="newdistWorldRemaining">0</div></div>
       </div>
     </div>
     <div class="newdist-section">
-      <div class="newdist-block"><div class="newdist-block-head"><h4 class="newdist-block-title">5. 월드 공제 설정</h4></div><div class="newdist-block-body"><div class="newdist-deduction-toolbar"><div class="newdist-actions"><button class="btn btn-outline" type="button">공제 항목 추가</button></div><div class="newdist-deduction-summary"><div class="newdist-chip">공제 합계 <strong>4,400</strong></div><div class="newdist-chip">실제 분배 다이아 <strong>25,600</strong></div></div></div><div class="newdist-table-wrap"><table class="newdist-table"><thead><tr><th>항목명</th><th>공제 방식</th><th>값 입력</th><th class="right">공제금액</th><th class="center">관리</th></tr></thead><tbody>
-      <tr><td><input class="newdist-input-sm" type="text" value="길드운영비"></td><td><select class="newdist-select-sm"><option>%</option><option>직접금액</option></select></td><td><input class="newdist-input-sm" type="number" value="5"></td><td class="right">1,500</td><td class="center"><button class="btn btn-outline" type="button">삭제</button></td></tr>
-      <tr><td><input class="newdist-input-sm" type="text" value="월드운영비"></td><td><select class="newdist-select-sm"><option>직접금액</option><option>%</option></select></td><td><input class="newdist-input-sm" type="number" value="2000"></td><td class="right">2,000</td><td class="center"><button class="btn btn-outline" type="button">삭제</button></td></tr>
-      <tr><td><input class="newdist-input-sm" type="text" value="총무비"></td><td><select class="newdist-select-sm"><option>%</option><option>직접금액</option></select></td><td><input class="newdist-input-sm" type="number" value="3"></td><td class="right">900</td><td class="center"><button class="btn btn-outline" type="button">삭제</button></td></tr>
-      </tbody></table></div></div></div>
+      <div class="newdist-block"><div class="newdist-block-head"><h4 class="newdist-block-title">5. 월드 공제 설정</h4></div><div class="newdist-block-body"><div class="newdist-deduction-toolbar"><div class="newdist-actions"><button class="btn btn-outline" type="button" id="newdistWorldAddDeductionBtn">공제 항목 추가</button></div><div class="newdist-deduction-summary"><div class="newdist-chip">공제 합계 <strong id="newdistWorldDeductionChip">0</strong></div><div class="newdist-chip">실제 분배 다이아 <strong id="newdistWorldActualChip">0</strong></div></div></div><div class="newdist-table-wrap"><table class="newdist-table"><thead><tr><th>항목명</th><th>공제 방식</th><th>값 입력</th><th class="right">공제금액</th><th class="center">관리</th></tr></thead><tbody id="newdistWorldDeductionBody"></tbody></table></div></div></div>
     </div>
     <div class="newdist-section">
-      <div class="newdist-block"><div class="newdist-block-head"><h4 class="newdist-block-title">6. 월드 작업 로그</h4></div><div class="newdist-block-body"><div class="newdist-table-wrap"><table class="newdist-table"><thead><tr><th class="center">No</th><th>날짜</th><th>시간</th><th>보스</th><th class="center">구분</th><th>컷자</th><th>엑셀 참여자</th><th>작업 참여자</th><th class="center">예외 수정</th></tr></thead><tbody>
-      <tr><td class="center">1</td><td>2026-03-31</td><td>22:10</td><td>월드 보스 X</td><td class="center"><span class="newdist-badge newdist-badge-world">월드</span></td><td>길드원C</td><td>길드원C, 길드원D</td><td>길드원C, 길드원D, 길드원E</td><td class="center"><button class="btn btn-outline newdist-log-edit-btn" type="button" data-current="길드원C, 길드원D, 길드원E" data-edited="길드원C, 길드원D">수정</button></td></tr>
-      <tr><td class="center">2</td><td>2026-03-31</td><td>22:40</td><td>월드 보스 Y</td><td class="center"><span class="newdist-badge newdist-badge-world">월드</span></td><td>길드원D</td><td>김김김1, 김김김2</td><td>김김김1</td><td class="center">-</td></tr>
-      </tbody></table></div></div></div>
+      <div class="newdist-block"><div class="newdist-block-head"><h4 class="newdist-block-title">6. 월드 작업 로그</h4></div><div class="newdist-block-body"><div class="newdist-table-wrap"><table class="newdist-table"><thead><tr><th class="center">No</th><th>날짜</th><th>시간</th><th>보스</th><th class="center">구분</th><th>컷자</th><th>엑셀 참여자</th><th>작업 참여자</th><th class="center">예외 수정</th></tr></thead><tbody id="newdistWorldLogBody"></tbody></table></div></div></div>
     </div>
     <div class="newdist-section">
-      <div class="newdist-block"><div class="newdist-block-head"><h4 class="newdist-block-title">7. 월드 계산 결과</h4></div><div class="newdist-block-body"><div class="newdist-table-wrap"><table class="newdist-table"><thead><tr><th class="center">No</th><th>길드원</th><th class="right">참여점수</th><th class="right">참여비율</th><th class="right">계산 다이아</th><th class="right">최종 분배 다이아</th><th>비고</th></tr></thead><tbody>
-      <tr><td class="center">1</td><td>길드원C</td><td class="right">15</td><td class="right">20.83%</td><td class="right">5,332.5</td><td class="right">5,332</td><td>-</td></tr>
-      <tr class="newdist-danger-soft"><td class="center">2</td><td>탈퇴길드원Z</td><td class="right">8</td><td class="right">0.00%</td><td class="right">0.0</td><td class="right">0</td><td>탈퇴한 길드원</td></tr>
-      </tbody></table></div></div></div>
+      <div class="newdist-block"><div class="newdist-block-head"><h4 class="newdist-block-title">7. 월드 계산 결과</h4></div><div class="newdist-block-body"><div class="newdist-table-wrap"><table class="newdist-table"><thead><tr><th class="center">No</th><th>길드원</th><th class="right">참여점수</th><th class="right">참여비율</th><th class="right">계산 다이아</th><th class="right">최종 분배 다이아</th><th>비고</th></tr></thead><tbody id="newdistWorldResultBody"></tbody></table></div></div></div>
     </div>
   </div>
 
-  <div class="newdist-modal-backdrop" id="newdistBossManageModal"><div class="newdist-modal"><div class="newdist-modal-head"><h3 class="newdist-modal-title">분배 보스 관리</h3><button class="newdist-close-btn" type="button" data-newdist-close="newdistBossManageModal">×</button></div><div class="newdist-modal-body"><div class="newdist-actions"><button class="btn btn-outline" type="button">보스 추가</button><button class="btn btn-primary" type="button">저장</button></div><div class="newdist-table-wrap"><table class="newdist-table"><thead><tr><th class="center">No</th><th>보스명</th><th class="right">점수</th><th class="center">구분</th><th class="center">관리</th></tr></thead><tbody><tr><td class="center">1</td><td>본토 보스 A</td><td class="right"><input class="newdist-input-sm" type="number" value="1"></td><td class="center"><select class="newdist-select-sm"><option>본토</option><option>월드</option></select></td><td class="center"><button class="btn btn-outline" type="button">삭제</button></td></tr><tr><td class="center">2</td><td>월드 보스 X</td><td class="right"><input class="newdist-input-sm" type="number" value="3"></td><td class="center"><select class="newdist-select-sm"><option>월드</option><option>본토</option></select></td><td class="center"><button class="btn btn-outline" type="button">삭제</button></td></tr></tbody></table></div></div></div></div>
-  <div class="newdist-modal-backdrop" id="newdistNameRuleModal"><div class="newdist-modal"><div class="newdist-modal-head"><h3 class="newdist-modal-title">참여자 이름 정리</h3><button class="newdist-close-btn" type="button" data-newdist-close="newdistNameRuleModal">×</button></div><div class="newdist-modal-body"><div class="newdist-actions"><button class="btn btn-outline" type="button">규칙 추가</button><button class="btn btn-primary" type="button">저장</button></div><div class="newdist-table-wrap"><table class="newdist-table"><thead><tr><th class="center">No</th><th>원본 이름</th><th>통합 이름</th><th class="center">관리</th></tr></thead><tbody><tr><td class="center">1</td><td>김김김2</td><td><input class="newdist-input-sm" type="text" value="김김김1"></td><td class="center"><button class="btn btn-outline" type="button">삭제</button></td></tr><tr><td class="center">2</td><td>김김김_부캐</td><td><input class="newdist-input-sm" type="text" value="김김김1"></td><td class="center"><button class="btn btn-outline" type="button">삭제</button></td></tr></tbody></table></div></div></div></div>
-  <div class="newdist-modal-backdrop" id="newdistLogEditModal"><div class="newdist-modal"><div class="newdist-modal-head"><h3 class="newdist-modal-title">로그 예외 수정</h3><button class="newdist-close-btn" type="button" data-newdist-close="newdistLogEditModal">×</button></div><div class="newdist-modal-body"><div class="newdist-editor-grid"><div class="newdist-field"><label>현재 작업 참여자</label><textarea class="newdist-control" id="newdistLogEditCurrent" readonly></textarea></div><div class="newdist-field"><label>예외 수정 참여자</label><textarea class="newdist-control" id="newdistLogEditEdited"></textarea></div></div><div class="newdist-actions"><button class="btn btn-gray" type="button" data-newdist-close="newdistLogEditModal">취소</button><button class="btn btn-primary" type="button">적용</button></div></div></div></div>
+  <div class="newdist-modal-backdrop" id="newdistBossManageModal"><div class="newdist-modal"><div class="newdist-modal-head"><h3 class="newdist-modal-title">분배 보스 관리</h3><button class="newdist-close-btn" type="button" data-newdist-close="newdistBossManageModal">×</button></div><div class="newdist-modal-body"><div class="newdist-actions"><button class="btn btn-outline" type="button" id="newdistBossAddBtn">보스 추가</button><button class="btn btn-primary" type="button" id="newdistBossSaveBtn">저장</button></div><div class="newdist-table-wrap"><table class="newdist-table"><thead><tr><th class="center">No</th><th>보스명</th><th class="right">점수</th><th class="center">구분</th><th class="center">관리</th></tr></thead><tbody id="newdistBossRuleBody"></tbody></table></div></div></div></div>
+  <div class="newdist-modal-backdrop" id="newdistNameRuleModal"><div class="newdist-modal"><div class="newdist-modal-head"><h3 class="newdist-modal-title">참여자 이름 정리</h3><button class="newdist-close-btn" type="button" data-newdist-close="newdistNameRuleModal">×</button></div><div class="newdist-modal-body"><div class="newdist-actions"><button class="btn btn-outline" type="button" id="newdistNameRuleAddBtn">규칙 추가</button><button class="btn btn-primary" type="button" id="newdistNameRuleSaveBtn">저장</button></div><div class="newdist-table-wrap"><table class="newdist-table"><thead><tr><th class="center">No</th><th>원본 이름</th><th>통합 이름</th><th class="center">관리</th></tr></thead><tbody id="newdistNameRuleBody"></tbody></table></div></div></div></div>
+  <div class="newdist-modal-backdrop" id="newdistLogEditModal"><div class="newdist-modal"><div class="newdist-modal-head"><h3 class="newdist-modal-title">로그 예외 수정</h3><button class="newdist-close-btn" type="button" data-newdist-close="newdistLogEditModal">×</button></div><div class="newdist-modal-body"><div class="newdist-editor-grid"><div class="newdist-field"><label>현재 작업 참여자</label><textarea class="newdist-control" id="newdistLogEditCurrent" readonly></textarea></div><div class="newdist-field"><label>예외 수정 참여자</label><textarea class="newdist-control" id="newdistLogEditEdited"></textarea></div></div><div class="newdist-actions"><button class="btn btn-gray" type="button" data-newdist-close="newdistLogEditModal">취소</button><button class="btn btn-primary" type="button" id="newdistLogEditApplyBtn">적용</button></div></div></div></div>
 </div>
 <div class="history-content hidden" id="historyContent">
         <div class="distribution-section">
