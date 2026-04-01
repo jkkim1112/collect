@@ -12,6 +12,7 @@ const ACCESSORY_PARTS = [
 ];
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const DISTRIBUTION_BOSS_RULES_TABLE = "distribution_boss_rules";
 
 const state = {
   activeTab: "power",
@@ -1129,6 +1130,8 @@ function initializeDistributionState() {
     bossRules: [],
     nameRules: [],
     editingLogKey: null,
+    bossRulesLoaded: false,
+    bossRuleDbIds: [],
     mainland: createDistributionGroupState("mainland"),
     world: createDistributionGroupState("world")
   };
@@ -1492,6 +1495,8 @@ function handleDistributionReset() {
 }
 
 async function handleDistributionLoadExcel() {
+  await ensureDistributionBossRulesLoaded();
+
   const fileInput = document.getElementById("newdistFileInput");
   const file = fileInput?.files?.[0];
   if (!file) {
@@ -1522,12 +1527,18 @@ function handleDistributionAddBossRule() {
   renderDistributionBossRules();
 }
 
-function handleDistributionSaveBossRules() {
+async function handleDistributionSaveBossRules() {
   sanitizeDistributionBossRules();
-  rebuildDistributionWorkingLogs();
-  renderDistributionTab();
-  closeDistributionModal("newdistBossManageModal");
-  alert("분배 보스 관리가 저장되었습니다.");
+
+  try {
+    await saveDistributionBossRulesToDb();
+    rebuildDistributionWorkingLogs();
+    renderDistributionTab();
+    closeDistributionModal("newdistBossManageModal");
+    alert("분배 보스 관리가 저장되었습니다.");
+  } catch (error) {
+    alert(error.message || "분배 보스 관리 저장 중 오류가 발생했습니다.");
+  }
 }
 
 function handleDistributionAddNameRule() {
@@ -1679,9 +1690,16 @@ function handleDistributionChange(event) {
   }
 }
 
-function openDistributionModal(id) {
+async function openDistributionModal(id) {
   document.getElementById(id)?.classList.add("open");
-  if (id === "newdistBossManageModal") renderDistributionBossRules();
+  if (id === "newdistBossManageModal") {
+    try {
+      await loadDistributionBossRulesFromDb();
+    } catch (error) {
+      alert(error.message || "분배 보스 목록 조회 중 오류가 발생했습니다.");
+    }
+    renderDistributionBossRules();
+  }
   if (id === "newdistNameRuleModal") renderDistributionNameRules();
 }
 
@@ -1845,6 +1863,84 @@ function sanitizeDistributionBossRules() {
       group: row.group === "world" ? "world" : "mainland"
     }))
     .filter((row) => row.name);
+}
+
+function isUuidLike(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || "").trim());
+}
+
+async function loadDistributionBossRulesFromDb(forceReload = false) {
+  if (state.distribution.bossRulesLoaded && !forceReload) return;
+
+  const res = await supabase
+    .from(DISTRIBUTION_BOSS_RULES_TABLE)
+    .select('id, name, score, group_type, display_order, updated_at')
+    .order('display_order', { ascending: true })
+    .order('id', { ascending: true });
+
+  if (res.error) {
+    throw new Error(`분배 보스 목록 조회 중 오류가 발생했습니다.
+${res.error.message}`);
+  }
+
+  const rows = Array.isArray(res.data) ? res.data : [];
+  state.distribution.bossRules = rows.map((row) => ({
+    id: row.id,
+    name: String(row.name || '').trim(),
+    score: Math.max(1, Math.floor(Number(row.score) || 1)),
+    group: row.group_type === 'world' ? 'world' : 'mainland'
+  }));
+  state.distribution.bossRulesLoaded = true;
+  state.distribution.bossRuleDbIds = rows.map((row) => row.id).filter(Boolean);
+}
+
+async function ensureDistributionBossRulesLoaded() {
+  if (state.distribution.bossRulesLoaded) return;
+  await loadDistributionBossRulesFromDb();
+}
+
+async function saveDistributionBossRulesToDb() {
+  const rows = state.distribution.bossRules;
+  const existingIds = new Set((state.distribution.bossRuleDbIds || []).filter(Boolean));
+  const keptIds = new Set(rows.map((row) => row.id).filter((id) => isUuidLike(id)));
+  const deleteIds = Array.from(existingIds).filter((id) => !keptIds.has(id));
+
+  if (deleteIds.length) {
+    const deleteRes = await supabase
+      .from(DISTRIBUTION_BOSS_RULES_TABLE)
+      .delete()
+      .in('id', deleteIds);
+
+    if (deleteRes.error) {
+      throw new Error(`분배 보스 삭제 중 오류가 발생했습니다.
+${deleteRes.error.message}`);
+    }
+  }
+
+  if (rows.length) {
+    const payload = rows.map((row, index) => {
+      const next = {
+        name: row.name,
+        score: Math.max(1, Math.floor(Number(row.score) || 1)),
+        group_type: row.group === 'world' ? 'world' : 'mainland',
+        display_order: index + 1,
+        updated_at: new Date().toISOString()
+      };
+      if (isUuidLike(row.id)) next.id = row.id;
+      return next;
+    });
+
+    const upsertRes = await supabase
+      .from(DISTRIBUTION_BOSS_RULES_TABLE)
+      .upsert(payload, { onConflict: 'id' });
+
+    if (upsertRes.error) {
+      throw new Error(`분배 보스 저장 중 오류가 발생했습니다.
+${upsertRes.error.message}`);
+    }
+  }
+
+  await loadDistributionBossRulesFromDb(true);
 }
 
 function sanitizeDistributionNameRules() {
