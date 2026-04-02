@@ -1909,7 +1909,7 @@ async function saveDistributionBossRulesToDb() {
     const deleteRes = await supabase
       .from(DISTRIBUTION_BOSS_RULES_TABLE)
       .delete()
-      .in('id', deleteIds);
+      .in("id", deleteIds);
 
     if (deleteRes.error) {
       throw new Error(`분배 보스 삭제 중 오류가 발생했습니다.
@@ -1917,26 +1917,55 @@ ${deleteRes.error.message}`);
     }
   }
 
-  if (rows.length) {
-    const payload = rows.map((row, index) => {
-      const next = {
-        name: row.name,
-        score: Math.max(1, Math.floor(Number(row.score) || 1)),
-        group_type: row.group === 'world' ? 'world' : 'mainland',
-        display_order: index + 1,
-        updated_at: new Date().toISOString()
-      };
-      if (isUuidLike(row.id)) next.id = row.id;
-      return next;
-    });
+  const now = new Date().toISOString();
 
-    const upsertRes = await supabase
+  const updateRows = rows
+    .filter((row) => isUuidLike(row.id))
+    .map((row, index) => ({
+      id: row.id,
+      name: row.name,
+      score: Math.max(1, Math.floor(Number(row.score) || 1)),
+      group_type: row.group === "world" ? "world" : "mainland",
+      display_order: index + 1,
+      updated_at: now
+    }));
+
+  const insertRows = rows
+    .filter((row) => !isUuidLike(row.id))
+    .map((row, index) => ({
+      name: row.name,
+      score: Math.max(1, Math.floor(Number(row.score) || 1)),
+      group_type: row.group === "world" ? "world" : "mainland",
+      display_order: index + 1,
+      updated_at: now
+    }));
+
+  for (const row of updateRows) {
+    const updateRes = await supabase
       .from(DISTRIBUTION_BOSS_RULES_TABLE)
-      .upsert(payload, { onConflict: 'id' });
+      .update({
+        name: row.name,
+        score: row.score,
+        group_type: row.group_type,
+        display_order: row.display_order,
+        updated_at: row.updated_at
+      })
+      .eq("id", row.id);
 
-    if (upsertRes.error) {
+    if (updateRes.error) {
+      throw new Error(`분배 보스 수정 중 오류가 발생했습니다.
+${updateRes.error.message}`);
+    }
+  }
+
+  if (insertRows.length) {
+    const insertRes = await supabase
+      .from(DISTRIBUTION_BOSS_RULES_TABLE)
+      .insert(insertRows);
+
+    if (insertRes.error) {
       throw new Error(`분배 보스 저장 중 오류가 발생했습니다.
-${upsertRes.error.message}`);
+${insertRes.error.message}`);
     }
   }
 
