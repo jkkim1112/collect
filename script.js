@@ -1919,25 +1919,24 @@ ${deleteRes.error.message}`);
 
   const now = new Date().toISOString();
 
-  const updateRows = rows
-    .filter((row) => isUuidLike(row.id))
-    .map((row, index) => ({
-      id: row.id,
-      name: row.name,
-      score: Math.max(1, Math.floor(Number(row.score) || 1)),
-      group_type: row.group === "world" ? "world" : "mainland",
-      display_order: index + 1,
-      updated_at: now
-    }));
+  const normalizedRows = rows.map((row, index) => ({
+    id: row.id,
+    name: row.name,
+    score: Math.max(1, Math.floor(Number(row.score) || 1)),
+    group_type: row.group === "world" ? "world" : "mainland",
+    display_order: index + 1,
+    updated_at: now
+  }));
 
-  const insertRows = rows
+  const updateRows = normalizedRows.filter((row) => isUuidLike(row.id));
+  const insertRows = normalizedRows
     .filter((row) => !isUuidLike(row.id))
-    .map((row, index) => ({
-      name: row.name,
-      score: Math.max(1, Math.floor(Number(row.score) || 1)),
-      group_type: row.group === "world" ? "world" : "mainland",
-      display_order: index + 1,
-      updated_at: now
+    .map(({ name, score, group_type, display_order, updated_at }) => ({
+      name,
+      score,
+      group_type,
+      display_order,
+      updated_at
     }));
 
   for (const row of updateRows) {

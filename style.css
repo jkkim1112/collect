@@ -1793,6 +1793,7 @@ button {
 .newdist-section-head { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; margin-bottom:16px; }
 .newdist-section-title { margin:0; font-size:18px; font-weight:700; color:#111827; }
 .newdist-actions, .newdist-manage-actions { display:flex; gap:10px; flex-wrap:wrap; }
+.newdist-manage-actions { margin-top: 8px; }
 .newdist-common-grid { display:grid; grid-template-columns:1.2fr .8fr .8fr; gap:12px; margin-bottom:12px; }
 .newdist-file-row { display:grid; grid-template-columns:1fr auto; gap:12px; align-items:end; }
 .newdist-field { display:flex; flex-direction:column; gap:7px; min-width:0; }
