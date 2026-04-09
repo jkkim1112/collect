@@ -26,7 +26,6 @@
         <button class="tab" type="button" data-tab="history">분배 이력</button>
       </div>
 
-
     </section>
 
     <section class="card" id="mainCard">
@@ -36,8 +35,8 @@
           <p class="card-subtitle" id="tableGuideText">검색 결과가 정확히 1명일 때만 수정할 수 있습니다.</p>
         </div>
 
-        <div style="flex: 1; display: flex; justify-content: center; padding: 0 24px;">
-          <input type="text" id="bossSearchInput" class="hidden" placeholder="보스컬렉 검색" style="width: 220px; max-width: 100%; border: 1px solid #d1d5db; border-radius: 10px; padding: 10px 12px; background: #fff;">
+        <div class="boss-search-wrap">
+          <input type="text" id="bossSearchInput" class="hidden" placeholder="보스컬렉 검색">
         </div>
 
         <div class="table-search" id="mainTableSearch">
@@ -45,7 +44,7 @@
           <button class="btn btn-dark btn-icon" id="searchBtn" type="button" aria-label="검색" title="검색">🔍</button>
           <button class="btn btn-gray" id="resetBtn" type="button">새로고침</button>
         </div>
-        <div class="distribution-header-actions hidden" id="distributionHeaderActions" style="display:none;">
+        <div class="distribution-header-actions hidden" id="distributionHeaderActions">
           <button class="btn btn-gray" id="distributionSaveBtn" type="button">엑셀 저장</button>
           <button class="btn btn-primary" id="distributionFinalSaveBtn" type="button">최종 저장</button>
         </div>
@@ -61,7 +60,6 @@
           <tbody id="summaryTableBody"></tbody>
         </table>
       </div>
-
 
       <div class="distribution-content hidden" id="distributionContent">
 <div class="newdist-root">
@@ -288,7 +286,6 @@
     </div>
   </div>
 
-
     <div class="modal-backdrop hidden" id="passwordModalBackdrop">
     <div class="modal">
       <h3>비밀번호 입력</h3>
@@ -358,7 +355,6 @@
     </div>
   </div>
 
-
   <div class="modal-backdrop hidden" id="searchSelectModalBackdrop">
     <div class="modal">
       <div class="modal-header">
@@ -373,7 +369,6 @@
     </div>
   </div>
 
-
   <div class="bulk-save-overlay hidden" id="bulkSaveOverlay">
     <div class="bulk-save-overlay-card">
       <p class="bulk-save-title">저장 중입니다...</p>
@@ -383,7 +378,6 @@
       <p class="bulk-save-percent" id="bulkSavePercent">0%</p>
     </div>
   </div>
-
 
   <div class="modal-backdrop hidden" id="importModalBackdrop">
     <div class="modal modal-lg import-modal">

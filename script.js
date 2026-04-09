@@ -240,15 +240,15 @@ function updateTabUi() {
   el.tabs.forEach((tab) => {
     const active = tab.dataset.tab === state.activeTab;
     tab.classList.toggle("active", active);
-    tab.classList.toggle("disabled", tab.dataset.tab === "special");
+    tab.classList.remove("disabled");
   });
 
-  const isSpecial = false;
   const isDistribution = state.activeTab === "distribution";
   const isHistory = state.activeTab === "history";
   const isAccessory = state.activeTab === "accessory";
   const isBoss = state.activeTab === "boss";
   const isPower = state.activeTab === "power";
+  const isBusy = state.isBulkSaving;
 
   el.mainCard.classList.remove("hidden");
   el.mainActions.classList.toggle("hidden", isDistribution || isHistory);
@@ -268,24 +268,25 @@ function updateTabUi() {
     el.mainCardTitle.textContent = "전체 현황";
   }
 
-  el.guildManageBtn.disabled = isSpecial || isDistribution || isHistory;
-  el.bulkEditBtn.disabled = isSpecial;
   el.bulkEditBtn.classList.toggle("hidden", state.overallEditMode);
   el.bulkSaveBtn.classList.toggle("hidden", !state.overallEditMode);
   el.bulkCancelBtn.classList.toggle("hidden", !state.overallEditMode);
-  el.bulkSaveBtn.disabled = isSpecial || state.isBulkSaving;
-  el.bulkCancelBtn.disabled = isSpecial || state.isBulkSaving;
-  el.itemManageBtn.disabled = isSpecial || isDistribution || isPower || state.isBulkSaving;
-  el.guildManageBtn.disabled = isSpecial || isDistribution || isHistory || state.isBulkSaving;
-  el.bulkEditBtn.disabled = isSpecial || isDistribution || isHistory || state.isBulkSaving;
-  el.searchBtn.disabled = isSpecial || isDistribution || isHistory || state.isBulkSaving;
-  el.resetBtn.disabled = isSpecial || isDistribution || isHistory || state.isBulkSaving;
-  el.searchInput.disabled = isSpecial || isDistribution || isHistory || state.isBulkSaving;
-  el.bossSearchInput.disabled = !isBoss || isSpecial || isDistribution || isHistory || state.isBulkSaving;
+
+  el.guildManageBtn.disabled = isDistribution || isHistory || isBusy;
+  el.itemManageBtn.disabled = isDistribution || isHistory || isPower || isBusy;
+  el.bulkEditBtn.disabled = isDistribution || isHistory || isBusy;
+  el.bulkSaveBtn.disabled = isBusy;
+  el.bulkCancelBtn.disabled = isBusy;
+  el.searchBtn.disabled = isDistribution || isHistory || isBusy;
+  el.resetBtn.disabled = isDistribution || isHistory || isBusy;
+  el.searchInput.disabled = isDistribution || isHistory || isBusy;
+  el.bossSearchInput.disabled = !isBoss || isDistribution || isHistory || isBusy;
+  el.importOpenBtn.disabled = isHistory || isDistribution || isPower || isBusy;
+
   el.bossSearchInput.classList.toggle("hidden", !isBoss);
   el.itemManageBtn.classList.toggle("hidden", isPower || isDistribution || isHistory);
   el.importOpenBtn.classList.toggle("hidden", !(state.activeTab === "mount" || state.activeTab === "boss" || state.activeTab === "accessory"));
-  el.importOpenBtn.disabled = isSpecial || isDistribution || isHistory || isPower || state.isBulkSaving;
+
   el.itemManageBtn.textContent = isAccessory ? "악세사리 관리" : isBoss ? "보스컬렉 관리" : "탈것 관리";
   el.itemManageTitle.textContent = isAccessory ? "악세사리 관리" : isBoss ? "보스컬렉 관리" : "탈것 관리";
   el.itemNameHeader.textContent = isAccessory ? "악세사리명" : isBoss ? "보스컬렉명" : "탈것명";
@@ -486,11 +487,7 @@ async function handleResetSearch() {
   el.bossSearchInput.value = "";
   closeSearchSelectModal();
 
-  if (state.activeTab !== "special") {
-    await loadActiveTabData();
-  } else {
-    syncDraftState();
-  }
+  await loadActiveTabData();
 
   renderAll();
 }
@@ -2498,24 +2495,6 @@ ${deleteRes.error.message}`);
 
 function handleHistoryExport() {
   alert("분배 이력 엑셀 저장 기능은 다음 단계에서 연결할 예정입니다.");
-}
-
-function renderPlaceholderTable() {
-  el.tableGuideText.textContent = "현재는 특수 탭만 준비중입니다.";
-  el.summaryTableHead.innerHTML = `
-    <tr>
-      <th>no</th>
-      <th>항목</th>
-      <th>상태</th>
-    </tr>
-  `;
-  el.summaryTableBody.innerHTML = `
-    <tr>
-      <td>1</td>
-      <td>특수</td>
-      <td>준비중</td>
-    </tr>
-  `;
 }
 
 function renderGuildManageTable() {

@@ -141,6 +141,13 @@ button {
   width: 220px;
 }
 
+.boss-search-wrap {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  padding: 0 24px;
+}
+
 .btn {
   border: 0;
   border-radius: 10px;
@@ -228,7 +235,6 @@ button {
 .manage-table tbody tr:hover {
   background: #f8fafc;
 }
-
 
 .summary-table tbody tr.power-zero-row,
 .manage-table tbody tr.power-zero-row {
@@ -396,7 +402,6 @@ button {
   font-weight: 800;
 }
 
-
 .modal {
   width: 100%;
   max-width: 480px;
@@ -539,7 +544,6 @@ button {
   text-align: center;
   color: #6b7280;
 }
-
 
 @media (max-width: 768px) {
   .app {
@@ -834,39 +838,6 @@ button {
     display: flex;
     flex-direction: column;
     align-items: stretch;
-  }
-
-  .tabs {
-    order: 1;
-  }
-
-  .top-actions {
-    order: 2;
-    margin-top: 2px;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .top-actions .btn {
-    padding: 8px 10px;
-    font-size: 13px;
-    border-radius: 8px;
-  }
-}
-
-@media (max-width: 480px) {
-  .top-actions .btn {
-    padding: 7px 9px;
-    font-size: 12px;
-    border-radius: 8px;
-  }
-}
-
-
-@media (max-width: 768px) {
-  .tabs-wrap {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
     gap: 10px;
   }
 
@@ -1097,7 +1068,6 @@ button {
   }
 }
 
-
 .item-col-header {
   font-size: 12px;
 }
@@ -1132,7 +1102,6 @@ button {
 .summary-table .accessory-sub-header {
   background: #f3f4f6;
 }
-
 
 .summary-table .group-header {
   font-size: 12px;
@@ -1183,7 +1152,6 @@ button {
   background: #ffffff;
 }
 
-
 @media (max-width: 768px) {
   .inline-qty-input {
     width: 36px;
@@ -1211,7 +1179,6 @@ button {
   overflow-y: auto;
 }
 
-
 @media (max-width: 768px) {
   .bulk-save-overlay-card {
     width: min(360px, calc(100vw - 32px));
@@ -1235,7 +1202,6 @@ button {
 .bulk-save-overlay.hidden {
   display: none;
 }
-
 
 @media (min-width: 769px) {
   .app {
@@ -1326,8 +1292,6 @@ button {
   }
 }
 
-
-
 @media (min-width: 769px) {
   .summary-table thead tr:first-child th {
     top: 0;
@@ -1361,7 +1325,6 @@ button {
   }
 
 }
-
 
 .distribution-card {
   margin-top: 0;
@@ -1706,9 +1669,6 @@ button {
   }
 }
 
-
-
-
 .distribution-header-actions.hidden {
   display: none;
 }
@@ -1785,7 +1745,6 @@ button {
     flex: 1 1 0;
   }
 }
-
 
 .newdist-root { padding: 0 24px 24px; background: #f4f6fb; }
 .newdist-section { margin-top: 18px; padding: 22px; background: #fff; border: 1px solid #e7ebf3; border-radius: 18px; }
