@@ -1801,3 +1801,25 @@ button {
 .newdist-field textarea.newdist-control { min-height:96px; padding:11px 13px; height:auto; }
 @media (max-width:1280px){ .newdist-common-grid,.newdist-stats-grid,.newdist-summary-panel,.newdist-editor-grid{ grid-template-columns:1fr 1fr; } .newdist-summary-panel{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
 @media (max-width:768px){ .newdist-root{ padding:0 14px 14px; } .newdist-section{ padding:16px 14px; margin-top:14px; } .newdist-common-grid,.newdist-file-row,.newdist-stats-grid,.newdist-summary-panel,.newdist-editor-grid{ grid-template-columns:1fr; } .newdist-subtabs{ width:100%; } .newdist-subtab{ flex:1 1 0; } .newdist-actions .btn,.newdist-manage-actions .btn{ flex:1 1 0; } .newdist-table{ min-width:700px; } }
+
+
+/* 6. 본토 작업 로그만 스크롤 */
+.newdist-block-body:has(#newdistMainlandLogBody) .newdist-table-wrap {
+  max-height: 420px;
+  overflow-y: auto;
+  overflow-x: auto;
+}
+
+/* 본토 작업 로그 헤더 고정 */
+.newdist-block-body:has(#newdistMainlandLogBody) .newdist-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f8fafc;
+}
+
+@media (max-width: 768px) {
+  .newdist-block-body:has(#newdistMainlandLogBody) .newdist-table-wrap {
+    max-height: 320px;
+  }
+}
