@@ -3294,7 +3294,7 @@ async function addMember() {
 
   const insertRes = await supabase
     .from("guild_members")
-    .insert({ name, power: Math.floor(power) })
+    .insert({ name, power: Math.floor(power), can_edit: false })
     .select("id, name, power, updated_at, can_edit")
     .single();
 
