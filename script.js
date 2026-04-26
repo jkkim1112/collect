@@ -4,7 +4,8 @@ const SUPABASE_URL = "https://mgmvyapblwiwjaytkgwl.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_fzA0-8AjS9D1xtXLkgdo1Q_iCY-dYJV";
 const APP_SETTINGS_TABLE = "app_settings";
 const ADMIN_PASSWORD_KEY = "admin_password";
-let adminPassword = "1590";
+let adminPassword = "";
+let adminPasswordLoadError = "";
 const ACCESSORY_PARTS = [
   { key: "necklace_count", label: "목걸이" },
   { key: "earring_count", label: "귀걸이" },
@@ -3038,6 +3039,9 @@ function resetSearchState() {
 }
 
 async function loadAdminPassword() {
+  adminPassword = "";
+  adminPasswordLoadError = "";
+
   try {
     const res = await supabase
       .from(APP_SETTINGS_TABLE)
@@ -3046,6 +3050,7 @@ async function loadAdminPassword() {
       .maybeSingle();
 
     if (res.error) {
+      adminPasswordLoadError = "관리자 비밀번호 설정을 불러오지 못했습니다. DB 설정을 확인해주세요.";
       console.warn("관리자 비밀번호 설정 조회 실패", res.error.message);
       return;
     }
@@ -3055,8 +3060,10 @@ async function loadAdminPassword() {
       return;
     }
 
-    await saveAdminPassword(adminPassword, true);
+    adminPasswordLoadError = "관리자 비밀번호가 설정되어 있지 않습니다. DB 설정을 확인해주세요.";
+    console.warn("관리자 비밀번호가 설정되어 있지 않습니다.");
   } catch (error) {
+    adminPasswordLoadError = "관리자 비밀번호 설정을 불러오지 못했습니다. DB 설정을 확인해주세요.";
     console.warn("관리자 비밀번호 설정 조회 실패", error);
   }
 }
@@ -3126,6 +3133,7 @@ function openPasswordModal(type, memberId = null) {
   state.pendingManageType = type;
   state.pendingEditMemberId = memberId;
   el.passwordInput.value = "";
+  el.passwordErrorText.textContent = "비밀번호가 올바르지 않습니다.";
   el.passwordErrorText.classList.add("hidden");
   openModal(el.passwordModalBackdrop);
   setTimeout(() => el.passwordInput.focus(), 0);
@@ -3138,7 +3146,14 @@ function closePasswordModal() {
 }
 
 function confirmPassword() {
+  if (!adminPassword) {
+    el.passwordErrorText.textContent = adminPasswordLoadError || "관리자 비밀번호 설정을 불러오지 못했습니다. DB 설정을 확인해주세요.";
+    el.passwordErrorText.classList.remove("hidden");
+    return;
+  }
+
   if (el.passwordInput.value !== adminPassword) {
+    el.passwordErrorText.textContent = "비밀번호가 올바르지 않습니다.";
     el.passwordErrorText.classList.remove("hidden");
     return;
   }
