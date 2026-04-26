@@ -352,7 +352,7 @@ async function loadActiveTabData() {
 }
 
 async function loadPowerData() {
-  const membersRes = await supabase.from("guild_members").select("id, name, power, updated_at").order("name", { ascending: true });
+  const membersRes = await supabase.from("guild_members").select("id, name, power, updated_at, can_edit").order("name", { ascending: true });
 
   if (membersRes.error) {
     alert(`길드원 조회 중 오류가 발생했습니다.\n${membersRes.error.message}`);
@@ -2594,15 +2594,23 @@ function handleHistoryExport() {
 
 function renderGuildManageTable() {
   if (state.members.length === 0) {
-    el.guildManageTableBody.innerHTML = `<tr><td colspan="4">등록된 길드원이 없습니다.</td></tr>`;
+    el.guildManageTableBody.innerHTML = `<tr><td colspan="5">등록된 길드원이 없습니다.</td></tr>`;
     return;
   }
 
-  el.guildManageTableBody.innerHTML = state.members.map((member, index) => `
+  el.guildManageTableBody.innerHTML = state.members.map((member, index) => {
+    const canEdit = member.can_edit !== false;
+
+    return `
     <tr>
       <td>${index + 1}</td>
       <td>${escapeHtml(member.name)}</td>
       <td>${member.power ?? 0}</td>
+      <td>
+        <button class="toggle-single-btn ${canEdit ? "owned" : "not-owned"}" type="button" data-action="toggle-member-editable" data-id="${member.id}">
+          ${canEdit ? "수정 가능" : "수정 불가"}
+        </button>
+      </td>
       <td>
         <div class="row-actions">
           <button class="text-btn" type="button" data-action="edit-member" data-id="${member.id}">수정</button>
@@ -2610,7 +2618,8 @@ function renderGuildManageTable() {
         </div>
       </td>
     </tr>
-  `).join("");
+  `;
+  }).join("");
 }
 
 function renderItemManageTable() {
@@ -3198,6 +3207,11 @@ function handleGuildManageTableClick(event) {
   const button = event.target.closest("button[data-action]");
   if (!button) return;
 
+  if (button.dataset.action === "toggle-member-editable") {
+    toggleMemberEditable(button.dataset.id);
+    return;
+  }
+
   if (button.dataset.action === "edit-member") {
     editMember(button.dataset.id);
     return;
@@ -3206,6 +3220,25 @@ function handleGuildManageTableClick(event) {
   if (button.dataset.action === "delete-member") {
     deleteMember(button.dataset.id);
   }
+}
+
+async function toggleMemberEditable(memberId) {
+  const member = state.members.find((entry) => entry.id === memberId);
+  if (!member) return;
+
+  const nextCanEdit = member.can_edit === false;
+  const updateRes = await supabase
+    .from("guild_members")
+    .update({ can_edit: nextCanEdit })
+    .eq("id", memberId);
+
+  if (updateRes.error) {
+    alert(`수정가능 여부 저장 중 오류가 발생했습니다.\n${updateRes.error.message}`);
+    return;
+  }
+
+  member.can_edit = nextCanEdit;
+  renderGuildManageTable();
 }
 
 function handleItemManageTableClick(event) {
