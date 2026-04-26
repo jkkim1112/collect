@@ -20,6 +20,7 @@ const state = {
   history: null,
   pendingManageType: null,
   pendingEditMemberId: null,
+  itemManageTarget: null,
   members: [],
   mountItems: [],
   memberMounts: [],
@@ -67,6 +68,9 @@ function bindElements() {
   el.bulkSaveBtn = document.getElementById("bulkSaveBtn");
   el.bulkCancelBtn = document.getElementById("bulkCancelBtn");
   el.itemManageBtn = document.getElementById("itemManageBtn");
+  el.mountManageBtn = document.getElementById("mountManageBtn");
+  el.accessoryManageBtn = document.getElementById("accessoryManageBtn");
+  el.bossManageBtn = document.getElementById("bossManageBtn");
   el.importOpenBtn = document.getElementById("importOpenBtn");
   el.tableGuideText = document.getElementById("tableGuideText");
   el.searchInput = document.getElementById("searchInput");
@@ -201,11 +205,14 @@ function bindEvents() {
 
   el.adminModeBtn.addEventListener("click", () => openModal(el.adminModeModalBackdrop));
   el.adminModeCloseBtn.addEventListener("click", () => closeModal(el.adminModeModalBackdrop));
-  el.guildManageBtn.addEventListener("click", () => openPasswordModal("guild"));
+  el.guildManageBtn.addEventListener("click", openAdminGuildManage);
+  el.mountManageBtn.addEventListener("click", () => openAdminItemManage("mount"));
+  el.accessoryManageBtn.addEventListener("click", () => openAdminItemManage("accessory"));
+  el.bossManageBtn.addEventListener("click", () => openAdminItemManage("boss"));
   el.bulkEditBtn.addEventListener("click", handleBulkEditButtonClick);
   el.bulkSaveBtn.addEventListener("click", handleBulkSaveButtonClick);
   el.bulkCancelBtn.addEventListener("click", handleBulkCancelButtonClick);
-  el.itemManageBtn.addEventListener("click", () => openPasswordModal("item"));
+  el.itemManageBtn?.addEventListener("click", () => openPasswordModal("item"));
   el.importOpenBtn.addEventListener("click", () => openPasswordModal("import"));
 
   el.passwordCancelBtn.addEventListener("click", closePasswordModal);
@@ -218,7 +225,7 @@ function bindEvents() {
   });
 
   el.guildManageCloseBtn.addEventListener("click", () => closeModal(el.guildManageModalBackdrop));
-  el.itemManageCloseBtn.addEventListener("click", () => closeModal(el.itemManageModalBackdrop));
+  el.itemManageCloseBtn.addEventListener("click", closeItemManageModal);
   el.importCloseBtn.addEventListener("click", closeImportModal);
   el.importCancelBtn.addEventListener("click", closeImportModal);
   el.importPreviewBtn.addEventListener("click", handleImportPreview);
@@ -236,6 +243,10 @@ function bindEvents() {
   [el.adminModeModalBackdrop, el.passwordModalBackdrop, el.guildManageModalBackdrop, el.itemManageModalBackdrop, el.searchSelectModalBackdrop, el.importModalBackdrop].forEach((backdrop) => {
     backdrop.addEventListener("click", (event) => {
       if (event.target === backdrop) {
+        if (backdrop === el.itemManageModalBackdrop) {
+          closeItemManageModal();
+          return;
+        }
         closeModal(backdrop);
       }
     });
@@ -278,8 +289,11 @@ function updateTabUi() {
   el.bulkSaveBtn.classList.toggle("hidden", !state.overallEditMode);
   el.bulkCancelBtn.classList.toggle("hidden", !state.overallEditMode);
 
-  el.guildManageBtn.disabled = isDistribution || isHistory || isBusy;
-  el.itemManageBtn.disabled = isDistribution || isHistory || isPower || isBusy;
+  el.guildManageBtn.disabled = isBusy;
+  el.mountManageBtn.disabled = isBusy;
+  el.accessoryManageBtn.disabled = isBusy;
+  el.bossManageBtn.disabled = isBusy;
+  if (el.itemManageBtn) el.itemManageBtn.disabled = isDistribution || isHistory || isPower || isBusy;
   el.bulkEditBtn.disabled = isDistribution || isHistory || isBusy;
   el.bulkSaveBtn.disabled = isBusy;
   el.bulkCancelBtn.disabled = isBusy;
@@ -290,14 +304,10 @@ function updateTabUi() {
   el.importOpenBtn.disabled = isHistory || isDistribution || isPower || isBusy;
 
   el.bossSearchInput.classList.toggle("hidden", !isBoss);
-  el.itemManageBtn.classList.toggle("hidden", isPower || isDistribution || isHistory);
+  if (el.itemManageBtn) el.itemManageBtn.classList.toggle("hidden", isPower || isDistribution || isHistory);
   el.importOpenBtn.classList.toggle("hidden", !(state.activeTab === "mount" || state.activeTab === "boss" || state.activeTab === "accessory"));
 
-  el.itemManageBtn.textContent = isAccessory ? "악세사리 관리" : isBoss ? "보스컬렉 관리" : "탈것 관리";
-  el.itemManageTitle.textContent = isAccessory ? "악세사리 관리" : isBoss ? "보스컬렉 관리" : "탈것 관리";
-  el.itemNameHeader.textContent = isAccessory ? "악세사리명" : isBoss ? "보스컬렉명" : "탈것명";
-  el.itemMaxHeader.classList.toggle("hidden", !isAccessory);
-  el.addItemBtn.textContent = isAccessory ? "악세사리 추가" : isBoss ? "보스컬렉 추가" : "탈것 추가";
+  updateItemManageUi();
 }
 
 async function loadActiveTabData() {
@@ -661,6 +671,63 @@ function getMemberDraftAccessory(memberId, groupId, partKey) {
 function resetOverallEditMode() {
   state.overallEditMode = false;
   state.draftAllRows = {};
+}
+
+function getItemManageType() {
+  if (["mount", "accessory", "boss"].includes(state.itemManageTarget)) return state.itemManageTarget;
+  if (["mount", "accessory", "boss"].includes(state.activeTab)) return state.activeTab;
+  return "mount";
+}
+
+function updateItemManageUi() {
+  const manageType = getItemManageType();
+  const isAccessory = manageType === "accessory";
+  const isBoss = manageType === "boss";
+
+  if (el.itemManageBtn) {
+    el.itemManageBtn.textContent = isAccessory ? "악세사리 관리" : isBoss ? "보스컬렉 관리" : "탈것 관리";
+  }
+  el.itemManageTitle.textContent = isAccessory ? "악세사리 관리" : isBoss ? "보스컬렉 관리" : "탈것 관리";
+  el.itemNameHeader.textContent = isAccessory ? "악세사리명" : isBoss ? "보스컬렉명" : "탈것명";
+  el.itemMaxHeader.classList.toggle("hidden", !isAccessory);
+  el.addItemBtn.textContent = isAccessory ? "악세사리 추가" : isBoss ? "보스컬렉 추가" : "탈것 추가";
+}
+
+async function openAdminGuildManage() {
+  closeModal(el.adminModeModalBackdrop);
+  await loadPowerData();
+  renderGuildManageTable();
+  openPasswordModal("guild");
+}
+
+async function openAdminItemManage(type) {
+  closeModal(el.adminModeModalBackdrop);
+  state.itemManageTarget = type;
+
+  if (type === "accessory") {
+    await loadAccessoryData();
+  } else if (type === "boss") {
+    await loadBossData();
+  } else {
+    await loadMountData();
+  }
+
+  updateItemManageUi();
+  renderItemManageTable();
+  openPasswordModal("item");
+}
+
+function closeItemManageModal() {
+  closeModal(el.itemManageModalBackdrop);
+  state.itemManageTarget = null;
+  updateItemManageUi();
+}
+
+function refreshItemManageModalIfNeeded() {
+  if (!state.itemManageTarget) return false;
+  updateItemManageUi();
+  renderItemManageTable();
+  return true;
 }
 
 function handleBulkEditButtonClick() {
@@ -2525,11 +2592,12 @@ function renderGuildManageTable() {
 }
 
 function renderItemManageTable() {
-  const items = state.activeTab === "accessory" ? state.accessoryGroups : state.activeTab === "boss" ? state.bossItems : state.mountItems;
-  const emptyText = state.activeTab === "accessory" ? "등록된 악세사리가 없습니다." : state.activeTab === "boss" ? "등록된 보스컬렉이 없습니다." : "등록된 탈것이 없습니다.";
+  const manageType = getItemManageType();
+  const items = manageType === "accessory" ? state.accessoryGroups : manageType === "boss" ? state.bossItems : state.mountItems;
+  const emptyText = manageType === "accessory" ? "등록된 악세사리가 없습니다." : manageType === "boss" ? "등록된 보스컬렉이 없습니다." : "등록된 탈것이 없습니다.";
 
   if (items.length === 0) {
-    el.itemManageTableBody.innerHTML = `<tr><td colspan="${state.activeTab === "accessory" ? 4 : 3}">${emptyText}</td></tr>`;
+    el.itemManageTableBody.innerHTML = `<tr><td colspan="${manageType === "accessory" ? 4 : 3}">${emptyText}</td></tr>`;
     return;
   }
 
@@ -2537,7 +2605,7 @@ function renderItemManageTable() {
     <tr>
       <td>${index + 1}</td>
       <td>${escapeHtml(item.name)}</td>
-      ${state.activeTab === "accessory" ? `<td>${Number(item.max_count ?? 0)}</td>` : ""}
+      ${manageType === "accessory" ? `<td>${Number(item.max_count ?? 0)}</td>` : ""}
       <td>
         <div class="row-actions">
           <button class="text-btn" type="button" data-action="edit-item" data-id="${item.id}">수정</button>
@@ -2977,6 +3045,8 @@ function confirmPassword() {
   }
 
   if (state.pendingManageType === "item") {
+    updateItemManageUi();
+    renderItemManageTable();
     openModal(el.itemManageModalBackdrop);
   }
 
@@ -3195,12 +3265,14 @@ async function deleteMember(memberId) {
 }
 
 async function addItem() {
-  if (state.activeTab === "accessory") {
+  const manageType = getItemManageType();
+
+  if (manageType === "accessory") {
     await addAccessoryGroup();
     return;
   }
 
-  if (state.activeTab === "boss") {
+  if (manageType === "boss") {
     await addBossItem();
     return;
   }
@@ -3256,6 +3328,7 @@ async function addItem() {
   }
 
   await loadMountData();
+  if (refreshItemManageModalIfNeeded()) return;
   renderAll();
 }
 
@@ -3311,6 +3384,7 @@ async function addBossItem() {
   }
 
   await loadBossData();
+  if (refreshItemManageModalIfNeeded()) return;
   renderAll();
 }
 
@@ -3379,16 +3453,19 @@ async function addAccessoryGroup() {
   }
 
   await loadAccessoryData();
+  if (refreshItemManageModalIfNeeded()) return;
   renderAll();
 }
 
 async function editItem(itemId) {
-  if (state.activeTab === "accessory") {
+  const manageType = getItemManageType();
+
+  if (manageType === "accessory") {
     await editAccessoryGroup(itemId);
     return;
   }
 
-  if (state.activeTab === "boss") {
+  if (manageType === "boss") {
     await editBossItem(itemId);
     return;
   }
@@ -3421,6 +3498,7 @@ async function editItem(itemId) {
   }
 
   await loadMountData();
+  if (refreshItemManageModalIfNeeded()) return;
   renderAll();
 }
 
@@ -3453,6 +3531,7 @@ async function editBossItem(itemId) {
   }
 
   await loadBossData();
+  if (refreshItemManageModalIfNeeded()) return;
   renderAll();
 }
 
@@ -3494,16 +3573,19 @@ async function editAccessoryGroup(itemId) {
   }
 
   await loadAccessoryData();
+  if (refreshItemManageModalIfNeeded()) return;
   renderAll();
 }
 
 async function deleteItem(itemId) {
-  if (state.activeTab === "accessory") {
+  const manageType = getItemManageType();
+
+  if (manageType === "accessory") {
     await deleteAccessoryGroup(itemId);
     return;
   }
 
-  if (state.activeTab === "boss") {
+  if (manageType === "boss") {
     await deleteBossItem(itemId);
     return;
   }
@@ -3524,6 +3606,7 @@ async function deleteItem(itemId) {
   }
 
   await loadMountData();
+  if (refreshItemManageModalIfNeeded()) return;
   renderAll();
 }
 
@@ -3544,6 +3627,7 @@ async function deleteBossItem(itemId) {
   }
 
   await loadBossData();
+  if (refreshItemManageModalIfNeeded()) return;
   renderAll();
 }
 
@@ -3564,6 +3648,7 @@ async function deleteAccessoryGroup(itemId) {
   }
 
   await loadAccessoryData();
+  if (refreshItemManageModalIfNeeded()) return;
   renderAll();
 }
 

@@ -1851,3 +1851,20 @@ button {
     max-height: calc(100vh - 24px);
   }
 }
+
+.admin-mode-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-mode-actions .btn {
+  width: 100%;
+  min-height: 46px;
+}
+
+@media (max-width: 480px) {
+  .admin-mode-actions {
+    grid-template-columns: 1fr;
+  }
+}
