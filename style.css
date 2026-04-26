@@ -139,6 +139,11 @@ button {
 
 #bossSearchInput {
   width: 220px;
+  max-width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #fff;
 }
 
 .boss-search-wrap {
@@ -1821,5 +1826,28 @@ button {
 @media (max-width: 768px) {
   .newdist-block-body:has(#newdistMainlandLogBody) .newdist-table-wrap {
     max-height: 320px;
+  }
+}
+
+.admin-mode-modal {
+  width: 720px;
+  max-width: 720px;
+  height: 520px;
+  max-height: 520px;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-mode-modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+@media (max-width: 768px) {
+  .admin-mode-modal {
+    width: calc(100vw - 24px);
+    max-width: calc(100vw - 24px);
+    height: 520px;
+    max-height: calc(100vh - 24px);
   }
 }
