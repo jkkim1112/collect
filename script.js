@@ -3294,7 +3294,7 @@ async function addMember() {
 
   const insertRes = await supabase
     .from("guild_members")
-    .insert({ name, power: Math.floor(power), can_edit: false })
+    .insert({ name, power: Math.floor(power) })
     .select("id, name, power, updated_at, can_edit")
     .single();
 
@@ -3304,10 +3304,34 @@ async function addMember() {
   }
 
   const newMember = insertRes.data;
+  const [mountItemsRes, accessoryGroupsRes, bossItemsRes] = await Promise.all([
+    supabase.from("mounts").select("id, name, display_order"),
+    supabase.from("accessory_groups").select("id, name, display_order, max_count"),
+    supabase.from("boss_collections").select("id, name, display_order")
+  ]);
 
-  if (state.mountItems.length > 0) {
-    const now = new Date().toISOString();
-    const memberMountPayload = state.mountItems.map((item) => ({
+  if (mountItemsRes.error) {
+    alert(`탈것 목록 조회 중 오류가 발생했습니다.\n${mountItemsRes.error.message}`);
+    return;
+  }
+
+  if (accessoryGroupsRes.error) {
+    alert(`악세사리 목록 조회 중 오류가 발생했습니다.\n${accessoryGroupsRes.error.message}`);
+    return;
+  }
+
+  if (bossItemsRes.error) {
+    alert(`보스컬렉 목록 조회 중 오류가 발생했습니다.\n${bossItemsRes.error.message}`);
+    return;
+  }
+
+  const mountItems = mountItemsRes.data ?? [];
+  const accessoryGroups = accessoryGroupsRes.data ?? [];
+  const bossItems = bossItemsRes.data ?? [];
+  const now = new Date().toISOString();
+
+  if (mountItems.length > 0) {
+    const memberMountPayload = mountItems.map((item) => ({
       member_id: newMember.id,
       mount_id: item.id,
       owned: false,
@@ -3324,9 +3348,8 @@ async function addMember() {
     }
   }
 
-  if (state.accessoryGroups.length > 0) {
-    const now = new Date().toISOString();
-    const memberAccessoryPayload = state.accessoryGroups.map((group) => ({
+  if (accessoryGroups.length > 0) {
+    const memberAccessoryPayload = accessoryGroups.map((group) => ({
       member_id: newMember.id,
       accessory_group_id: group.id,
       ring_count: Number(group.max_count ?? 0),
@@ -3347,9 +3370,8 @@ async function addMember() {
     }
   }
 
-  if (state.bossItems.length > 0) {
-    const now = new Date().toISOString();
-    const memberBossPayload = state.bossItems.map((item) => ({
+  if (bossItems.length > 0) {
+    const memberBossPayload = bossItems.map((item) => ({
       member_id: newMember.id,
       boss_collection_id: item.id,
       owned: false,
