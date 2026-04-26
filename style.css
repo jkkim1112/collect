@@ -1868,3 +1868,13 @@ button {
     grid-template-columns: 1fr;
   }
 }
+
+.admin-password-change-btn {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 480px) {
+  .admin-password-change-btn {
+    grid-column: auto;
+  }
+}

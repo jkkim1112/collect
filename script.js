@@ -2,7 +2,9 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 const SUPABASE_URL = "https://mgmvyapblwiwjaytkgwl.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_fzA0-8AjS9D1xtXLkgdo1Q_iCY-dYJV";
-const ADMIN_PASSWORD = "1590";
+const APP_SETTINGS_TABLE = "app_settings";
+const ADMIN_PASSWORD_KEY = "admin_password";
+let adminPassword = "1590";
 const ACCESSORY_PARTS = [
   { key: "necklace_count", label: "목걸이" },
   { key: "earring_count", label: "귀걸이" },
@@ -55,6 +57,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   initializeDistributionState();
   initializeHistoryState();
   bindNewDistributionUi();
+  await loadAdminPassword();
   updateTabUi();
   await loadActiveTabData();
   renderAll();
@@ -88,6 +91,14 @@ function bindElements() {
 
   el.adminModeModalBackdrop = document.getElementById("adminModeModalBackdrop");
   el.adminModeCloseBtn = document.getElementById("adminModeCloseBtn");
+  el.adminPasswordChangeBtn = document.getElementById("adminPasswordChangeBtn");
+  el.adminPasswordChangeModalBackdrop = document.getElementById("adminPasswordChangeModalBackdrop");
+  el.adminPasswordChangeCloseBtn = document.getElementById("adminPasswordChangeCloseBtn");
+  el.adminNewPasswordInput = document.getElementById("adminNewPasswordInput");
+  el.adminNewPasswordConfirmInput = document.getElementById("adminNewPasswordConfirmInput");
+  el.adminPasswordChangeErrorText = document.getElementById("adminPasswordChangeErrorText");
+  el.adminPasswordChangeCancelBtn = document.getElementById("adminPasswordChangeCancelBtn");
+  el.adminPasswordChangeSaveBtn = document.getElementById("adminPasswordChangeSaveBtn");
 
   el.passwordModalBackdrop = document.getElementById("passwordModalBackdrop");
   el.passwordInput = document.getElementById("passwordInput");
@@ -205,6 +216,16 @@ function bindEvents() {
 
   el.adminModeBtn.addEventListener("click", () => openModal(el.adminModeModalBackdrop));
   el.adminModeCloseBtn.addEventListener("click", () => closeModal(el.adminModeModalBackdrop));
+  el.adminPasswordChangeBtn.addEventListener("click", openAdminPasswordChangeAuth);
+  el.adminPasswordChangeCloseBtn.addEventListener("click", closeAdminPasswordChangeModal);
+  el.adminPasswordChangeCancelBtn.addEventListener("click", closeAdminPasswordChangeModal);
+  el.adminPasswordChangeSaveBtn.addEventListener("click", handleAdminPasswordChangeSave);
+  el.adminNewPasswordConfirmInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      handleAdminPasswordChangeSave();
+    }
+  });
   el.guildManageBtn.addEventListener("click", openAdminGuildManage);
   el.mountManageBtn.addEventListener("click", () => openAdminItemManage("mount"));
   el.accessoryManageBtn.addEventListener("click", () => openAdminItemManage("accessory"));
@@ -240,7 +261,7 @@ function bindEvents() {
   el.guildManageTableBody.addEventListener("click", handleGuildManageTableClick);
   el.itemManageTableBody.addEventListener("click", handleItemManageTableClick);
 
-  [el.adminModeModalBackdrop, el.passwordModalBackdrop, el.guildManageModalBackdrop, el.itemManageModalBackdrop, el.searchSelectModalBackdrop, el.importModalBackdrop].forEach((backdrop) => {
+  [el.adminModeModalBackdrop, el.adminPasswordChangeModalBackdrop, el.passwordModalBackdrop, el.guildManageModalBackdrop, el.itemManageModalBackdrop, el.searchSelectModalBackdrop, el.importModalBackdrop].forEach((backdrop) => {
     backdrop.addEventListener("click", (event) => {
       if (event.target === backdrop) {
         if (backdrop === el.itemManageModalBackdrop) {
@@ -3016,6 +3037,91 @@ function resetSearchState() {
   el.searchInput.value = "";
 }
 
+async function loadAdminPassword() {
+  try {
+    const res = await supabase
+      .from(APP_SETTINGS_TABLE)
+      .select("value")
+      .eq("key", ADMIN_PASSWORD_KEY)
+      .maybeSingle();
+
+    if (res.error) {
+      console.warn("관리자 비밀번호 설정 조회 실패", res.error.message);
+      return;
+    }
+
+    if (res.data?.value) {
+      adminPassword = String(res.data.value);
+      return;
+    }
+
+    await saveAdminPassword(adminPassword, true);
+  } catch (error) {
+    console.warn("관리자 비밀번호 설정 조회 실패", error);
+  }
+}
+
+async function saveAdminPassword(nextPassword, silent = false) {
+  const password = String(nextPassword || "").trim();
+  if (!password) {
+    throw new Error("새 비밀번호를 입력해주세요.");
+  }
+
+  const saveRes = await supabase
+    .from(APP_SETTINGS_TABLE)
+    .upsert({ key: ADMIN_PASSWORD_KEY, value: password, updated_at: new Date().toISOString() }, { onConflict: "key" });
+
+  if (saveRes.error) {
+    if (silent) {
+      console.warn("관리자 비밀번호 기본값 저장 실패", saveRes.error.message);
+      return;
+    }
+    throw new Error(`관리자 비밀번호 저장 중 오류가 발생했습니다.\n${saveRes.error.message}`);
+  }
+
+  adminPassword = password;
+}
+
+function openAdminPasswordChangeAuth() {
+  closeModal(el.adminModeModalBackdrop);
+  openPasswordModal("password-change");
+}
+
+function openAdminPasswordChangeModal() {
+  el.adminNewPasswordInput.value = "";
+  el.adminNewPasswordConfirmInput.value = "";
+  el.adminPasswordChangeErrorText.classList.add("hidden");
+  openModal(el.adminPasswordChangeModalBackdrop);
+  setTimeout(() => el.adminNewPasswordInput.focus(), 0);
+}
+
+function closeAdminPasswordChangeModal() {
+  el.adminNewPasswordInput.value = "";
+  el.adminNewPasswordConfirmInput.value = "";
+  el.adminPasswordChangeErrorText.classList.add("hidden");
+  closeModal(el.adminPasswordChangeModalBackdrop);
+}
+
+async function handleAdminPasswordChangeSave() {
+  const nextPassword = el.adminNewPasswordInput.value.trim();
+  const confirmPasswordValue = el.adminNewPasswordConfirmInput.value.trim();
+
+  if (!nextPassword || nextPassword !== confirmPasswordValue) {
+    el.adminPasswordChangeErrorText.textContent = "새 비밀번호를 확인해주세요.";
+    el.adminPasswordChangeErrorText.classList.remove("hidden");
+    return;
+  }
+
+  try {
+    await saveAdminPassword(nextPassword);
+    closeAdminPasswordChangeModal();
+    alert("관리자 비밀번호가 변경되었습니다.");
+  } catch (error) {
+    el.adminPasswordChangeErrorText.textContent = error.message || "관리자 비밀번호 저장 중 오류가 발생했습니다.";
+    el.adminPasswordChangeErrorText.classList.remove("hidden");
+  }
+}
+
 function openPasswordModal(type, memberId = null) {
   state.pendingManageType = type;
   state.pendingEditMemberId = memberId;
@@ -3032,7 +3138,7 @@ function closePasswordModal() {
 }
 
 function confirmPassword() {
-  if (el.passwordInput.value !== ADMIN_PASSWORD) {
+  if (el.passwordInput.value !== adminPassword) {
     el.passwordErrorText.classList.remove("hidden");
     return;
   }
@@ -3063,6 +3169,10 @@ function confirmPassword() {
   if (state.pendingManageType === "row-edit") {
     state.rowEditMemberId = state.pendingEditMemberId;
     renderAll();
+  }
+
+  if (state.pendingManageType === "password-change") {
+    openAdminPasswordChangeModal();
   }
 
   state.pendingManageType = null;
