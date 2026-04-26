@@ -365,7 +365,7 @@ async function loadPowerData() {
 
 async function loadMountData() {
   const [membersRes, itemsRes, memberMountsRes] = await Promise.all([
-    supabase.from("guild_members").select("id, name, power, updated_at").order("name", { ascending: true }),
+    supabase.from("guild_members").select("id, name, power, updated_at, can_edit").order("name", { ascending: true }),
     supabase.from("mounts").select("id, name, display_order").order("display_order", { ascending: true }),
     supabase.from("member_mounts").select("id, member_id, mount_id, owned, updated_at")
   ]);
@@ -392,7 +392,7 @@ async function loadMountData() {
 }
 async function loadBossData() {
   const [membersRes, itemsRes] = await Promise.all([
-    supabase.from("guild_members").select("id, name, power, updated_at").order("name", { ascending: true }),
+    supabase.from("guild_members").select("id, name, power, updated_at, can_edit").order("name", { ascending: true }),
     supabase
       .from("boss_collections")
       .select("id, name, display_order")
@@ -440,7 +440,7 @@ async function loadBossData() {
 
 async function loadAccessoryData() {
   const [membersRes, groupsRes, memberAccessoriesRes] = await Promise.all([
-    supabase.from("guild_members").select("id, name, power, updated_at").order("name", { ascending: true }),
+    supabase.from("guild_members").select("id, name, power, updated_at, can_edit").order("name", { ascending: true }),
     supabase.from("accessory_groups").select("id, name, display_order, max_count").order("display_order", { ascending: true }),
     supabase.from("member_accessories").select("id, member_id, accessory_group_id, ring_count, necklace_count, earring_count, belt_count, bracelet_count, updated_at")
   ]);
@@ -825,12 +825,18 @@ function renderGuideText() {
     return;
   }
 
-  el.tableGuideText.textContent = state.rowEditMemberId === state.selectedMemberId
-    ? state.activeTab === "power"
+  if (state.rowEditMemberId === state.selectedMemberId) {
+    el.tableGuideText.textContent = state.activeTab === "power"
       ? "선택된 길드원 1명 수정 모드입니다. 이 행에서 최고 투력을 수정한 뒤 저장할 수 있습니다."
       : state.activeTab === "accessory"
         ? "선택된 길드원 1명 수정 모드입니다. 이 행에서 악세사리 수량을 수정한 뒤 저장할 수 있습니다."
-        : "선택된 길드원 1명 수정 모드입니다. 이 행에서 보유 상태를 수정한 뒤 저장할 수 있습니다."
+        : "선택된 길드원 1명 수정 모드입니다. 이 행에서 보유 상태를 수정한 뒤 저장할 수 있습니다.";
+    return;
+  }
+
+  const selectedMember = state.members.find((member) => member.id === state.selectedMemberId);
+  el.tableGuideText.textContent = selectedMember?.can_edit !== false
+    ? "선택된 길드원 1명만 표시됩니다. 수정 버튼을 누르면 바로 수정할 수 있습니다."
     : "선택된 길드원 1명만 표시됩니다. 수정 버튼에서 관리자 인증 후 수정할 수 있습니다.";
 }
 
@@ -2770,6 +2776,13 @@ function handleSummaryTableClick(event) {
   }
 
   if (role === "edit-row") {
+    const member = state.members.find((entry) => entry.id === button.dataset.memberId);
+    if (member?.can_edit !== false) {
+      state.rowEditMemberId = button.dataset.memberId;
+      renderAll();
+      return;
+    }
+
     openPasswordModal("row-edit", button.dataset.memberId);
     return;
   }
@@ -3282,7 +3295,7 @@ async function addMember() {
   const insertRes = await supabase
     .from("guild_members")
     .insert({ name, power: Math.floor(power) })
-    .select("id, name, power, updated_at")
+    .select("id, name, power, updated_at, can_edit")
     .single();
 
   if (insertRes.error) {
