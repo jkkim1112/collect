@@ -1910,3 +1910,29 @@ button {
   min-width: 110px;
   max-width: 110px;
 }
+
+#itemManageModalBackdrop .manage-table {
+  min-width: 560px;
+  table-layout: fixed;
+}
+
+#itemManageModalBackdrop .manage-table th:nth-child(2),
+#itemManageModalBackdrop .manage-table td:nth-child(2) {
+  width: 330px;
+  min-width: 330px;
+  max-width: 330px;
+}
+
+#itemManageModalBackdrop .manage-table th:nth-child(3),
+#itemManageModalBackdrop .manage-table td:nth-child(3) {
+  width: 110px;
+  min-width: 110px;
+  max-width: 110px;
+}
+
+#itemManageModalBackdrop .manage-table th:nth-child(4),
+#itemManageModalBackdrop .manage-table td:nth-child(4) {
+  width: 110px;
+  min-width: 110px;
+  max-width: 110px;
+}
