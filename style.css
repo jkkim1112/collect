@@ -1823,18 +1823,3 @@ button {
     max-height: 320px;
   }
 }
-
-
-.admin-mode-modal {
-  width: 720px;
-  height: 480px;
-  max-width: calc(100vw - 32px);
-  max-height: calc(100vh - 32px);
-  display: flex;
-  flex-direction: column;
-}
-
-.admin-mode-modal-body {
-  flex: 1 1 auto;
-  min-height: 0;
-}

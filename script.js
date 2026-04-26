@@ -61,7 +61,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 function bindElements() {
   el.tabs = Array.from(document.querySelectorAll(".tab"));
-  el.adminModeBtn = document.getElementById("adminModeBtn");
   el.guildManageBtn = document.getElementById("guildManageBtn");
   el.bulkEditBtn = document.getElementById("bulkEditBtn");
   el.bulkSaveBtn = document.getElementById("bulkSaveBtn");
@@ -81,9 +80,6 @@ function bindElements() {
   el.searchSelectList = document.getElementById("searchSelectList");
   el.searchSelectCloseBtn = document.getElementById("searchSelectCloseBtn");
   el.searchSelectCancelBtn = document.getElementById("searchSelectCancelBtn");
-
-  el.adminModeModalBackdrop = document.getElementById("adminModeModalBackdrop");
-  el.adminModeCloseBtn = document.getElementById("adminModeCloseBtn");
 
   el.passwordModalBackdrop = document.getElementById("passwordModalBackdrop");
   el.passwordInput = document.getElementById("passwordInput");
@@ -199,8 +195,6 @@ function bindEvents() {
   el.summaryTableBody.addEventListener("input", handleSummaryTableInput);
   el.historyListTableBody?.addEventListener("click", handleHistoryListClick);
 
-  el.adminModeBtn.addEventListener("click", () => openModal(el.adminModeModalBackdrop));
-  el.adminModeCloseBtn.addEventListener("click", () => closeModal(el.adminModeModalBackdrop));
   el.guildManageBtn.addEventListener("click", () => openPasswordModal("guild"));
   el.bulkEditBtn.addEventListener("click", handleBulkEditButtonClick);
   el.bulkSaveBtn.addEventListener("click", handleBulkSaveButtonClick);
@@ -233,7 +227,7 @@ function bindEvents() {
   el.guildManageTableBody.addEventListener("click", handleGuildManageTableClick);
   el.itemManageTableBody.addEventListener("click", handleItemManageTableClick);
 
-  [el.adminModeModalBackdrop, el.passwordModalBackdrop, el.guildManageModalBackdrop, el.itemManageModalBackdrop, el.searchSelectModalBackdrop, el.importModalBackdrop].forEach((backdrop) => {
+  [el.passwordModalBackdrop, el.guildManageModalBackdrop, el.itemManageModalBackdrop, el.searchSelectModalBackdrop, el.importModalBackdrop].forEach((backdrop) => {
     backdrop.addEventListener("click", (event) => {
       if (event.target === backdrop) {
         closeModal(backdrop);
