@@ -1,7 +1,9 @@
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
 
-const SUPABASE_URL = "https://mgmvyapblwiwjaytkgwl.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_fzA0-8AjS9D1xtXLkgdo1Q_iCY-dYJV";
+const SUPABASE_URL = "https://xymuwulzbggqrjhembel.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_h4R6XafVkA5BsUWBJ_02Fw_QZRCFb_I";
+const BOSS_SUPABASE_URL = "https://ijefdhqxhokyiodgjjct.supabase.co";
+const BOSS_SUPABASE_ANON_KEY = "sb_publishable__lSPCq2eXCqO299El9fCTA_5vnLhXvV";
 const APP_SETTINGS_TABLE = "app_settings";
 const ADMIN_PASSWORD_KEY = "admin_password";
 let adminPassword = "";
@@ -15,12 +17,16 @@ const ACCESSORY_PARTS = [
 ];
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const bossSupabase = BOSS_SUPABASE_URL && BOSS_SUPABASE_ANON_KEY
+  ? createClient(BOSS_SUPABASE_URL, BOSS_SUPABASE_ANON_KEY)
+  : null;
 const DISTRIBUTION_BOSS_RULES_TABLE = "distribution_boss_rules";
 
 const state = {
   activeTab: "power",
   distribution: null,
   history: null,
+  bossParticipation: null,
   pendingManageType: null,
   pendingEditMemberId: null,
   itemManageTarget: null,
@@ -57,6 +63,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   bindEvents();
   initializeDistributionState();
   initializeHistoryState();
+  initializeBossParticipationState();
   bindNewDistributionUi();
   await loadAdminPassword();
   updateTabUi();
@@ -157,6 +164,21 @@ function bindElements() {
   el.historyGuildFeePercent = document.getElementById("historyGuildFeePercent");
   el.historyGuildMasterPercent = document.getElementById("historyGuildMasterPercent");
   el.historyManagerPercent = document.getElementById("historyManagerPercent");
+  el.bossParticipationContent = document.getElementById("bossParticipationContent");
+  el.bossParticipationStartDateInput = document.getElementById("bossParticipationStartDateInput");
+  el.bossParticipationEndDateInput = document.getElementById("bossParticipationEndDateInput");
+  el.bossParticipationBossInput = document.getElementById("bossParticipationBossInput");
+  el.bossParticipationParticipantInput = document.getElementById("bossParticipationParticipantInput");
+  el.bossParticipationSearchBtn = document.getElementById("bossParticipationSearchBtn");
+  el.bossParticipationResetBtn = document.getElementById("bossParticipationResetBtn");
+  el.bossParticipationExportBtn = document.getElementById("bossParticipationExportBtn");
+  el.bossParticipationSummaryTotalRecords = document.getElementById("bossParticipationSummaryTotalRecords");
+  el.bossParticipationSummaryCutRecords = document.getElementById("bossParticipationSummaryCutRecords");
+  el.bossParticipationSummaryMungRecords = document.getElementById("bossParticipationSummaryMungRecords");
+  el.bossParticipationSummaryParticipants = document.getElementById("bossParticipationSummaryParticipants");
+  el.bossParticipationSummaryUniqueParticipants = document.getElementById("bossParticipationSummaryUniqueParticipants");
+  el.bossParticipationTableHead = document.getElementById("bossParticipationTableHead");
+  el.bossParticipationTableBody = document.getElementById("bossParticipationTableBody");
   el.bulkSaveOverlay = document.getElementById("bulkSaveOverlay");
   el.bulkSavePercent = document.getElementById("bulkSavePercent");
   el.bulkSaveBarFill = document.getElementById("bulkSaveBarFill");
@@ -179,6 +201,11 @@ function bindEvents() {
 
       if (nextTab === "history") {
         await loadHistoryData();
+        renderAll();
+        return;
+      }
+
+      if (nextTab === "bossParticipation") {
         renderAll();
         return;
       }
@@ -255,6 +282,9 @@ function bindEvents() {
   el.historySearchBtn.addEventListener("click", handleHistorySearch);
   el.historyDeleteBtn.addEventListener("click", handleHistoryDelete);
   el.historyExportBtn.addEventListener("click", handleHistoryExport);
+  el.bossParticipationSearchBtn?.addEventListener("click", handleBossParticipationSearch);
+  el.bossParticipationResetBtn?.addEventListener("click", handleBossParticipationReset);
+  el.bossParticipationExportBtn?.addEventListener("click", handleBossParticipationExport);
 
   el.addMemberBtn.addEventListener("click", addMember);
   el.addItemBtn.addEventListener("click", addItem);
@@ -284,17 +314,19 @@ function updateTabUi() {
 
   const isDistribution = state.activeTab === "distribution";
   const isHistory = state.activeTab === "history";
+  const isBossParticipation = state.activeTab === "bossParticipation";
   const isAccessory = state.activeTab === "accessory";
   const isBoss = state.activeTab === "boss";
   const isPower = state.activeTab === "power";
   const isBusy = state.isBulkSaving;
 
   el.mainCard.classList.remove("hidden");
-  el.mainActions.classList.toggle("hidden", isDistribution || isHistory);
-  el.summaryTableWrap.classList.toggle("hidden", isDistribution || isHistory);
+  el.mainActions.classList.toggle("hidden", isDistribution || isHistory || isBossParticipation);
+  el.summaryTableWrap.classList.toggle("hidden", isDistribution || isHistory || isBossParticipation);
   el.distributionContent.classList.toggle("hidden", !isDistribution);
   el.historyContent.classList.toggle("hidden", !isHistory);
-  el.mainTableSearch.classList.toggle("hidden", isDistribution || isHistory);
+  el.bossParticipationContent?.classList.toggle("hidden", !isBossParticipation);
+  el.mainTableSearch.classList.toggle("hidden", isDistribution || isHistory || isBossParticipation);
   el.historyHeaderActions.classList.toggle("hidden", !isHistory);
 
   if (isDistribution) {
@@ -303,6 +335,9 @@ function updateTabUi() {
   } else if (isHistory) {
     el.mainCardTitle.textContent = "분배 이력";
     el.tableGuideText.textContent = "저장된 분배 이력을 날짜 기준으로 조회하는 화면입니다.";
+  } else if (isBossParticipation) {
+    el.mainCardTitle.textContent = "보스 참여 이력";
+    el.tableGuideText.textContent = "보스봇 DB의 컷 기록과 참여자 정보를 조회하는 화면입니다.";
   } else {
     el.mainCardTitle.textContent = "전체 현황";
   }
@@ -315,18 +350,18 @@ function updateTabUi() {
   el.mountManageBtn.disabled = isBusy;
   el.accessoryManageBtn.disabled = isBusy;
   el.bossManageBtn.disabled = isBusy;
-  if (el.itemManageBtn) el.itemManageBtn.disabled = isDistribution || isHistory || isPower || isBusy;
-  el.bulkEditBtn.disabled = isDistribution || isHistory || isBusy;
+  if (el.itemManageBtn) el.itemManageBtn.disabled = isDistribution || isHistory || isBossParticipation || isPower || isBusy;
+  el.bulkEditBtn.disabled = isDistribution || isHistory || isBossParticipation || isBusy;
   el.bulkSaveBtn.disabled = isBusy;
   el.bulkCancelBtn.disabled = isBusy;
-  el.searchBtn.disabled = isDistribution || isHistory || isBusy;
-  el.resetBtn.disabled = isDistribution || isHistory || isBusy;
-  el.searchInput.disabled = isDistribution || isHistory || isBusy;
-  el.bossSearchInput.disabled = !isBoss || isDistribution || isHistory || isBusy;
-  el.importOpenBtn.disabled = isHistory || isDistribution || isPower || isBusy;
+  el.searchBtn.disabled = isDistribution || isHistory || isBossParticipation || isBusy;
+  el.resetBtn.disabled = isDistribution || isHistory || isBossParticipation || isBusy;
+  el.searchInput.disabled = isDistribution || isHistory || isBossParticipation || isBusy;
+  el.bossSearchInput.disabled = !isBoss || isDistribution || isHistory || isBossParticipation || isBusy;
+  el.importOpenBtn.disabled = isHistory || isDistribution || isBossParticipation || isPower || isBusy;
 
   el.bossSearchInput.classList.toggle("hidden", !isBoss);
-  if (el.itemManageBtn) el.itemManageBtn.classList.toggle("hidden", isPower || isDistribution || isHistory);
+  if (el.itemManageBtn) el.itemManageBtn.classList.toggle("hidden", isPower || isDistribution || isHistory || isBossParticipation);
   el.importOpenBtn.classList.toggle("hidden", !(state.activeTab === "mount" || state.activeTab === "boss" || state.activeTab === "accessory"));
 
   updateItemManageUi();
@@ -792,6 +827,11 @@ function renderAll() {
     return;
   }
 
+  if (state.activeTab === "bossParticipation") {
+    renderBossParticipationTab();
+    return;
+  }
+
   syncDraftState();
   renderGuideText();
   renderSummaryTable();
@@ -1239,6 +1279,7 @@ function createDistributionGroupState(type) {
   return {
     type,
     deductions: [],
+    appliedDeductions: [],
     logs: [],
     results: [],
     summary: createDistributionSummary(),
@@ -1366,7 +1407,11 @@ function renderDistributionDeductionTable(groupKey) {
     return;
   }
 
-  body.innerHTML = rows.map((row) => `
+  body.innerHTML = rows.map((row) => {
+    const appliedRow = findAppliedDistributionDeductionRow(groupKey, row.id);
+    const deductionAmount = appliedRow ? getDistributionDeductionAmount(groupKey, appliedRow) : 0;
+
+    return `
     <tr>
       <td><input class="newdist-input-sm" type="text" data-role="newdist-deduction-name" data-group="${groupKey}" data-id="${row.id}" value="${escapeAttr(row.name)}"></td>
       <td>
@@ -1376,10 +1421,11 @@ function renderDistributionDeductionTable(groupKey) {
         </select>
       </td>
       <td><input class="newdist-input-sm" type="number" min="0" step="0.01" data-role="newdist-deduction-value" data-group="${groupKey}" data-id="${row.id}" value="${escapeAttr(row.value ?? "")}"></td>
-      <td class="right">${formatNumber(getDistributionDeductionAmount(groupKey, row))}</td>
+      <td class="right">${formatNumber(deductionAmount)}</td>
       <td class="center"><button class="btn btn-outline" type="button" data-role="newdist-delete-deduction" data-group="${groupKey}" data-id="${row.id}">삭제</button></td>
     </tr>
-  `).join("");
+  `;
+  }).join("");
 }
 
 function renderDistributionLogs(groupKey) {
@@ -1477,7 +1523,7 @@ function renderDistributionNameRules() {
 function calculateDistributionGroupSummary(groupKey) {
   const distribution = state.distribution;
   const assigned = getDistributionAssignedAmounts()[groupKey];
-  const deductions = distribution[groupKey].deductions;
+  const deductions = distribution[groupKey].appliedDeductions;
   const deductionTotal = deductions.reduce((sum, row) => sum + getDistributionDeductionAmount(groupKey, row), 0);
   const actualDiamond = Math.max(0, assigned - deductionTotal);
 
@@ -1550,6 +1596,7 @@ function bindNewDistributionUi() {
   ["mainland", "world"].forEach((groupKey) => {
     const upper = groupKey === "mainland" ? "Mainland" : "World";
     document.getElementById(`newdist${upper}AddDeductionBtn`)?.addEventListener("click", () => handleDistributionAddDeduction(groupKey));
+    document.getElementById(`newdist${upper}ApplyDeductionBtn`)?.addEventListener("click", () => handleDistributionApplyDeductions(groupKey));
     document.getElementById(`newdist${upper}RefreshBtn`)?.addEventListener("click", () => handleDistributionRefreshGroup(groupKey));
     document.getElementById(`newdist${upper}CalcBtn`)?.addEventListener("click", () => handleDistributionCalculate(groupKey));
     document.getElementById(`newdist${upper}ClearBtn`)?.addEventListener("click", () => handleDistributionClearResults(groupKey));
@@ -1657,6 +1704,11 @@ function handleDistributionAddDeduction(groupKey) {
   renderDistributionGroup(groupKey);
 }
 
+function handleDistributionApplyDeductions(groupKey) {
+  state.distribution[groupKey].appliedDeductions = state.distribution[groupKey].deductions.map((row) => ({ ...row }));
+  renderDistributionGroup(groupKey);
+}
+
 function handleDistributionRefreshGroup(groupKey) {
   rebuildDistributionWorkingLogs();
   state.distribution[groupKey].results = [];
@@ -1694,6 +1746,7 @@ function handleDistributionClick(event) {
   if (role === "newdist-delete-deduction") {
     const groupKey = target.dataset.group;
     state.distribution[groupKey].deductions = state.distribution[groupKey].deductions.filter((row) => row.id !== target.dataset.id);
+    state.distribution[groupKey].appliedDeductions = state.distribution[groupKey].appliedDeductions.filter((row) => row.id !== target.dataset.id);
     renderDistributionGroup(groupKey);
     return;
   }
@@ -1764,7 +1817,6 @@ function handleDistributionInput(event) {
     const row = findDistributionDeductionRow(target.dataset.group, target.dataset.id);
     if (row) {
       row.value = target.value === "" ? "" : Math.max(0, Number(target.value) || 0);
-      renderDistributionGroup(target.dataset.group);
     }
   }
 }
@@ -1783,7 +1835,6 @@ function handleDistributionChange(event) {
     const row = findDistributionDeductionRow(target.dataset.group, target.dataset.id);
     if (row) {
       row.mode = target.value === "amount" ? "amount" : "percent";
-      renderDistributionGroup(target.dataset.group);
     }
   }
 }
@@ -1832,6 +1883,10 @@ function handleDistributionApplyLogEdit() {
 
 function findDistributionDeductionRow(groupKey, rowId) {
   return state.distribution[groupKey]?.deductions?.find((entry) => entry.id === rowId) || null;
+}
+
+function findAppliedDistributionDeductionRow(groupKey, rowId) {
+  return state.distribution[groupKey]?.appliedDeductions?.find((entry) => entry.id === rowId) || null;
 }
 
 function clampPercent(value) {
@@ -2146,7 +2201,7 @@ function calculateDistributionResults(groupKey) {
   });
 
   const assigned = getDistributionAssignedAmounts()[groupKey];
-  const deductionTotal = group.deductions.reduce((sum, row) => sum + getDistributionDeductionAmount(groupKey, row), 0);
+  const deductionTotal = group.appliedDeductions.reduce((sum, row) => sum + getDistributionDeductionAmount(groupKey, row), 0);
   const actualDiamond = Math.max(0, assigned - deductionTotal);
   const activeTotalPoints = Array.from(pointMap.values()).filter((row) => !row.isRetired).reduce((sum, row) => sum + row.points, 0);
   const perPoint = activeTotalPoints > 0 ? actualDiamond / activeTotalPoints : 0;
@@ -2596,6 +2651,350 @@ ${deleteRes.error.message}`);
 
 function handleHistoryExport() {
   alert("분배 이력 엑셀 저장 기능은 다음 단계에서 연결할 예정입니다.");
+}
+
+
+function initializeBossParticipationState() {
+  state.bossParticipation = {
+    startDate: "",
+    endDate: "",
+    bossKeyword: "",
+    participantKeyword: "",
+    rows: [],
+    loading: false,
+    loaded: false
+  };
+}
+
+async function handleBossParticipationSearch() {
+  state.bossParticipation.startDate = String(el.bossParticipationStartDateInput?.value || "").trim();
+  state.bossParticipation.endDate = String(el.bossParticipationEndDateInput?.value || "").trim();
+  state.bossParticipation.bossKeyword = String(el.bossParticipationBossInput?.value || "").trim();
+  state.bossParticipation.participantKeyword = String(el.bossParticipationParticipantInput?.value || "").trim();
+  await loadBossParticipationData();
+  renderBossParticipationTab();
+}
+
+async function handleBossParticipationReset() {
+  state.bossParticipation.startDate = "";
+  state.bossParticipation.endDate = "";
+  state.bossParticipation.bossKeyword = "";
+  state.bossParticipation.participantKeyword = "";
+  state.bossParticipation.rows = [];
+  state.bossParticipation.loaded = false;
+  state.bossParticipation.loading = false;
+  if (el.bossParticipationStartDateInput) el.bossParticipationStartDateInput.value = "";
+  if (el.bossParticipationEndDateInput) el.bossParticipationEndDateInput.value = "";
+  if (el.bossParticipationBossInput) el.bossParticipationBossInput.value = "";
+  if (el.bossParticipationParticipantInput) el.bossParticipationParticipantInput.value = "";
+  renderBossParticipationTab();
+}
+
+async function loadBossParticipationData() {
+  const tabState = state.bossParticipation;
+  if (!tabState) return;
+
+  tabState.loading = true;
+  renderBossParticipationTab();
+
+  try {
+    if (!bossSupabase) {
+      throw new Error("보스봇 Supabase URL과 ANON KEY를 script 파일에 설정해주세요.");
+    }
+
+    let query = bossSupabase
+      .from("boss_kill_records")
+      .select("id, boss_id, boss_name, record_type, cut_time, cut_by_nickname, cut_by_discord_id, cut_source, next_spawn_time, created_at")
+      .order("cut_time", { ascending: false })
+      .limit(2000);
+
+    if (tabState.startDate) {
+      query = query.gte("cut_time", kstDateBoundaryToIso(tabState.startDate, false));
+    }
+
+    if (tabState.endDate) {
+      query = query.lt("cut_time", kstDateBoundaryToIso(tabState.endDate, true));
+    }
+
+    if (tabState.bossKeyword) {
+      query = query.ilike("boss_name", `%${escapeSupabaseLike(tabState.bossKeyword)}%`);
+    }
+
+    const recordRes = await query;
+    if (recordRes.error) {
+      throw new Error(`보스 컷 기록 조회 중 오류가 발생했습니다.\n${recordRes.error.message}`);
+    }
+
+    const records = recordRes.data ?? [];
+    const recordIds = records.map((row) => row.id).filter(Boolean);
+    const participants = await loadBossParticipantsByRecordIds(recordIds);
+    const participantMap = groupBossParticipantsByRecordId(participants);
+    const participantKeyword = normalizeSearchText(tabState.participantKeyword);
+
+    let rows = records.map((record) => {
+      const rowParticipants = participantMap.get(record.id) || [];
+      return {
+        id: record.id,
+        bossName: record.boss_name || "-",
+        recordType: record.record_type || "-",
+        cutTime: record.cut_time || "",
+        cutByNickname: record.cut_by_nickname || "-",
+        cutSource: record.cut_source || "-",
+        nextSpawnTime: record.next_spawn_time || "",
+        participants: rowParticipants
+      };
+    });
+
+    if (participantKeyword) {
+      rows = rows.filter((row) => row.participants.some((participant) => {
+        return normalizeSearchText(participant.discord_nickname).includes(participantKeyword);
+      }));
+    }
+
+    tabState.rows = rows;
+    tabState.loaded = true;
+  } catch (error) {
+    tabState.rows = [];
+    tabState.loaded = true;
+    alert(error.message || "보스 참여 이력 조회 중 오류가 발생했습니다.");
+  } finally {
+    tabState.loading = false;
+  }
+}
+
+async function loadBossParticipantsByRecordIds(recordIds) {
+  if (!recordIds.length) return [];
+
+  const rows = [];
+  const chunkSize = 500;
+  for (let index = 0; index < recordIds.length; index += chunkSize) {
+    const chunk = recordIds.slice(index, index + chunkSize);
+    const res = await bossSupabase
+      .from("boss_participants")
+      .select("kill_record_id, boss_id, boss_name, cut_time, discord_user_id, discord_nickname, created_at")
+      .in("kill_record_id", chunk)
+      .order("created_at", { ascending: true });
+
+    if (res.error) {
+      throw new Error(`보스 참여자 조회 중 오류가 발생했습니다.\n${res.error.message}`);
+    }
+
+    rows.push(...(res.data ?? []));
+  }
+
+  return rows;
+}
+
+function groupBossParticipantsByRecordId(participants) {
+  const map = new Map();
+  participants.forEach((participant) => {
+    const key = participant.kill_record_id;
+    if (!key) return;
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(participant);
+  });
+  return map;
+}
+
+function renderBossParticipationTab() {
+  const tabState = state.bossParticipation;
+  if (!tabState) return;
+
+  renderBossParticipationInputs();
+  renderBossParticipationSummary();
+  renderBossParticipationTable();
+}
+
+function renderBossParticipationInputs() {
+  const tabState = state.bossParticipation;
+  setValueIfNeeded("bossParticipationStartDateInput", tabState.startDate || "");
+  setValueIfNeeded("bossParticipationEndDateInput", tabState.endDate || "");
+  setValueIfNeeded("bossParticipationBossInput", tabState.bossKeyword || "");
+  setValueIfNeeded("bossParticipationParticipantInput", tabState.participantKeyword || "");
+}
+
+function renderBossParticipationSummary() {
+  const rows = state.bossParticipation?.rows || [];
+  const cutRows = rows.filter((row) => row.recordType === "cut");
+  const mungRows = rows.filter((row) => row.recordType === "mung");
+  const participantNames = rows.flatMap((row) => row.participants.map((participant) => String(participant.discord_nickname || "").trim()).filter(Boolean));
+  const uniqueParticipants = new Set(participantNames.map((name) => normalizeSearchText(name)));
+
+  el.bossParticipationSummaryTotalRecords.textContent = formatNumber(rows.length);
+  el.bossParticipationSummaryCutRecords.textContent = formatNumber(cutRows.length);
+  el.bossParticipationSummaryMungRecords.textContent = formatNumber(mungRows.length);
+  el.bossParticipationSummaryParticipants.textContent = formatNumber(participantNames.length);
+  el.bossParticipationSummaryUniqueParticipants.textContent = formatNumber(uniqueParticipants.size);
+}
+
+function renderBossParticipationTable() {
+  el.bossParticipationTableHead.innerHTML = `
+    <tr>
+      <th class="is-center">No</th>
+      <th>컷 시간</th>
+      <th>보스명</th>
+      <th class="is-center">기록</th>
+      <th>컷자</th>
+      <th class="is-right">참여자 수</th>
+      <th>참여자</th>
+    </tr>
+  `;
+
+  const tabState = state.bossParticipation;
+  const rows = tabState?.rows || [];
+
+  if (tabState?.loading) {
+    el.bossParticipationTableBody.innerHTML = `<tr><td class="distribution-empty-row" colspan="7">보스 참여 이력을 불러오는 중입니다.</td></tr>`;
+    return;
+  }
+
+  if (!rows.length) {
+    const message = tabState?.loaded ? "조회된 보스 참여 이력이 없습니다." : "조회 버튼을 눌러 보스 참여 이력을 불러와주세요.";
+    el.bossParticipationTableBody.innerHTML = `<tr><td class="distribution-empty-row" colspan="7">${message}</td></tr>`;
+    return;
+  }
+
+  el.bossParticipationTableBody.innerHTML = rows.map((row, index) => {
+    const participantNames = row.participants.map((participant) => participant.discord_nickname || "-").filter(Boolean);
+    const recordClass = row.recordType === "mung" ? "boss-participation-mung-row" : "";
+    return `
+      <tr class="${recordClass}">
+        <td class="is-center">${index + 1}</td>
+        <td>${escapeHtml(formatBossParticipationDateTime(row.cutTime))}</td>
+        <td>${escapeHtml(row.bossName)}</td>
+        <td class="is-center"><span class="boss-participation-badge ${row.recordType === "mung" ? "is-mung" : "is-cut"}">${escapeHtml(getBossParticipationRecordTypeText(row.recordType))}</span></td>
+        <td>${escapeHtml(row.cutByNickname)}</td>
+        <td class="is-right">${formatNumber(participantNames.length)}</td>
+        <td class="boss-participation-participants-cell">${escapeHtml(participantNames.length ? participantNames.join(", ") : "-")}</td>
+      </tr>
+    `;
+  }).join("");
+}
+
+
+function handleBossParticipationExport() {
+  const rows = state.bossParticipation?.rows || [];
+  if (!rows.length) {
+    alert("엑셀 저장할 보스 참여 이력이 없습니다.");
+    return;
+  }
+
+  const exportRows = rows.map((row) => {
+    const dateTime = getBossParticipationKstDateTimeParts(row.cutTime);
+    const participantNames = row.participants
+      .map((participant) => String(participant.discord_nickname || "").trim())
+      .filter(Boolean);
+
+    return {
+      날짜: dateTime.date,
+      시간: dateTime.time,
+      보스: row.bossName === "-" ? "" : row.bossName,
+      컷자: row.cutByNickname === "-" ? "" : row.cutByNickname,
+      참여자: participantNames.join(", ")
+    };
+  });
+
+  const worksheet = XLSX.utils.json_to_sheet(exportRows, { header: ["날짜", "시간", "보스", "컷자", "참여자"] });
+  worksheet["!cols"] = [
+    { wch: 12 },
+    { wch: 10 },
+    { wch: 18 },
+    { wch: 16 },
+    { wch: 50 }
+  ];
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "보스로그");
+  XLSX.writeFile(workbook, `${getBossParticipationExportFileName()}.xlsx`);
+}
+
+function getBossParticipationExportFileName() {
+  const rows = state.bossParticipation?.rows || [];
+  const rowDates = rows
+    .map((row) => getBossParticipationKstDateTimeParts(row.cutTime).date)
+    .filter(Boolean)
+    .sort();
+  const startDate = state.bossParticipation?.startDate || rowDates[0] || "0000-00-00";
+  const endDate = state.bossParticipation?.endDate || rowDates[rowDates.length - 1] || "0000-00-00";
+  return `보스로그 ${formatBossParticipationFileDate(startDate)}-${formatBossParticipationFileDate(endDate)}`;
+}
+
+function formatBossParticipationFileDate(value) {
+  const digits = String(value || "").replace(/[^0-9]/g, "");
+  return digits || "00000000";
+}
+
+function getBossParticipationKstDateTimeParts(value) {
+  if (!value) return { date: "", time: "" };
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return { date: "", time: "" };
+
+  const formatter = new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false
+  });
+
+  const parts = formatter.formatToParts(date);
+  const map = {};
+  parts.forEach((part) => {
+    map[part.type] = part.value;
+  });
+
+  const hour = map.hour === "24" ? "00" : map.hour;
+  return {
+    date: `${map.year}-${map.month}-${map.day}`,
+    time: `${hour}:${map.minute}:${map.second}`
+  };
+}
+
+function getBossParticipationRecordTypeText(recordType) {
+  if (recordType === "cut") return "컷";
+  if (recordType === "mung") return "멍";
+  return recordType || "-";
+}
+
+function formatBossParticipationDateTime(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+
+  const formatter = new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  });
+
+  const parts = formatter.formatToParts(date);
+  const map = {};
+  parts.forEach((part) => {
+    map[part.type] = part.value;
+  });
+
+  const hour = map.hour === "24" ? "00" : map.hour;
+  return `${map.month}-${map.day} ${hour}:${map.minute}`;
+}
+
+function kstDateBoundaryToIso(dateText, isEndBoundary) {
+  const [year, month, day] = String(dateText).split("-").map(Number);
+  const addDay = isEndBoundary ? 1 : 0;
+  return new Date(Date.UTC(year, month - 1, day + addDay, -9, 0, 0)).toISOString();
+}
+
+function escapeSupabaseLike(value) {
+  return String(value ?? "").replace(/[%_]/g, "");
+}
+
+function normalizeSearchText(value) {
+  return String(value ?? "").trim().replace(/\s+/g, "").toLowerCase();
 }
 
 function renderGuildManageTable() {
