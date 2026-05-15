@@ -1,7 +1,7 @@
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
 
-const SUPABASE_URL = "https://xymuwulzbggqrjhembel.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_h4R6XafVkA5BsUWBJ_02Fw_QZRCFb_I";
+const SUPABASE_URL = "https://cvuslommhbzjjoltlfkk.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_-caYxifFCxM2b46wEZ-x9g_uJT3-TUP";
 const BOSS_SUPABASE_URL = "https://ijefdhqxhokyiodgjjct.supabase.co";
 const BOSS_SUPABASE_ANON_KEY = "sb_publishable__lSPCq2eXCqO299El9fCTA_5vnLhXvV";
 const APP_SETTINGS_TABLE = "app_settings";
