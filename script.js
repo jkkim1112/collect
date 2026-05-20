@@ -2767,19 +2767,33 @@ async function loadBossParticipantsByRecordIds(recordIds) {
 
   const rows = [];
   const chunkSize = 500;
+  const pageSize = 1000;
+
   for (let index = 0; index < recordIds.length; index += chunkSize) {
     const chunk = recordIds.slice(index, index + chunkSize);
-    const res = await bossSupabase
-      .from("boss_participants")
-      .select("kill_record_id, boss_id, boss_name, cut_time, discord_user_id, discord_nickname, created_at")
-      .in("kill_record_id", chunk)
-      .order("created_at", { ascending: true });
+    let from = 0;
 
-    if (res.error) {
-      throw new Error(`보스 참여자 조회 중 오류가 발생했습니다.\n${res.error.message}`);
+    while (true) {
+      const res = await bossSupabase
+        .from("boss_participants")
+        .select("kill_record_id, boss_id, boss_name, cut_time, discord_user_id, discord_nickname, created_at")
+        .in("kill_record_id", chunk)
+        .order("created_at", { ascending: true })
+        .range(from, from + pageSize - 1);
+
+      if (res.error) {
+        throw new Error(`보스 참여자 조회 중 오류가 발생했습니다.\n${res.error.message}`);
+      }
+
+      const pageRows = res.data ?? [];
+      rows.push(...pageRows);
+
+      if (pageRows.length < pageSize) {
+        break;
+      }
+
+      from += pageSize;
     }
-
-    rows.push(...(res.data ?? []));
   }
 
   return rows;
