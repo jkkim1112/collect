@@ -2702,30 +2702,43 @@ async function loadBossParticipationData() {
       throw new Error("보스봇 Supabase URL과 ANON KEY를 script 파일에 설정해주세요.");
     }
 
-    let query = bossSupabase
-      .from("boss_kill_records")
-      .select("id, boss_id, boss_name, record_type, cut_time, cut_by_nickname, cut_by_discord_id, cut_source, next_spawn_time, created_at")
-      .order("cut_time", { ascending: false })
-      .limit(2000);
+    const records = [];
+    const recordPageSize = 1000;
+    let recordFrom = 0;
 
-    if (tabState.startDate) {
-      query = query.gte("cut_time", kstDateBoundaryToIso(tabState.startDate, false));
+    while (true) {
+      let query = bossSupabase
+        .from("boss_kill_records")
+        .select("id, boss_id, boss_name, record_type, cut_time, cut_by_nickname, cut_by_discord_id, cut_source, next_spawn_time, created_at")
+        .order("cut_time", { ascending: false })
+        .range(recordFrom, recordFrom + recordPageSize - 1);
+
+      if (tabState.startDate) {
+        query = query.gte("cut_time", kstDateBoundaryToIso(tabState.startDate, false));
+      }
+
+      if (tabState.endDate) {
+        query = query.lt("cut_time", kstDateBoundaryToIso(tabState.endDate, true));
+      }
+
+      if (tabState.bossKeyword) {
+        query = query.ilike("boss_name", `%${escapeSupabaseLike(tabState.bossKeyword)}%`);
+      }
+
+      const recordRes = await query;
+      if (recordRes.error) {
+        throw new Error(`보스 컷 기록 조회 중 오류가 발생했습니다.\n${recordRes.error.message}`);
+      }
+
+      const pageRecords = recordRes.data ?? [];
+      records.push(...pageRecords);
+
+      if (pageRecords.length < recordPageSize) {
+        break;
+      }
+
+      recordFrom += recordPageSize;
     }
-
-    if (tabState.endDate) {
-      query = query.lt("cut_time", kstDateBoundaryToIso(tabState.endDate, true));
-    }
-
-    if (tabState.bossKeyword) {
-      query = query.ilike("boss_name", `%${escapeSupabaseLike(tabState.bossKeyword)}%`);
-    }
-
-    const recordRes = await query;
-    if (recordRes.error) {
-      throw new Error(`보스 컷 기록 조회 중 오류가 발생했습니다.\n${recordRes.error.message}`);
-    }
-
-    const records = recordRes.data ?? [];
     const recordIds = records.map((row) => row.id).filter(Boolean);
     const participants = await loadBossParticipantsByRecordIds(recordIds);
     const participantMap = groupBossParticipantsByRecordId(participants);
