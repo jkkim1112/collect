@@ -1308,10 +1308,12 @@ function createDistributionDeduction(name = "", mode = "percent", value = "") {
 }
 
 function createBossRule(name = "", score = 1, group = "mainland") {
+  const parsedScore = Math.floor(Number(score));
+
   return {
     id: createDistributionId("boss"),
     name,
-    score: Number(score) > 0 ? Number(score) : 1,
+    score: Number.isFinite(parsedScore) && parsedScore >= 0 ? parsedScore : 1,
     group
   };
 }
@@ -1489,7 +1491,7 @@ function renderDistributionBossRules() {
     <tr>
       <td class="center">${index + 1}</td>
       <td><input class="newdist-input-sm" type="text" data-role="newdist-boss-name" data-id="${row.id}" value="${escapeAttr(row.name)}"></td>
-      <td class="right"><input class="newdist-input-sm" type="number" min="1" step="1" data-role="newdist-boss-score" data-id="${row.id}" value="${escapeAttr(row.score)}"></td>
+      <td class="right"><input class="newdist-input-sm" type="number" min="0" step="1" data-role="newdist-boss-score" data-id="${row.id}" value="${escapeAttr(row.score)}"></td>
       <td class="center">
         <select class="newdist-select-sm" data-role="newdist-boss-group" data-id="${row.id}">
           <option value="mainland" ${row.group === "mainland" ? "selected" : ""}>본토</option>
@@ -1791,7 +1793,10 @@ function handleDistributionInput(event) {
 
   if (role === "newdist-boss-score") {
     const row = distribution.bossRules.find((entry) => entry.id === target.dataset.id);
-    if (row) row.score = Math.max(1, Math.floor(Number(target.value) || 1));
+    if (row) {
+      const parsedScore = Math.floor(Number(target.value));
+      row.score = Number.isFinite(parsedScore) && parsedScore >= 0 ? parsedScore : 0;
+    }
     return;
   }
 
@@ -2012,7 +2017,7 @@ function sanitizeDistributionBossRules() {
     .map((row) => ({
       ...row,
       name: String(row.name || "").trim(),
-      score: Math.max(1, Math.floor(Number(row.score) || 1)),
+      score: Math.max(0, Math.floor(Number(row.score) || 0)),
       group: row.group === "world" ? "world" : "mainland"
     }))
     .filter((row) => row.name);
@@ -2040,7 +2045,7 @@ ${res.error.message}`);
   state.distribution.bossRules = rows.map((row) => ({
     id: row.id,
     name: String(row.name || '').trim(),
-    score: Math.max(1, Math.floor(Number(row.score) || 1)),
+    score: Math.max(0, Math.floor(Number(row.score) || 0)),
     group: row.group_type === 'world' ? 'world' : 'mainland'
   }));
   state.distribution.bossRulesLoaded = true;
@@ -2075,7 +2080,7 @@ ${deleteRes.error.message}`);
   const normalizedRows = rows.map((row, index) => ({
     id: row.id,
     name: row.name,
-    score: Math.max(1, Math.floor(Number(row.score) || 1)),
+    score: Math.max(0, Math.floor(Number(row.score) || 0)),
     group_type: row.group === "world" ? "world" : "mainland",
     display_order: index + 1,
     updated_at: now
@@ -2185,7 +2190,8 @@ function calculateDistributionResults(groupKey) {
   const pointMap = new Map();
 
   group.logs.forEach((log) => {
-    const score = Math.max(1, Number(log.score) || 1);
+    const parsedScore = Number(log.score);
+    const score = Number.isFinite(parsedScore) && parsedScore >= 0 ? parsedScore : 0;
     log.workingParticipants.forEach((participant) => {
       const key = normalizeDistributionName(participant);
       const current = pointMap.get(key) || {
