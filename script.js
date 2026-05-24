@@ -141,6 +141,7 @@ function bindElements() {
   el.mainTableSearch = document.getElementById("mainTableSearch");
   el.summaryTableWrap = document.getElementById("summaryTableWrap");
   el.distributionContent = document.getElementById("distributionContent");
+  el.distributionHeaderActions = document.getElementById("distributionHeaderActions");
   el.historyContent = document.getElementById("historyContent");
   el.historyHeaderActions = document.getElementById("historyHeaderActions");
   el.historyDeleteBtn = document.getElementById("historyDeleteBtn");
@@ -327,6 +328,7 @@ function updateTabUi() {
   el.historyContent.classList.toggle("hidden", !isHistory);
   el.bossParticipationContent?.classList.toggle("hidden", !isBossParticipation);
   el.mainTableSearch.classList.toggle("hidden", isDistribution || isHistory || isBossParticipation);
+  el.distributionHeaderActions?.classList.toggle("hidden", !isDistribution);
   el.historyHeaderActions.classList.toggle("hidden", !isHistory);
 
   if (isDistribution) {
@@ -399,10 +401,9 @@ async function loadPowerData() {
 }
 
 async function loadMountData() {
-  const [membersRes, itemsRes, memberMountsRes] = await Promise.all([
+  const [membersRes, itemsRes] = await Promise.all([
     supabase.from("guild_members").select("id, name, power, updated_at, can_edit").order("name", { ascending: true }),
-    supabase.from("mounts").select("id, name, display_order").order("display_order", { ascending: true }),
-    supabase.from("member_mounts").select("id, member_id, mount_id, owned, updated_at")
+    supabase.from("mounts").select("id, name, display_order").order("display_order", { ascending: true })
   ]);
 
   if (membersRes.error) {
@@ -415,14 +416,20 @@ async function loadMountData() {
     return;
   }
 
-  if (memberMountsRes.error) {
-    alert(`보유 정보 조회 중 오류가 발생했습니다.\n${memberMountsRes.error.message}`);
+  let memberMountRows = [];
+  try {
+    memberMountRows = await fetchPagedRows(
+      () => supabase.from("member_mounts").select("id, member_id, mount_id, owned, updated_at"),
+      "보유 정보 조회"
+    );
+  } catch (error) {
+    alert(error.message || "보유 정보 조회 중 오류가 발생했습니다.");
     return;
   }
 
   state.members = membersRes.data ?? [];
   state.mountItems = itemsRes.data ?? [];
-  state.memberMounts = memberMountsRes.data ?? [];
+  state.memberMounts = memberMountRows;
   syncDraftState();
 }
 async function loadBossData() {
@@ -474,10 +481,9 @@ async function loadBossData() {
 }
 
 async function loadAccessoryData() {
-  const [membersRes, groupsRes, memberAccessoriesRes] = await Promise.all([
+  const [membersRes, groupsRes] = await Promise.all([
     supabase.from("guild_members").select("id, name, power, updated_at, can_edit").order("name", { ascending: true }),
-    supabase.from("accessory_groups").select("id, name, display_order, max_count").order("display_order", { ascending: true }),
-    supabase.from("member_accessories").select("id, member_id, accessory_group_id, ring_count, necklace_count, earring_count, belt_count, bracelet_count, updated_at")
+    supabase.from("accessory_groups").select("id, name, display_order, max_count").order("display_order", { ascending: true })
   ]);
 
   if (membersRes.error) {
@@ -490,14 +496,20 @@ async function loadAccessoryData() {
     return;
   }
 
-  if (memberAccessoriesRes.error) {
-    alert(`악세사리 정보 조회 중 오류가 발생했습니다.\n${memberAccessoriesRes.error.message}`);
+  let memberAccessoryRows = [];
+  try {
+    memberAccessoryRows = await fetchPagedRows(
+      () => supabase.from("member_accessories").select("id, member_id, accessory_group_id, ring_count, necklace_count, earring_count, belt_count, bracelet_count, updated_at"),
+      "악세사리 정보 조회"
+    );
+  } catch (error) {
+    alert(error.message || "악세사리 정보 조회 중 오류가 발생했습니다.");
     return;
   }
 
   state.members = membersRes.data ?? [];
   state.accessoryGroups = groupsRes.data ?? [];
-  state.memberAccessories = memberAccessoriesRes.data ?? [];
+  state.memberAccessories = memberAccessoryRows;
   ensureAccessoryHiddenState();
   syncDraftState();
 }
@@ -2834,6 +2846,14 @@ function handleDistributionExport() {
   XLSX.writeFile(workbook, `분배결과 ${formatBossParticipationFileDate(period.startDate || "0000-00-00")}-${formatBossParticipationFileDate(period.endDate || "0000-00-00")}.xlsx`);
 }
 
+async function cleanupDistributionHistorySave(historyId) {
+  if (!historyId) return;
+
+  await supabase.from("distribution_history_logs").delete().eq("distribution_history_id", historyId);
+  await supabase.from("distribution_history_members").delete().eq("distribution_history_id", historyId);
+  await supabase.from("distribution_histories").delete().eq("id", historyId);
+}
+
 async function handleDistributionFinalSave() {
   const combinedResults = getDistributionCombinedResults();
   if (!combinedResults.length) {
@@ -2915,6 +2935,7 @@ ${historyRes.error.message}`);
       .insert(memberRows);
 
     if (memberRes.error) {
+      await cleanupDistributionHistorySave(historyId);
       alert(`분배 이력 길드원 결과 저장 중 오류가 발생했습니다.
 ${memberRes.error.message}`);
       return;
@@ -2927,6 +2948,7 @@ ${memberRes.error.message}`);
       .insert(logRows);
 
     if (logRes.error) {
+      await cleanupDistributionHistorySave(historyId);
       alert(`분배 이력 보스로그 저장 중 오류가 발생했습니다.
 ${logRes.error.message}`);
       return;
