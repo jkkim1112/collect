@@ -1,11 +1,21 @@
-import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+import {
+  escapeAttr,
+  escapeHtml,
+  formatDateTime,
+  formatDecimal,
+  formatNumber,
+  formatPercent,
+  formatUpdatedAt,
+  normalizeSearchText
+} from "./src/formatters.js";
+import {
+  ADMIN_PASSWORD_KEY,
+  APP_SETTINGS_TABLE,
+  bossSupabase,
+  DISTRIBUTION_BOSS_RULES_TABLE,
+  supabase
+} from "./src/supabaseClient.js";
 
-const SUPABASE_URL = "https://cvuslommhbzjjoltlfkk.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_-caYxifFCxM2b46wEZ-x9g_uJT3-TUP";
-const BOSS_SUPABASE_URL = "https://jxmudwscinjmyuchecav.supabase.co";
-const BOSS_SUPABASE_ANON_KEY = "sb_publishable_Pnm--yk56qY58UCPfrAGRQ_ambbNj3o";
-const APP_SETTINGS_TABLE = "app_settings";
-const ADMIN_PASSWORD_KEY = "admin_password";
 let adminPassword = "";
 let adminPasswordLoadError = "";
 const ACCESSORY_PARTS = [
@@ -15,12 +25,6 @@ const ACCESSORY_PARTS = [
   { key: "bracelet_count", label: "팔찌" },
   { key: "belt_count", label: "허리띠" }
 ];
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-const bossSupabase = BOSS_SUPABASE_URL && BOSS_SUPABASE_ANON_KEY
-  ? createClient(BOSS_SUPABASE_URL, BOSS_SUPABASE_ANON_KEY)
-  : null;
-const DISTRIBUTION_BOSS_RULES_TABLE = "distribution_boss_rules";
 
 const state = {
   activeTab: "power",
@@ -2271,27 +2275,6 @@ function normalizeDistributionName(value) {
   return String(value ?? "").trim().replace(/\s+/g, "").toLowerCase();
 }
 
-function formatNumber(value) {
-  const num = Number(value);
-  if (!Number.isFinite(num)) return "0";
-  return Math.round(num).toLocaleString("ko-KR");
-}
-
-function formatDecimal(value, digits = 1) {
-  const num = Number(value);
-  if (!Number.isFinite(num) || num === 0) return "0";
-  return num.toLocaleString("ko-KR", {
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits
-  });
-}
-
-function formatPercent(value) {
-  const num = Number(value);
-  if (!Number.isFinite(num) || num === 0) return "0.00%";
-  return `${(num * 100).toLocaleString("ko-KR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
-}
-
 function setText(id, value) {
   const element = document.getElementById(id);
   if (element) {
@@ -3363,10 +3346,6 @@ function kstDateBoundaryToIso(dateText, isEndBoundary) {
 
 function escapeSupabaseLike(value) {
   return String(value ?? "").replace(/[%_]/g, "");
-}
-
-function normalizeSearchText(value) {
-  return String(value ?? "").trim().replace(/\s+/g, "").toLowerCase();
 }
 
 function renderGuildManageTable() {
@@ -4709,45 +4688,6 @@ function openModal(backdrop) {
 
 function closeModal(backdrop) {
   backdrop.classList.add("hidden");
-}
-
-function formatUpdatedAt(value) {
-  if (!value) return "-";
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${month}/${day}`;
-}
-
-function formatDateTime(value) {
-  if (!value) return "-";
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return String(value);
-
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  const hour = String(date.getHours()).padStart(2, "0");
-  const minute = String(date.getMinutes()).padStart(2, "0");
-  const second = String(date.getSeconds()).padStart(2, "0");
-  return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
-
-function escapeAttr(value) {
-  return escapeHtml(value);
 }
 
 function openImportModal() {
