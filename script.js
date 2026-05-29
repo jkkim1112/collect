@@ -2238,7 +2238,7 @@ async function loadHistoryData() {
     historyRows = await fetchPagedRows(() => {
       let query = supabase
         .from("distribution_histories")
-        .select("id, period_start, period_end, total_diamond, guild_fee_percent, guild_master_percent, manager_percent, guild_fee_amount, guild_master_amount, manager_amount, actual_diamond, total_points, diamond_per_point, remaining_diamond, workbook_name, saved_at, created_at, updated_at");
+        .select("id, period_start, period_end, total_diamond, mainland_ratio, world_ratio, total_actual_diamond, total_points, total_remaining_diamond, workbook_name, saved_at, created_at, updated_at");
 
       if (filterDate) {
         query = query.lte("period_start", filterDate).gte("period_end", filterDate);
@@ -2266,13 +2266,15 @@ async function loadHistoryData() {
     startDate: row.period_start,
     endDate: row.period_end,
     totalDiamond: Number(row.total_diamond ?? 0),
-    guildFeePercent: Number(row.guild_fee_percent ?? 0),
-    guildMasterPercent: Number(row.guild_master_percent ?? 0),
-    managerPercent: Number(row.manager_percent ?? 0),
-    actualDiamond: Number(row.actual_diamond ?? 0),
+    guildFeePercent: Number(row.mainland_ratio ?? 0),
+    guildMasterPercent: Number(row.world_ratio ?? 0),
+    managerPercent: 0,
+    actualDiamond: Number(row.total_actual_diamond ?? 0),
     totalPoints: Number(row.total_points ?? 0),
-    diamondPerPoint: Number(row.diamond_per_point ?? 0),
-    remainingDiamond: Number(row.remaining_diamond ?? 0),
+    diamondPerPoint: Number(row.total_points ?? 0) > 0
+      ? Number(row.total_actual_diamond ?? 0) / Number(row.total_points ?? 0)
+      : 0,
+    remainingDiamond: Number(row.total_remaining_diamond ?? 0),
     workbookName: row.workbook_name || ""
   }));
 
@@ -2385,7 +2387,7 @@ async function loadHistoryDetail(historyId, forceReload = false) {
     [memberRows, logRows] = await Promise.all([
       fetchPagedRows(() => supabase
         .from("distribution_history_members")
-        .select("distribution_history_id, member_id, member_name, points, ratio, raw_diamond, final_diamond, note, is_retired, display_order")
+        .select("distribution_history_id, member_id, member_name, mainland_points, world_points, total_points, ratio, mainland_diamond, world_diamond, final_diamond, note, is_retired, display_order")
         .eq("distribution_history_id", targetId)
         .order("display_order", { ascending: true }), "분배 이력 길드원 결과 조회"),
       fetchPagedRows(() => supabase
@@ -2404,9 +2406,9 @@ async function loadHistoryDetail(historyId, forceReload = false) {
     memberRows: memberRows.map((row) => ({
       memberId: row.member_id ?? null,
       memberName: row.member_name,
-      points: Number(row.points ?? 0),
+      points: Number(row.total_points ?? 0),
       ratio: Number(row.ratio ?? 0),
-      rawDiamond: Number(row.raw_diamond ?? 0),
+      rawDiamond: Number((row.mainland_diamond ?? 0) + (row.world_diamond ?? 0)),
       finalDiamond: Number(row.final_diamond ?? 0),
       note: row.note || (row.is_retired ? "탈퇴한 길드원" : "")
     })),
