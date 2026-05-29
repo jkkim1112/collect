@@ -2755,6 +2755,8 @@ async function cleanupDistributionHistorySave(historyId) {
 
   await supabase.from("distribution_history_logs").delete().eq("distribution_history_id", historyId);
   await supabase.from("distribution_history_members").delete().eq("distribution_history_id", historyId);
+  await supabase.from("distribution_history_deductions").delete().eq("distribution_history_id", historyId);
+  await supabase.from("distribution_history_groups").delete().eq("distribution_history_id", historyId);
   await supabase.from("distribution_histories").delete().eq("id", historyId);
 }
 
@@ -2822,22 +2824,19 @@ async function handleDistributionFinalSave() {
     }
 
     const summary = getDistributionCombinedSummary();
+    const mainlandSummary = state.distribution.mainland.summary || createDistributionSummary();
+    const worldSummary = state.distribution.world.summary || createDistributionSummary();
     const now = new Date().toISOString();
 
     const historyPayload = {
       period_start: period.startDate,
       period_end: period.endDate,
       total_diamond: Math.max(0, Math.floor(Number(state.distribution.totalDiamond) || 0)),
-      guild_fee_percent: 0,
-      guild_master_percent: 0,
-      manager_percent: 0,
-      guild_fee_amount: 0,
-      guild_master_amount: 0,
-      manager_amount: 0,
-      actual_diamond: Math.floor(summary.actualDiamond),
+      mainland_ratio: Number(state.distribution.mainlandRatio || 0),
+      world_ratio: Number(state.distribution.worldRatio || 0),
+      total_actual_diamond: Math.floor(summary.actualDiamond),
       total_points: Math.floor(summary.totalPoints),
-      diamond_per_point: summary.diamondPerPoint,
-      remaining_diamond: Math.floor(summary.remainingDiamond),
+      total_remaining_diamond: Math.floor(summary.remainingDiamond),
       workbook_name: state.distribution.workbookName || "",
       saved_at: now,
       updated_at: now
@@ -2856,27 +2855,91 @@ ${historyRes.error.message}`);
     }
 
     const historyId = historyRes.data?.id;
+    const groupRows = [
+      {
+        distribution_history_id: historyId,
+        group_type: "mainland",
+        group_name: "본토",
+        assigned_diamond: Math.floor(Number(mainlandSummary.assignedDiamond ?? 0)),
+        deduction_total: Math.floor(Number(mainlandSummary.deductionTotal ?? 0)),
+        actual_diamond: Math.floor(Number(mainlandSummary.actualDiamond ?? 0)),
+        total_points: Number(mainlandSummary.totalPoints ?? 0),
+        diamond_per_point: Number(mainlandSummary.perPoint ?? 0),
+        remaining_diamond: Math.floor(Number(mainlandSummary.remainingDiamond ?? 0)),
+        display_order: 1
+      },
+      {
+        distribution_history_id: historyId,
+        group_type: "world",
+        group_name: "월드",
+        assigned_diamond: Math.floor(Number(worldSummary.assignedDiamond ?? 0)),
+        deduction_total: Math.floor(Number(worldSummary.deductionTotal ?? 0)),
+        actual_diamond: Math.floor(Number(worldSummary.actualDiamond ?? 0)),
+        total_points: Number(worldSummary.totalPoints ?? 0),
+        diamond_per_point: Number(worldSummary.perPoint ?? 0),
+        remaining_diamond: Math.floor(Number(worldSummary.remainingDiamond ?? 0)),
+        display_order: 2
+      }
+    ];
+
+    const groupRes = await supabase
+      .from("distribution_history_groups")
+      .insert(groupRows);
+
+    if (groupRes.error) {
+      await cleanupDistributionHistorySave(historyId);
+      alert(`분배 이력 그룹 요약 저장 중 오류가 발생했습니다.\n${groupRes.error.message}`);
+      return;
+    }
+
+    const deductionRows = [];
+    ["mainland", "world"].forEach((groupKey) => {
+      const applied = state.distribution[groupKey]?.appliedDeductions || [];
+      applied.forEach((row, index) => {
+        deductionRows.push({
+          distribution_history_id: historyId,
+          group_type: groupKey,
+          name: String(row.name || "").trim() || "공제 항목",
+          mode: row.mode === "amount" ? "amount" : "percent",
+          value: Number(row.value ?? 0),
+          amount: Math.floor(getDistributionDeductionAmount(groupKey, row)),
+          display_order: index + 1
+        });
+      });
+    });
+
+    if (deductionRows.length) {
+      const deductionRes = await supabase
+        .from("distribution_history_deductions")
+        .insert(deductionRows);
+
+      if (deductionRes.error) {
+        await cleanupDistributionHistorySave(historyId);
+        alert(`분배 이력 공제 항목 저장 중 오류가 발생했습니다.\n${deductionRes.error.message}`);
+        return;
+      }
+    }
+
+    const mainlandResultMap = new Map(
+      (state.distribution.mainland.results || []).map((row) => [normalizeDistributionName(row.memberName), row])
+    );
+    const worldResultMap = new Map(
+      (state.distribution.world.results || []).map((row) => [normalizeDistributionName(row.memberName), row])
+    );
+
     const memberRows = combinedResults.map((row, index) => ({
       distribution_history_id: historyId,
       member_id: row.memberId,
       member_name: row.memberName,
-      points: row.points,
-      ratio: row.ratio,
-      raw_diamond: row.rawDiamond,
-      final_diamond: row.finalDiamond,
+      mainland_points: Number(mainlandResultMap.get(normalizeDistributionName(row.memberName))?.points ?? 0),
+      world_points: Number(worldResultMap.get(normalizeDistributionName(row.memberName))?.points ?? 0),
+      total_points: Number(row.points ?? 0),
+      mainland_diamond: Math.floor(Number(mainlandResultMap.get(normalizeDistributionName(row.memberName))?.finalDiamond ?? 0)),
+      world_diamond: Math.floor(Number(worldResultMap.get(normalizeDistributionName(row.memberName))?.finalDiamond ?? 0)),
+      final_diamond: Math.floor(Number(row.finalDiamond ?? 0)),
+      ratio: Number(row.ratio ?? 0),
       note: row.note || "",
       is_retired: Boolean(row.isRetired),
-      display_order: index + 1
-    }));
-
-    const logRows = state.distribution.loadedLogs.map((log, index) => ({
-      distribution_history_id: historyId,
-      log_date: log.dateText || null,
-      log_time: log.timeText || null,
-      boss_name: log.boss || "",
-      cutter_name: log.cutter || "",
-      participants_text: (log.workingParticipants || []).join(", "),
-      participants: log.workingParticipants || [],
       display_order: index + 1
     }));
 
@@ -2893,6 +2956,19 @@ ${memberRes.error.message}`);
       }
     }
 
+    const logRows = state.distribution.loadedLogs.map((log, index) => ({
+      distribution_history_id: historyId,
+      log_date: log.dateText || null,
+      log_time: log.timeText || null,
+      boss_name: log.boss || "",
+      group_type: log.group === "world" ? "world" : "mainland",
+      score: Number(log.score ?? 0),
+      cutter_name: log.cutter || "",
+      participants: Array.isArray(log.workingParticipants) ? log.workingParticipants : [],
+      participants_text: (log.workingParticipants || []).join(", "),
+      display_order: index + 1
+    }));
+
     if (logRows.length) {
       const logRes = await supabase
         .from("distribution_history_logs")
@@ -2906,7 +2982,11 @@ ${logRes.error.message}`);
       }
     }
 
-    await loadHistoryData();
+    try {
+      await loadHistoryData();
+    } catch (error) {
+      console.warn("분배 이력 새로고침 실패", error);
+    }
     alert("분배 결과가 최종 저장되었습니다.");
   } finally {
     isDistributionFinalSaving = false;
