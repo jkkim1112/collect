@@ -15,6 +15,23 @@ import {
   DISTRIBUTION_BOSS_RULES_TABLE,
   supabase
 } from "./src/supabaseClient.js";
+import { bindNewDistributionUi as bindDistributionUiModule } from "./src/distribution/actions.js";
+import {
+  renderDistributionTab as renderDistributionTabModule,
+  updateDistributionSubtabs as updateDistributionSubtabsModule
+} from "./src/distribution/render.js";
+import {
+  createBossRule as createBossRuleModule,
+  createDistributionDeduction as createDistributionDeductionModule,
+  createDistributionGroupState as createDistributionGroupStateModule,
+  createDistributionId as createDistributionIdModule,
+  createDistributionSummary as createDistributionSummaryModule,
+  createNameRule as createNameRuleModule,
+  getDistributionAssignedAmounts as getDistributionAssignedAmountsModule,
+  getDistributionDeductionAmount as getDistributionDeductionAmountModule,
+  initializeDistributionState as initializeDistributionStateModule,
+  normalizeDistributionName as normalizeDistributionNameModule
+} from "./src/distribution/state.js";
 
 let adminPassword = "";
 let adminPasswordLoadError = "";
@@ -1272,88 +1289,42 @@ function closeSearchSelectModal() {
 
 
 function initializeDistributionState() {
-  state.distribution = {
-    activeSubtab: "mainland",
-    totalDiamond: 0,
-    mainlandRatio: 70,
-    worldRatio: 30,
-    workbookName: "",
-    rawLogs: [],
-    loadedLogs: [],
-    unknownBosses: [],
-    bossRules: [],
-    nameRules: [],
-    editingLogKey: null,
-    bossRulesLoaded: false,
-    bossRuleDbIds: [],
-    mainland: createDistributionGroupState("mainland"),
-    world: createDistributionGroupState("world")
-  };
+  initializeDistributionStateModule(state, { createDistributionGroupState });
 }
 
 function createDistributionGroupState(type) {
-  return {
-    type,
-    deductions: [],
-    appliedDeductions: [],
-    logs: [],
-    results: [],
-    summary: createDistributionSummary(),
-    dirtyLogs: false
-  };
+  return createDistributionGroupStateModule(type, createDistributionSummary);
 }
 
 function createDistributionSummary() {
-  return {
-    assignedDiamond: 0,
-    deductionTotal: 0,
-    actualDiamond: 0,
-    totalPoints: 0,
-    perPoint: 0,
-    remainingDiamond: 0
-  };
+  return createDistributionSummaryModule();
 }
 
 function createDistributionDeduction(name = "", mode = "percent", value = "") {
-  return {
-    id: createDistributionId("ded"),
-    name,
-    mode,
-    value: value === "" ? "" : Number(value)
-  };
+  return createDistributionDeductionModule(createDistributionId, name, mode, value);
 }
 
 function createBossRule(name = "", score = 1, group = "mainland") {
-  const parsedScore = Math.floor(Number(score));
-
-  return {
-    id: createDistributionId("boss"),
-    name,
-    score: Number.isFinite(parsedScore) && parsedScore >= 0 ? parsedScore : 1,
-    group
-  };
+  return createBossRuleModule(createDistributionId, name, score, group);
 }
 
 function createNameRule(source = "", target = "") {
-  return {
-    id: createDistributionId("name"),
-    source,
-    target
-  };
+  return createNameRuleModule(createDistributionId, source, target);
 }
 
 function createDistributionId(prefix) {
-  return `${prefix}_${Math.random().toString(36).slice(2, 10)}_${Date.now().toString(36)}`;
+  return createDistributionIdModule(prefix);
 }
 
 function renderDistributionTab() {
-  renderDistributionCommonInputs();
-  renderDistributionCommonSummary();
-  renderDistributionGroup("mainland");
-  renderDistributionGroup("world");
-  renderDistributionBossRules();
-  renderDistributionNameRules();
-  updateDistributionSubtabs();
+  renderDistributionTabModule({
+    renderDistributionCommonInputs,
+    renderDistributionCommonSummary,
+    renderDistributionGroup,
+    renderDistributionBossRules,
+    renderDistributionNameRules,
+    updateDistributionSubtabs
+  });
 }
 
 function renderDistributionCommonInputs() {
@@ -1565,101 +1536,40 @@ function calculateDistributionGroupSummary(groupKey) {
 }
 
 function getDistributionAssignedAmounts() {
-  const totalDiamond = Math.max(0, Math.floor(Number(state.distribution.totalDiamond) || 0));
-  let mainlandRatio = Number(state.distribution.mainlandRatio);
-  let worldRatio = Number(state.distribution.worldRatio);
-
-  if (!Number.isFinite(mainlandRatio)) mainlandRatio = 0;
-  if (!Number.isFinite(worldRatio)) worldRatio = 0;
-
-  mainlandRatio = Math.min(100, Math.max(0, mainlandRatio));
-  worldRatio = Math.min(100, Math.max(0, worldRatio));
-
-  const totalRatio = mainlandRatio + worldRatio;
-  if (totalRatio <= 0) {
-    return { mainland: 0, world: 0 };
-  }
-
-  const mainland = Math.floor(totalDiamond * (mainlandRatio / totalRatio));
-  const world = Math.max(0, totalDiamond - mainland);
-  return { mainland, world };
+  return getDistributionAssignedAmountsModule(state);
 }
 
 function getDistributionDeductionAmount(groupKey, row) {
-  const assigned = getDistributionAssignedAmounts()[groupKey];
-  const value = Number(row.value);
-  if (!Number.isFinite(value) || value < 0) return 0;
-  if (row.mode === "amount") return Math.floor(value);
-  return Math.floor(assigned * (value / 100));
+  return getDistributionDeductionAmountModule(state, groupKey, row);
 }
 
 function bindNewDistributionUi() {
-  const root = document.querySelector(".newdist-root");
-  if (!root) return;
-
-  root.addEventListener("click", handleDistributionClick);
-  root.addEventListener("input", handleDistributionInput);
-  root.addEventListener("change", handleDistributionChange);
-
-  document.getElementById("newdistResetBtn")?.addEventListener("click", handleDistributionReset);
-  document.getElementById("newdistLoadBtn")?.addEventListener("click", handleDistributionLoadExcel);
-  document.getElementById("newdistOpenBossManageBtn")?.addEventListener("click", () => openDistributionModal("newdistBossManageModal"));
-  document.getElementById("newdistOpenNameRuleBtn")?.addEventListener("click", () => openDistributionModal("newdistNameRuleModal"));
-  document.getElementById("newdistBossAddBtn")?.addEventListener("click", handleDistributionAddBossRule);
-  document.getElementById("newdistBossSaveBtn")?.addEventListener("click", handleDistributionSaveBossRules);
-  document.getElementById("newdistNameRuleAddBtn")?.addEventListener("click", handleDistributionAddNameRule);
-  document.getElementById("newdistNameRuleSaveBtn")?.addEventListener("click", handleDistributionSaveNameRules);
-  document.getElementById("newdistLogEditApplyBtn")?.addEventListener("click", handleDistributionApplyLogEdit);
-  bindDistributionButtonIds(["distributionSaveBtn", "distributionExportBtn", "newdistExportBtn"], handleDistributionExport);
-  bindDistributionButtonIds(["distributionFinalSaveBtn", "newdistFinalSaveBtn"], handleDistributionFinalSave);
-
-  ["mainland", "world"].forEach((groupKey) => {
-    const upper = groupKey === "mainland" ? "Mainland" : "World";
-    document.getElementById(`newdist${upper}AddDeductionBtn`)?.addEventListener("click", () => handleDistributionAddDeduction(groupKey));
-    document.getElementById(`newdist${upper}ApplyDeductionBtn`)?.addEventListener("click", () => handleDistributionApplyDeductions(groupKey));
-    document.getElementById(`newdist${upper}RefreshBtn`)?.addEventListener("click", () => handleDistributionRefreshGroup(groupKey));
-    document.getElementById(`newdist${upper}CalcBtn`)?.addEventListener("click", () => handleDistributionCalculate(groupKey));
-    document.getElementById(`newdist${upper}ClearBtn`)?.addEventListener("click", () => handleDistributionClearResults(groupKey));
-  });
-
-  root.querySelectorAll(".newdist-subtab").forEach((tab) => {
-    tab.addEventListener("click", () => {
-      state.distribution.activeSubtab = tab.dataset.newdistTab || "mainland";
-      updateDistributionSubtabs();
-    });
-  });
-
-  root.querySelectorAll("[data-newdist-close]").forEach((button) => {
-    button.addEventListener("click", () => closeDistributionModal(button.dataset.newdistClose));
-  });
-
-  ["newdistBossManageModal", "newdistNameRuleModal", "newdistLogEditModal"].forEach((id) => {
-    document.getElementById(id)?.addEventListener("click", (event) => {
-      if (event.target.id === id) {
-        closeDistributionModal(id);
-      }
-    });
-  });
-
-  updateDistributionSubtabs();
-}
-
-function bindDistributionButtonIds(ids, handler) {
-  ids.forEach((id) => {
-    const button = document.getElementById(id);
-    if (!button || button.dataset.distributionBound === "true") return;
-    button.dataset.distributionBound = "true";
-    button.addEventListener("click", handler);
+  bindDistributionUiModule(state, {
+    closeDistributionModal,
+    handleDistributionAddBossRule,
+    handleDistributionAddDeduction,
+    handleDistributionAddNameRule,
+    handleDistributionApplyDeductions,
+    handleDistributionApplyLogEdit,
+    handleDistributionCalculate,
+    handleDistributionChange,
+    handleDistributionClearResults,
+    handleDistributionClick,
+    handleDistributionExport,
+    handleDistributionFinalSave,
+    handleDistributionInput,
+    handleDistributionLoadExcel,
+    handleDistributionRefreshGroup,
+    handleDistributionReset,
+    handleDistributionSaveBossRules,
+    handleDistributionSaveNameRules,
+    openDistributionModal,
+    updateDistributionSubtabs
   });
 }
 
 function updateDistributionSubtabs() {
-  const activeKey = state.distribution.activeSubtab || "mainland";
-  document.querySelectorAll(".newdist-subtab").forEach((tab) => {
-    tab.classList.toggle("active", tab.dataset.newdistTab === activeKey);
-  });
-  document.getElementById("newdistPanelMainland")?.classList.toggle("active", activeKey === "mainland");
-  document.getElementById("newdistPanelWorld")?.classList.toggle("active", activeKey === "world");
+  updateDistributionSubtabsModule(state);
 }
 
 function handleDistributionReset() {
@@ -2272,7 +2182,7 @@ function calculateDistributionResults(groupKey) {
 }
 
 function normalizeDistributionName(value) {
-  return String(value ?? "").trim().replace(/\s+/g, "").toLowerCase();
+  return normalizeDistributionNameModule(value);
 }
 
 function setText(id, value) {
