@@ -2772,8 +2772,14 @@ async function handleDistributionFinalSave() {
 
   const mainlandResults = state.distribution.mainland.results || [];
   const worldResults = state.distribution.world.results || [];
-  if (!mainlandResults.length || !worldResults.length) {
-    alert("본토/월드 모두 계산 완료 후 최종 저장해주세요.");
+  const assignedAmounts = getDistributionAssignedAmounts();
+  const mainlandAssigned = Number(assignedAmounts.mainland ?? 0);
+  const worldAssigned = Number(assignedAmounts.world ?? 0);
+  const needsMainlandResults = mainlandAssigned > 0;
+  const needsWorldResults = worldAssigned > 0;
+
+  if ((needsMainlandResults && !mainlandResults.length) || (needsWorldResults && !worldResults.length)) {
+    alert("배정 금액이 있는 그룹은 계산 완료 후 최종 저장해주세요.");
     return;
   }
 
