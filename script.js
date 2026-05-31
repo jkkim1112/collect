@@ -2381,21 +2381,13 @@ async function loadHistoryDetail(historyId, forceReload = false) {
   renderHistoryDetail();
 
   let memberRows = [];
-  let logRows = [];
 
   try {
-    [memberRows, logRows] = await Promise.all([
-      fetchPagedRows(() => supabase
-        .from("distribution_history_members")
-        .select("distribution_history_id, member_id, member_name, mainland_points, world_points, total_points, ratio, mainland_diamond, world_diamond, final_diamond, note, is_retired, display_order")
-        .eq("distribution_history_id", targetId)
-        .order("display_order", { ascending: true }), "분배 이력 길드원 결과 조회"),
-      fetchPagedRows(() => supabase
-        .from("distribution_history_logs")
-        .select("distribution_history_id, log_date, log_time, boss_name, cutter_name, participants_text, participants, display_order")
-        .eq("distribution_history_id", targetId)
-        .order("display_order", { ascending: true }), "분배 이력 보스로그 조회")
-    ]);
+    memberRows = await fetchPagedRows(() => supabase
+      .from("distribution_history_members")
+      .select("distribution_history_id, member_id, member_name, mainland_points, world_points, total_points, ratio, mainland_diamond, world_diamond, final_diamond, note, is_retired, display_order")
+      .eq("distribution_history_id", targetId)
+      .order("display_order", { ascending: true }), "분배 이력 길드원 결과 조회");
   } catch (error) {
     state.history.loadingDetailId = null;
     alert(error.message || "분배 이력 상세 조회 중 오류가 발생했습니다.");
@@ -2412,15 +2404,7 @@ async function loadHistoryDetail(historyId, forceReload = false) {
       finalDiamond: Number(row.final_diamond ?? 0),
       note: row.note || (row.is_retired ? "탈퇴한 길드원" : "")
     })),
-    logRows: logRows.map((row) => ({
-      date: row.log_date || "",
-      time: row.log_time || "",
-      boss: row.boss_name || "",
-      cutter: row.cutter_name || "",
-      participants: Array.isArray(row.participants)
-        ? row.participants.map((item) => String(item).trim()).filter(Boolean)
-        : String(row.participants_text || "").split(",").map((item) => item.trim()).filter(Boolean)
-    }))
+    logRows: []
   };
 
   state.history.detailCache[targetId] = detail;
@@ -2586,17 +2570,6 @@ async function handleHistoryDelete() {
   const confirmed = window.confirm(`${periodText} 분배 이력을 삭제하시겠습니까?`);
   if (!confirmed) return;
 
-  const deleteLogRes = await supabase
-    .from("distribution_history_logs")
-    .delete()
-    .eq("distribution_history_id", selectedId);
-
-  if (deleteLogRes.error) {
-    alert(`분배 이력 보스로그 삭제 중 오류가 발생했습니다.
-${deleteLogRes.error.message}`);
-    return;
-  }
-
   const deleteMemberRes = await supabase
     .from("distribution_history_members")
     .delete()
@@ -2605,6 +2578,28 @@ ${deleteLogRes.error.message}`);
   if (deleteMemberRes.error) {
     alert(`분배 이력 길드원 결과 삭제 중 오류가 발생했습니다.
 ${deleteMemberRes.error.message}`);
+    return;
+  }
+
+  const deleteDeductionRes = await supabase
+    .from("distribution_history_deductions")
+    .delete()
+    .eq("distribution_history_id", selectedId);
+
+  if (deleteDeductionRes.error) {
+    alert(`분배 이력 공제 항목 삭제 중 오류가 발생했습니다.
+${deleteDeductionRes.error.message}`);
+    return;
+  }
+
+  const deleteGroupRes = await supabase
+    .from("distribution_history_groups")
+    .delete()
+    .eq("distribution_history_id", selectedId);
+
+  if (deleteGroupRes.error) {
+    alert(`분배 이력 그룹 요약 삭제 중 오류가 발생했습니다.
+${deleteGroupRes.error.message}`);
     return;
   }
 
@@ -2755,7 +2750,6 @@ function handleDistributionExport() {
 async function cleanupDistributionHistorySave(historyId) {
   if (!historyId) return;
 
-  await supabase.from("distribution_history_logs").delete().eq("distribution_history_id", historyId);
   await supabase.from("distribution_history_members").delete().eq("distribution_history_id", historyId);
   await supabase.from("distribution_history_deductions").delete().eq("distribution_history_id", historyId);
   await supabase.from("distribution_history_groups").delete().eq("distribution_history_id", historyId);
@@ -2960,32 +2954,6 @@ ${historyRes.error.message}`);
         await cleanupDistributionHistorySave(historyId);
         alert(`분배 이력 길드원 결과 저장 중 오류가 발생했습니다.
 ${memberRes.error.message}`);
-        return;
-      }
-    }
-
-    const logRows = state.distribution.loadedLogs.map((log, index) => ({
-      distribution_history_id: historyId,
-      log_date: log.dateText || null,
-      log_time: log.timeText || null,
-      boss_name: log.boss || "",
-      group_type: log.group === "world" ? "world" : "mainland",
-      score: Number(log.score ?? 0),
-      cutter_name: log.cutter || "",
-      participants: Array.isArray(log.workingParticipants) ? log.workingParticipants : [],
-      participants_text: (log.workingParticipants || []).join(", "),
-      display_order: index + 1
-    }));
-
-    if (logRows.length) {
-      const logRes = await supabase
-        .from("distribution_history_logs")
-        .insert(logRows);
-
-      if (logRes.error) {
-        await cleanupDistributionHistorySave(historyId);
-        alert(`분배 이력 보스로그 저장 중 오류가 발생했습니다.
-${logRes.error.message}`);
         return;
       }
     }
