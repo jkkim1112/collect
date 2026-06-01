@@ -175,6 +175,10 @@ function bindElements() {
   el.historyListTableBody = document.getElementById("historyListTableBody");
   el.historyMemberTableHead = document.getElementById("historyMemberTableHead");
   el.historyMemberTableBody = document.getElementById("historyMemberTableBody");
+  el.historyGroupSummarySection = document.getElementById("historyGroupSummarySection");
+  el.historyGroupSummaryBody = document.getElementById("historyGroupSummaryBody");
+  el.historyDeductionSection = document.getElementById("historyDeductionSection");
+  el.historyDeductionBody = document.getElementById("historyDeductionBody");
   el.historyLogTableHead = document.getElementById("historyLogTableHead");
   el.historyLogTableBody = document.getElementById("historyLogTableBody");
   el.historySummaryPeriod = document.getElementById("historySummaryPeriod");
@@ -2381,13 +2385,28 @@ async function loadHistoryDetail(historyId, forceReload = false) {
   renderHistoryDetail();
 
   let memberRows = [];
+  let groupRows = [];
+  let deductionRows = [];
 
   try {
-    memberRows = await fetchPagedRows(() => supabase
-      .from("distribution_history_members")
-      .select("distribution_history_id, member_id, member_name, mainland_points, world_points, total_points, ratio, mainland_diamond, world_diamond, final_diamond, note, is_retired, display_order")
-      .eq("distribution_history_id", targetId)
-      .order("display_order", { ascending: true }), "분배 이력 길드원 결과 조회");
+    [memberRows, groupRows, deductionRows] = await Promise.all([
+      fetchPagedRows(() => supabase
+        .from("distribution_history_members")
+        .select("distribution_history_id, member_id, member_name, mainland_points, world_points, total_points, ratio, mainland_diamond, world_diamond, final_diamond, note, is_retired, display_order")
+        .eq("distribution_history_id", targetId)
+        .order("display_order", { ascending: true }), "분배 이력 길드원 결과 조회"),
+      fetchPagedRows(() => supabase
+        .from("distribution_history_groups")
+        .select("distribution_history_id, group_type, group_name, assigned_diamond, deduction_total, actual_diamond, total_points, diamond_per_point, remaining_diamond, display_order")
+        .eq("distribution_history_id", targetId)
+        .order("display_order", { ascending: true }), "분배 이력 그룹 요약 조회"),
+      fetchPagedRows(() => supabase
+        .from("distribution_history_deductions")
+        .select("distribution_history_id, group_type, name, mode, value, amount, display_order")
+        .eq("distribution_history_id", targetId)
+        .order("group_type", { ascending: true })
+        .order("display_order", { ascending: true }), "분배 이력 공제 항목 조회")
+    ]);
   } catch (error) {
     state.history.loadingDetailId = null;
     alert(error.message || "분배 이력 상세 조회 중 오류가 발생했습니다.");
@@ -2395,11 +2414,33 @@ async function loadHistoryDetail(historyId, forceReload = false) {
   }
 
   const detail = {
+    groupRows: groupRows.map((row) => ({
+      groupType: row.group_type === "world" ? "world" : "mainland",
+      groupName: row.group_name || (row.group_type === "world" ? "월드" : "본토"),
+      assignedDiamond: Number(row.assigned_diamond ?? 0),
+      deductionTotal: Number(row.deduction_total ?? 0),
+      actualDiamond: Number(row.actual_diamond ?? 0),
+      totalPoints: Number(row.total_points ?? 0),
+      diamondPerPoint: Number(row.diamond_per_point ?? 0),
+      remainingDiamond: Number(row.remaining_diamond ?? 0)
+    })),
+    deductionRows: deductionRows.map((row) => ({
+      groupType: row.group_type === "world" ? "world" : "mainland",
+      name: row.name || "",
+      mode: row.mode === "amount" ? "amount" : "percent",
+      value: Number(row.value ?? 0),
+      amount: Number(row.amount ?? 0),
+      displayOrder: Number(row.display_order ?? 0)
+    })),
     memberRows: memberRows.map((row) => ({
       memberId: row.member_id ?? null,
       memberName: row.member_name,
+      mainlandPoints: Number(row.mainland_points ?? 0),
+      worldPoints: Number(row.world_points ?? 0),
       points: Number(row.total_points ?? 0),
       ratio: Number(row.ratio ?? 0),
+      mainlandDiamond: Number(row.mainland_diamond ?? 0),
+      worldDiamond: Number(row.world_diamond ?? 0),
       rawDiamond: Number((row.mainland_diamond ?? 0) + (row.world_diamond ?? 0)),
       finalDiamond: Number(row.final_diamond ?? 0),
       note: row.note || (row.is_retired ? "탈퇴한 길드원" : "")
@@ -2439,9 +2480,10 @@ function renderHistoryDetail() {
     el.historyTotalDiamond.textContent = "0";
     el.historyGuildFeePercent.textContent = "0";
     el.historyGuildMasterPercent.textContent = "0";
-    el.historyManagerPercent.textContent = "0";
-    renderHistoryMemberTable([]);
-    renderHistoryLogTable([]);
+    el.historyManagerPercent.textContent = "-";
+    renderHistoryGroupSummaryTable([]);
+    renderHistoryDeductionTable([]);
+    renderHistoryMemberTable([], []);
     return;
   }
 
@@ -2454,41 +2496,113 @@ function renderHistoryDetail() {
   el.historyTotalDiamond.textContent = formatNumber(item.totalDiamond);
   el.historyGuildFeePercent.textContent = String(item.guildFeePercent);
   el.historyGuildMasterPercent.textContent = String(item.guildMasterPercent);
-  el.historyManagerPercent.textContent = String(item.managerPercent);
+  el.historyManagerPercent.textContent = "-";
 
   const detail = getSelectedHistoryDetail();
   const isLoading = state.history?.loadingDetailId === item.id && !detail;
 
   if (isLoading) {
-    renderHistoryMemberTable(null);
-    renderHistoryLogTable(null);
+    renderHistoryGroupSummaryTable(null);
+    renderHistoryDeductionTable(null);
+    renderHistoryMemberTable(null, []);
     return;
   }
 
-  renderHistoryMemberTable(detail?.memberRows || []);
-  renderHistoryLogTable(detail?.logRows || []);
+  const groupRows = (detail?.groupRows || []).filter((row) => Number(row.assignedDiamond ?? 0) > 0);
+  renderHistoryGroupSummaryTable(groupRows);
+
+  const activeGroupTypes = groupRows.map((row) => row.groupType);
+  const deductionRows = (detail?.deductionRows || []).filter((row) => activeGroupTypes.includes(row.groupType));
+  renderHistoryDeductionTable(deductionRows);
+  renderHistoryMemberTable(detail?.memberRows || [], activeGroupTypes);
 }
 
-function renderHistoryMemberTable(rows) {
-  el.historyMemberTableHead.innerHTML = `
-    <tr>
-      <th class="is-center">No</th>
-      <th>길드원</th>
-      <th class="is-right">참여점수</th>
-      <th class="is-right">참여비율</th>
-      <th class="is-right">계산 다이아</th>
-      <th class="is-right">최종 분배 다이아</th>
-      <th>비고</th>
-    </tr>
-  `;
+function renderHistoryGroupSummaryTable(rows) {
+  if (!el.historyGroupSummarySection || !el.historyGroupSummaryBody) return;
 
   if (rows === null) {
-    el.historyMemberTableBody.innerHTML = `<tr><td class="distribution-empty-row" colspan="7">상세 데이터를 불러오는 중입니다.</td></tr>`;
+    el.historyGroupSummarySection.classList.remove("hidden");
+    el.historyGroupSummaryBody.innerHTML = `<tr><td class="distribution-empty-row" colspan="7">상세 데이터를 불러오는 중입니다.</td></tr>`;
     return;
   }
 
   if (!rows.length) {
-    el.historyMemberTableBody.innerHTML = `<tr><td class="distribution-empty-row" colspan="7">표시할 길드원별 분배 결과가 없습니다.</td></tr>`;
+    el.historyGroupSummarySection.classList.add("hidden");
+    el.historyGroupSummaryBody.innerHTML = "";
+    return;
+  }
+
+  el.historyGroupSummarySection.classList.remove("hidden");
+  el.historyGroupSummaryBody.innerHTML = rows.map((row) => `
+    <tr>
+      <td>${row.groupType === "world" ? "월드" : "본토"}</td>
+      <td class="is-right">${formatNumber(row.assignedDiamond)}</td>
+      <td class="is-right">${formatNumber(row.deductionTotal)}</td>
+      <td class="is-right">${formatNumber(row.actualDiamond)}</td>
+      <td class="is-right">${formatNumber(row.totalPoints)}</td>
+      <td class="is-right">${formatDecimal(row.diamondPerPoint, 1)}</td>
+      <td class="is-right">${formatNumber(row.remainingDiamond)}</td>
+    </tr>
+  `).join("");
+}
+
+function renderHistoryDeductionTable(rows) {
+  if (!el.historyDeductionSection || !el.historyDeductionBody) return;
+
+  if (rows === null) {
+    el.historyDeductionSection.classList.remove("hidden");
+    el.historyDeductionBody.innerHTML = `<tr><td class="distribution-empty-row" colspan="6">상세 데이터를 불러오는 중입니다.</td></tr>`;
+    return;
+  }
+
+  if (!rows.length) {
+    el.historyDeductionSection.classList.add("hidden");
+    el.historyDeductionBody.innerHTML = "";
+    return;
+  }
+
+  el.historyDeductionSection.classList.remove("hidden");
+  el.historyDeductionBody.innerHTML = rows.map((row, index) => `
+    <tr>
+      <td class="is-center">${index + 1}</td>
+      <td>${row.groupType === "world" ? "월드" : "본토"}</td>
+      <td>${escapeHtml(row.name || "-")}</td>
+      <td>${row.mode === "amount" ? "금액" : "비율"}</td>
+      <td class="is-right">${row.mode === "amount" ? formatNumber(row.value) : `${formatDecimal(row.value, 2)}%`}</td>
+      <td class="is-right">${formatNumber(row.amount)}</td>
+    </tr>
+  `).join("");
+}
+
+function renderHistoryMemberTable(rows, activeGroupTypes = []) {
+  const showMainland = activeGroupTypes.includes("mainland");
+  const showWorld = activeGroupTypes.includes("world");
+
+  const headCells = [
+    '<th class="is-center">No</th>',
+    "<th>길드원</th>"
+  ];
+  if (showMainland) headCells.push('<th class="is-right">본토 점수</th>');
+  if (showWorld) headCells.push('<th class="is-right">월드 점수</th>');
+  headCells.push('<th class="is-right">총점</th>');
+  if (showMainland) headCells.push('<th class="is-right">본토 다이아</th>');
+  if (showWorld) headCells.push('<th class="is-right">월드 다이아</th>');
+  headCells.push('<th class="is-right">최종 분배 다이아</th>');
+  headCells.push("<th>비고</th>");
+
+  el.historyMemberTableHead.innerHTML = `
+    <tr>
+      ${headCells.join("")}
+    </tr>
+  `;
+
+  if (rows === null) {
+    el.historyMemberTableBody.innerHTML = `<tr><td class="distribution-empty-row" colspan="${headCells.length}">상세 데이터를 불러오는 중입니다.</td></tr>`;
+    return;
+  }
+
+  if (!rows.length) {
+    el.historyMemberTableBody.innerHTML = `<tr><td class="distribution-empty-row" colspan="${headCells.length}">표시할 길드원별 분배 결과가 없습니다.</td></tr>`;
     return;
   }
 
@@ -2496,9 +2610,11 @@ function renderHistoryMemberTable(rows) {
     <tr class="${row.note === "탈퇴한 길드원" ? "distribution-retired-row" : ""}">
       <td class="is-center">${index + 1}</td>
       <td>${escapeHtml(row.memberName)}</td>
+      ${showMainland ? `<td class="is-right">${formatNumber(row.mainlandPoints)}</td>` : ""}
+      ${showWorld ? `<td class="is-right">${formatNumber(row.worldPoints)}</td>` : ""}
       <td class="is-right">${formatNumber(row.points)}</td>
-      <td class="is-right">${formatPercent(row.ratio)}</td>
-      <td class="is-right">${formatDecimal(row.rawDiamond, 1)}</td>
+      ${showMainland ? `<td class="is-right">${formatNumber(row.mainlandDiamond)}</td>` : ""}
+      ${showWorld ? `<td class="is-right">${formatNumber(row.worldDiamond)}</td>` : ""}
       <td class="is-right">${formatNumber(row.finalDiamond)}</td>
       <td>${escapeHtml(row.note || "-")}</td>
     </tr>
