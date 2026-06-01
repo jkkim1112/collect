@@ -319,15 +319,10 @@ function bindEvents() {
   el.guildManageTableBody.addEventListener("click", handleGuildManageTableClick);
   el.itemManageTableBody.addEventListener("click", handleItemManageTableClick);
 
+  // Backdrop 클릭으로 모달이 닫히지 않도록 비활성화한다.
   [el.adminModeModalBackdrop, el.adminPasswordChangeModalBackdrop, el.passwordModalBackdrop, el.guildManageModalBackdrop, el.itemManageModalBackdrop, el.searchSelectModalBackdrop, el.importModalBackdrop].forEach((backdrop) => {
     backdrop.addEventListener("click", (event) => {
-      if (event.target === backdrop) {
-        if (backdrop === el.itemManageModalBackdrop) {
-          closeItemManageModal();
-          return;
-        }
-        closeModal(backdrop);
-      }
+      if (event.target === backdrop) return;
     });
   });
 }
