@@ -15,6 +15,7 @@ import {
   DISTRIBUTION_BOSS_RULES_TABLE,
   supabase
 } from "./core/supabaseClient.js";
+import { closeModal, openModal } from "./ui/modals.js";
 import { bindNewDistributionUi as bindDistributionUiModule } from "./distribution/actions.js";
 import {
   renderDistributionTab as renderDistributionTabModule,
@@ -4814,14 +4815,6 @@ function getAccessoryLatestUpdatedAt(memberId) {
     if (!latest) return current.updated_at;
     return new Date(current.updated_at) > new Date(latest) ? current.updated_at : latest;
   }, null);
-}
-
-function openModal(backdrop) {
-  backdrop.classList.remove("hidden");
-}
-
-function closeModal(backdrop) {
-  backdrop.classList.add("hidden");
 }
 
 function openImportModal() {
