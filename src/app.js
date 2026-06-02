@@ -7,14 +7,14 @@
   formatPercent,
   formatUpdatedAt,
   normalizeSearchText
-} from "./formatters.js";
+} from "./core/formatters.js";
 import {
   ADMIN_PASSWORD_KEY,
   APP_SETTINGS_TABLE,
   bossSupabase,
   DISTRIBUTION_BOSS_RULES_TABLE,
   supabase
-} from "./supabaseClient.js";
+} from "./core/supabaseClient.js";
 import { bindNewDistributionUi as bindDistributionUiModule } from "./distribution/actions.js";
 import {
   renderDistributionTab as renderDistributionTabModule,
