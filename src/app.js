@@ -33,32 +33,15 @@ import {
   initializeDistributionState as initializeDistributionStateModule,
   normalizeDistributionName as normalizeDistributionNameModule
 } from "./distribution/state.js";
-import {
-  escapeSupabaseLike as escapeSupabaseLikeModule,
-  formatBossParticipationDateTime as formatBossParticipationDateTimeModule,
-  formatBossParticipationFileDate as formatBossParticipationFileDateModule,
-  getBossParticipationExportFileName as getBossParticipationExportFileNameModule,
-  getBossParticipationKstDateTimeParts as getBossParticipationKstDateTimePartsModule,
-  getBossParticipationRecordTypeText as getBossParticipationRecordTypeTextModule,
-  kstDateBoundaryToIso as kstDateBoundaryToIsoModule
-} from "./bossParticipation/formatters.js";
+import { formatBossParticipationFileDate } from "./bossParticipation/formatters.js";
 import { initializeBossParticipationState as initializeBossParticipationStateModule } from "./bossParticipation/state.js";
-import {
-  groupBossParticipantsByRecordId as groupBossParticipantsByRecordIdModule,
-  loadBossParticipationRows as loadBossParticipationRowsModule,
-  loadBossParticipantsByRecordIds as loadBossParticipantsByRecordIdsModule
-} from "./bossParticipation/api.js";
+import { loadBossParticipationRows as loadBossParticipationRowsModule } from "./bossParticipation/api.js";
 import {
   handleBossParticipationExport as handleBossParticipationExportModule,
   handleBossParticipationReset as handleBossParticipationResetModule,
   handleBossParticipationSearch as handleBossParticipationSearchModule
 } from "./bossParticipation/actions.js";
-import {
-  renderBossParticipationInputs as renderBossParticipationInputsModule,
-  renderBossParticipationSummary as renderBossParticipationSummaryModule,
-  renderBossParticipationTab as renderBossParticipationTabModule,
-  renderBossParticipationTable as renderBossParticipationTableModule
-} from "./bossParticipation/render.js";
+import { renderBossParticipationTab as renderBossParticipationTabModule } from "./bossParticipation/render.js";
 
 let adminPassword = "";
 let adminPasswordLoadError = "";
@@ -3141,14 +3124,6 @@ async function loadBossParticipationData() {
   }
 }
 
-async function loadBossParticipantsByRecordIds(recordIds) {
-  return loadBossParticipantsByRecordIdsModule(bossSupabase, recordIds);
-}
-
-function groupBossParticipantsByRecordId(participants) {
-  return groupBossParticipantsByRecordIdModule(participants);
-}
-
 function renderBossParticipationTab() {
   renderBossParticipationTabModule({
     state,
@@ -3160,50 +3135,8 @@ function renderBossParticipationTab() {
   });
 }
 
-function renderBossParticipationInputs() {
-  const tabState = state.bossParticipation;
-  renderBossParticipationInputsModule({ tabState, setValueIfNeeded });
-}
-
-function renderBossParticipationSummary() {
-  renderBossParticipationSummaryModule({ state, el, normalizeSearchText, formatNumber });
-}
-
-function renderBossParticipationTable() {
-  renderBossParticipationTableModule({ state, el, formatNumber, escapeHtml });
-}
-
-
 function handleBossParticipationExport() {
   handleBossParticipationExportModule({ state, XLSX, alertFn: alert });
-}
-
-function getBossParticipationExportFileName() {
-  return getBossParticipationExportFileNameModule(state);
-}
-
-function formatBossParticipationFileDate(value) {
-  return formatBossParticipationFileDateModule(value);
-}
-
-function getBossParticipationKstDateTimeParts(value) {
-  return getBossParticipationKstDateTimePartsModule(value);
-}
-
-function getBossParticipationRecordTypeText(recordType) {
-  return getBossParticipationRecordTypeTextModule(recordType);
-}
-
-function formatBossParticipationDateTime(value) {
-  return formatBossParticipationDateTimeModule(value);
-}
-
-function kstDateBoundaryToIso(dateText, isEndBoundary) {
-  return kstDateBoundaryToIsoModule(dateText, isEndBoundary);
-}
-
-function escapeSupabaseLike(value) {
-  return escapeSupabaseLikeModule(value);
 }
 
 function renderGuildManageTable() {
