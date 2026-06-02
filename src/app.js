@@ -43,6 +43,22 @@ import {
   kstDateBoundaryToIso as kstDateBoundaryToIsoModule
 } from "./bossParticipation/formatters.js";
 import { initializeBossParticipationState as initializeBossParticipationStateModule } from "./bossParticipation/state.js";
+import {
+  groupBossParticipantsByRecordId as groupBossParticipantsByRecordIdModule,
+  loadBossParticipationRows as loadBossParticipationRowsModule,
+  loadBossParticipantsByRecordIds as loadBossParticipantsByRecordIdsModule
+} from "./bossParticipation/api.js";
+import {
+  handleBossParticipationExport as handleBossParticipationExportModule,
+  handleBossParticipationReset as handleBossParticipationResetModule,
+  handleBossParticipationSearch as handleBossParticipationSearchModule
+} from "./bossParticipation/actions.js";
+import {
+  renderBossParticipationInputs as renderBossParticipationInputsModule,
+  renderBossParticipationSummary as renderBossParticipationSummaryModule,
+  renderBossParticipationTab as renderBossParticipationTabModule,
+  renderBossParticipationTable as renderBossParticipationTableModule
+} from "./bossParticipation/render.js";
 
 let adminPassword = "";
 let adminPasswordLoadError = "";
@@ -3086,27 +3102,20 @@ function initializeBossParticipationState() {
 }
 
 async function handleBossParticipationSearch() {
-  state.bossParticipation.startDate = String(el.bossParticipationStartDateInput?.value || "").trim();
-  state.bossParticipation.endDate = String(el.bossParticipationEndDateInput?.value || "").trim();
-  state.bossParticipation.bossKeyword = String(el.bossParticipationBossInput?.value || "").trim();
-  state.bossParticipation.participantKeyword = String(el.bossParticipationParticipantInput?.value || "").trim();
-  await loadBossParticipationData();
-  renderBossParticipationTab();
+  await handleBossParticipationSearchModule({
+    state,
+    el,
+    loadBossParticipationData,
+    renderBossParticipationTab
+  });
 }
 
 async function handleBossParticipationReset() {
-  state.bossParticipation.startDate = "";
-  state.bossParticipation.endDate = "";
-  state.bossParticipation.bossKeyword = "";
-  state.bossParticipation.participantKeyword = "";
-  state.bossParticipation.rows = [];
-  state.bossParticipation.loaded = false;
-  state.bossParticipation.loading = false;
-  if (el.bossParticipationStartDateInput) el.bossParticipationStartDateInput.value = "";
-  if (el.bossParticipationEndDateInput) el.bossParticipationEndDateInput.value = "";
-  if (el.bossParticipationBossInput) el.bossParticipationBossInput.value = "";
-  if (el.bossParticipationParticipantInput) el.bossParticipationParticipantInput.value = "";
-  renderBossParticipationTab();
+  await handleBossParticipationResetModule({
+    state,
+    el,
+    renderBossParticipationTab
+  });
 }
 
 async function loadBossParticipationData() {
@@ -3117,73 +3126,11 @@ async function loadBossParticipationData() {
   renderBossParticipationTab();
 
   try {
-    if (!bossSupabase) {
-      throw new Error("보스봇 Supabase URL과 ANON KEY를 script 파일에 설정해주세요.");
-    }
-
-    const records = [];
-    const recordPageSize = 1000;
-    let recordFrom = 0;
-
-    while (true) {
-      let query = bossSupabase
-        .from("boss_kill_records")
-        .select("id, boss_id, boss_name, record_type, cut_time, cut_by_nickname, cut_by_discord_id, cut_source, next_spawn_time, created_at")
-        .order("cut_time", { ascending: false })
-        .range(recordFrom, recordFrom + recordPageSize - 1);
-
-      if (tabState.startDate) {
-        query = query.gte("cut_time", kstDateBoundaryToIso(tabState.startDate, false));
-      }
-
-      if (tabState.endDate) {
-        query = query.lt("cut_time", kstDateBoundaryToIso(tabState.endDate, true));
-      }
-
-      if (tabState.bossKeyword) {
-        query = query.ilike("boss_name", `%${escapeSupabaseLike(tabState.bossKeyword)}%`);
-      }
-
-      const recordRes = await query;
-      if (recordRes.error) {
-        throw new Error(`보스 컷 기록 조회 중 오류가 발생했습니다.\n${recordRes.error.message}`);
-      }
-
-      const pageRecords = recordRes.data ?? [];
-      records.push(...pageRecords);
-
-      if (pageRecords.length < recordPageSize) {
-        break;
-      }
-
-      recordFrom += recordPageSize;
-    }
-    const recordIds = records.map((row) => row.id).filter(Boolean);
-    const participants = await loadBossParticipantsByRecordIds(recordIds);
-    const participantMap = groupBossParticipantsByRecordId(participants);
-    const participantKeyword = normalizeSearchText(tabState.participantKeyword);
-
-    let rows = records.map((record) => {
-      const rowParticipants = participantMap.get(record.id) || [];
-      return {
-        id: record.id,
-        bossName: record.boss_name || "-",
-        recordType: record.record_type || "-",
-        cutTime: record.cut_time || "",
-        cutByNickname: record.cut_by_nickname || "-",
-        cutSource: record.cut_source || "-",
-        nextSpawnTime: record.next_spawn_time || "",
-        participants: rowParticipants
-      };
+    tabState.rows = await loadBossParticipationRowsModule({
+      bossSupabase,
+      tabState,
+      normalizeSearchText
     });
-
-    if (participantKeyword) {
-      rows = rows.filter((row) => row.participants.some((participant) => {
-        return normalizeSearchText(participant.discord_nickname).includes(participantKeyword);
-      }));
-    }
-
-    tabState.rows = rows;
     tabState.loaded = true;
   } catch (error) {
     tabState.rows = [];
@@ -3195,163 +3142,40 @@ async function loadBossParticipationData() {
 }
 
 async function loadBossParticipantsByRecordIds(recordIds) {
-  if (!recordIds.length) return [];
-
-  const rows = [];
-  const chunkSize = 500;
-  const pageSize = 1000;
-
-  for (let index = 0; index < recordIds.length; index += chunkSize) {
-    const chunk = recordIds.slice(index, index + chunkSize);
-    let from = 0;
-
-    while (true) {
-      const res = await bossSupabase
-        .from("boss_participants")
-        .select("kill_record_id, boss_id, boss_name, cut_time, discord_user_id, discord_nickname, created_at")
-        .in("kill_record_id", chunk)
-        .order("created_at", { ascending: true })
-        .range(from, from + pageSize - 1);
-
-      if (res.error) {
-        throw new Error(`보스 참여자 조회 중 오류가 발생했습니다.\n${res.error.message}`);
-      }
-
-      const pageRows = res.data ?? [];
-      rows.push(...pageRows);
-
-      if (pageRows.length < pageSize) {
-        break;
-      }
-
-      from += pageSize;
-    }
-  }
-
-  return rows;
+  return loadBossParticipantsByRecordIdsModule(bossSupabase, recordIds);
 }
 
 function groupBossParticipantsByRecordId(participants) {
-  const map = new Map();
-  participants.forEach((participant) => {
-    const key = participant.kill_record_id;
-    if (!key) return;
-    if (!map.has(key)) map.set(key, []);
-    map.get(key).push(participant);
-  });
-  return map;
+  return groupBossParticipantsByRecordIdModule(participants);
 }
 
 function renderBossParticipationTab() {
-  const tabState = state.bossParticipation;
-  if (!tabState) return;
-
-  renderBossParticipationInputs();
-  renderBossParticipationSummary();
-  renderBossParticipationTable();
+  renderBossParticipationTabModule({
+    state,
+    el,
+    setValueIfNeeded,
+    normalizeSearchText,
+    formatNumber,
+    escapeHtml
+  });
 }
 
 function renderBossParticipationInputs() {
   const tabState = state.bossParticipation;
-  setValueIfNeeded("bossParticipationStartDateInput", tabState.startDate || "");
-  setValueIfNeeded("bossParticipationEndDateInput", tabState.endDate || "");
-  setValueIfNeeded("bossParticipationBossInput", tabState.bossKeyword || "");
-  setValueIfNeeded("bossParticipationParticipantInput", tabState.participantKeyword || "");
+  renderBossParticipationInputsModule({ tabState, setValueIfNeeded });
 }
 
 function renderBossParticipationSummary() {
-  const rows = state.bossParticipation?.rows || [];
-  const cutRows = rows.filter((row) => row.recordType === "cut");
-  const mungRows = rows.filter((row) => row.recordType === "mung");
-  const participantNames = rows.flatMap((row) => row.participants.map((participant) => String(participant.discord_nickname || "").trim()).filter(Boolean));
-  const uniqueParticipants = new Set(participantNames.map((name) => normalizeSearchText(name)));
-
-  el.bossParticipationSummaryTotalRecords.textContent = formatNumber(rows.length);
-  el.bossParticipationSummaryCutRecords.textContent = formatNumber(cutRows.length);
-  el.bossParticipationSummaryMungRecords.textContent = formatNumber(mungRows.length);
-  el.bossParticipationSummaryParticipants.textContent = formatNumber(participantNames.length);
-  el.bossParticipationSummaryUniqueParticipants.textContent = formatNumber(uniqueParticipants.size);
+  renderBossParticipationSummaryModule({ state, el, normalizeSearchText, formatNumber });
 }
 
 function renderBossParticipationTable() {
-  el.bossParticipationTableHead.innerHTML = `
-    <tr>
-      <th class="is-center">No</th>
-      <th>컷 시간</th>
-      <th>보스명</th>
-      <th class="is-center">기록</th>
-      <th>컷자</th>
-      <th class="is-right">참여자 수</th>
-      <th>참여자</th>
-    </tr>
-  `;
-
-  const tabState = state.bossParticipation;
-  const rows = tabState?.rows || [];
-
-  if (tabState?.loading) {
-    el.bossParticipationTableBody.innerHTML = `<tr><td class="distribution-empty-row" colspan="7">보스 참여 이력을 불러오는 중입니다.</td></tr>`;
-    return;
-  }
-
-  if (!rows.length) {
-    const message = tabState?.loaded ? "조회된 보스 참여 이력이 없습니다." : "조회 버튼을 눌러 보스 참여 이력을 불러와주세요.";
-    el.bossParticipationTableBody.innerHTML = `<tr><td class="distribution-empty-row" colspan="7">${message}</td></tr>`;
-    return;
-  }
-
-  el.bossParticipationTableBody.innerHTML = rows.map((row, index) => {
-    const participantNames = row.participants.map((participant) => participant.discord_nickname || "-").filter(Boolean);
-    const recordClass = row.recordType === "mung" ? "boss-participation-mung-row" : "";
-    return `
-      <tr class="${recordClass}">
-        <td class="is-center">${index + 1}</td>
-        <td>${escapeHtml(formatBossParticipationDateTime(row.cutTime))}</td>
-        <td>${escapeHtml(row.bossName)}</td>
-        <td class="is-center"><span class="boss-participation-badge ${row.recordType === "mung" ? "is-mung" : "is-cut"}">${escapeHtml(getBossParticipationRecordTypeText(row.recordType))}</span></td>
-        <td>${escapeHtml(row.cutByNickname)}</td>
-        <td class="is-right">${formatNumber(participantNames.length)}</td>
-        <td class="boss-participation-participants-cell">${escapeHtml(participantNames.length ? participantNames.join(", ") : "-")}</td>
-      </tr>
-    `;
-  }).join("");
+  renderBossParticipationTableModule({ state, el, formatNumber, escapeHtml });
 }
 
 
 function handleBossParticipationExport() {
-  const rows = state.bossParticipation?.rows || [];
-  if (!rows.length) {
-    alert("엑셀 저장할 보스 참여 이력이 없습니다.");
-    return;
-  }
-
-  const exportRows = rows.map((row) => {
-    const dateTime = getBossParticipationKstDateTimeParts(row.cutTime);
-    const participantNames = row.participants
-      .map((participant) => String(participant.discord_nickname || "").trim())
-      .filter(Boolean);
-
-    return {
-      날짜: dateTime.date,
-      시간: dateTime.time,
-      보스: row.bossName === "-" ? "" : row.bossName,
-      컷자: row.cutByNickname === "-" ? "" : row.cutByNickname,
-      참여자: participantNames.join(", ")
-    };
-  });
-
-  const worksheet = XLSX.utils.json_to_sheet(exportRows, { header: ["날짜", "시간", "보스", "컷자", "참여자"] });
-  worksheet["!cols"] = [
-    { wch: 12 },
-    { wch: 10 },
-    { wch: 18 },
-    { wch: 16 },
-    { wch: 50 }
-  ];
-
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "보스로그");
-  XLSX.writeFile(workbook, `${getBossParticipationExportFileName()}.xlsx`);
+  handleBossParticipationExportModule({ state, XLSX, alertFn: alert });
 }
 
 function getBossParticipationExportFileName() {
@@ -5049,4 +4873,3 @@ async function handleImportApply() {
     alert(error.message);
   }
 }
-
