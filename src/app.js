@@ -180,8 +180,6 @@ function bindElements() {
   el.historyGroupSummaryBody = document.getElementById("historyGroupSummaryBody");
   el.historyDeductionSection = document.getElementById("historyDeductionSection");
   el.historyDeductionBody = document.getElementById("historyDeductionBody");
-  el.historyLogTableHead = document.getElementById("historyLogTableHead");
-  el.historyLogTableBody = document.getElementById("historyLogTableBody");
   el.historySummaryPeriod = document.getElementById("historySummaryPeriod");
   el.historySummaryActualDiamond = document.getElementById("historySummaryActualDiamond");
   el.historySummaryTotalPoints = document.getElementById("historySummaryTotalPoints");
@@ -2608,40 +2606,6 @@ function renderHistoryMemberTable(rows, activeGroupTypes = []) {
       ${showWorld ? `<td class="is-right">${formatNumber(row.worldDiamond)}</td>` : ""}
       <td class="is-right">${formatNumber(row.finalDiamond)}</td>
       <td>${escapeHtml(row.note || "-")}</td>
-    </tr>
-  `).join("");
-}
-
-function renderHistoryLogTable(rows) {
-  el.historyLogTableHead.innerHTML = `
-    <tr>
-      <th class="is-center">No</th>
-      <th>날짜</th>
-      <th>시간</th>
-      <th>보스</th>
-      <th>컷자</th>
-      <th>참여자</th>
-    </tr>
-  `;
-
-  if (rows === null) {
-    el.historyLogTableBody.innerHTML = `<tr><td class="distribution-empty-row" colspan="6">상세 데이터를 불러오는 중입니다.</td></tr>`;
-    return;
-  }
-
-  if (!rows.length) {
-    el.historyLogTableBody.innerHTML = `<tr><td class="distribution-empty-row" colspan="6">표시할 보스로그가 없습니다.</td></tr>`;
-    return;
-  }
-
-  el.historyLogTableBody.innerHTML = rows.map((row, index) => `
-    <tr>
-      <td class="is-center">${index + 1}</td>
-      <td>${escapeHtml(row.date)}</td>
-      <td>${escapeHtml(row.time)}</td>
-      <td>${escapeHtml(row.boss)}</td>
-      <td>${escapeHtml(row.cutter)}</td>
-      <td>${escapeHtml((row.participants || []).join(", "))}</td>
     </tr>
   `).join("");
 }
