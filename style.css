@@ -1795,8 +1795,7 @@ button {
 .newdist-badge-mainland { background:#dbeafe; color:#1d4ed8; }
 .newdist-badge-world { background:#ede9fe; color:#6d28d9; }
 .newdist-danger-soft { background:#fef2f2; }
-.newdist-modal-backdrop { position:fixed; inset:0; background:rgba(15,23,42,.42); display:none; align-items:center; justify-content:center; padding:20px; z-index:1100; }
-.newdist-modal-backdrop.open { display:flex; }
+.newdist-modal-backdrop { position:fixed; inset:0; background:rgba(15,23,42,.42); display:flex; align-items:center; justify-content:center; padding:20px; z-index:1100; }
 .newdist-modal { width:min(1080px,100%); max-height:calc(100vh - 40px); overflow:auto; background:#fff; border-radius:18px; border:1px solid #e7ebf3; box-shadow:0 20px 50px rgba(15,23,42,.18); }
 .newdist-modal-head { padding:18px 20px; border-bottom:1px solid #eef2f7; display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
 .newdist-modal-title { margin:0; font-size:18px; font-weight:800; }
