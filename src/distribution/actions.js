@@ -38,14 +38,6 @@ export function bindNewDistributionUi(state, deps) {
     button.addEventListener("click", () => deps.closeDistributionModal(button.dataset.newdistClose));
   });
 
-  ["newdistBossManageModal", "newdistNameRuleModal", "newdistLogEditModal"].forEach((id) => {
-    document.getElementById(id)?.addEventListener("click", (event) => {
-      if (event.target.id === id) {
-        deps.closeDistributionModal(id);
-      }
-    });
-  });
-
   deps.updateDistributionSubtabs();
 }
 
