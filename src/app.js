@@ -42,6 +42,21 @@ import {
   handleBossParticipationSearch as handleBossParticipationSearchModule
 } from "./bossParticipation/actions.js";
 import { renderBossParticipationTab as renderBossParticipationTabModule } from "./bossParticipation/render.js";
+import {
+  getFilteredHistoryItems as getFilteredHistoryItemsModule,
+  getSelectedHistoryDetail as getSelectedHistoryDetailModule,
+  getSelectedHistoryItem as getSelectedHistoryItemModule,
+  initializeHistoryState as initializeHistoryStateModule
+} from "./history/state.js";
+import {
+  renderHistoryDeductionTable as renderHistoryDeductionTableModule,
+  renderHistoryDetail as renderHistoryDetailModule,
+  renderHistoryGroupSummaryTable as renderHistoryGroupSummaryTableModule,
+  renderHistoryInputs as renderHistoryInputsModule,
+  renderHistoryListTable as renderHistoryListTableModule,
+  renderHistoryMemberTable as renderHistoryMemberTableModule,
+  renderHistoryTab as renderHistoryTabModule
+} from "./history/render.js";
 
 let adminPassword = "";
 let adminPasswordLoadError = "";
@@ -2297,78 +2312,23 @@ async function loadHistoryData() {
 }
 
 function initializeHistoryState() {
-  state.history = {
-    filterDate: "",
-    sortKey: "saved_desc",
-    selectedId: null,
-    items: [],
-    detailCache: {},
-    loadingDetailId: null
-  };
+  initializeHistoryStateModule(state);
 }
 
 function renderHistoryTab() {
-  renderHistoryInputs();
-  renderHistoryListTable();
-  renderHistoryDetail();
+  renderHistoryTabModule({ state, el, formatNumber, formatDecimal, escapeHtml });
 }
 
 function renderHistoryInputs() {
-  el.historyDateInput.value = state.history.filterDate || "";
-  el.historySortSelect.value = state.history.sortKey || "saved_desc";
+  renderHistoryInputsModule({ state, el });
 }
 
 function getFilteredHistoryItems() {
-  const filterDate = String(state.history.filterDate || "").trim();
-  const sortKey = state.history.sortKey || "saved_desc";
-  let items = [...(state.history.items || [])];
-
-  if (filterDate) {
-    items = items.filter((item) => item.startDate <= filterDate && item.endDate >= filterDate);
-  }
-
-  items.sort((left, right) => {
-    if (sortKey === "saved_asc") return String(left.savedAt).localeCompare(String(right.savedAt));
-    if (sortKey === "period_desc") return String(right.endDate).localeCompare(String(left.endDate));
-    if (sortKey === "period_asc") return String(left.startDate).localeCompare(String(right.startDate));
-    return String(right.savedAt).localeCompare(String(left.savedAt));
-  });
-
-  return items;
+  return getFilteredHistoryItemsModule(state);
 }
 
 function renderHistoryListTable() {
-  el.historyListTableHead.innerHTML = `
-    <tr>
-      <th class="is-center">No</th>
-      <th>저장일시</th>
-      <th>대상 기간</th>
-      <th class="is-right">실제 분배 다이아</th>
-      <th class="is-right">전체 참여점수</th>
-      <th class="is-right">남은 다이아</th>
-    </tr>
-  `;
-
-  const items = getFilteredHistoryItems();
-  if (!items.length) {
-    el.historyListTableBody.innerHTML = `<tr><td class="distribution-empty-row" colspan="6">조회된 분배 이력이 없습니다.</td></tr>`;
-    return;
-  }
-
-  if (state.history.selectedId && !items.some((item) => item.id === state.history.selectedId)) {
-    state.history.selectedId = null;
-  }
-
-  el.historyListTableBody.innerHTML = items.map((item, index) => `
-    <tr class="${item.id === state.history.selectedId ? "history-selected-row" : ""}" data-role="history-select-row" data-history-id="${item.id}">
-      <td class="is-center">${index + 1}</td>
-      <td>${escapeHtml(item.savedAt)}</td>
-      <td>${escapeHtml(`${item.startDate} ~ ${item.endDate}`)}</td>
-      <td class="is-right">${formatNumber(item.actualDiamond)}</td>
-      <td class="is-right">${formatNumber(item.totalPoints)}</td>
-      <td class="is-right">${formatNumber(item.remainingDiamond)}</td>
-    </tr>
-  `).join("");
+  renderHistoryListTableModule({ state, el, formatNumber, escapeHtml });
 }
 
 async function loadHistoryDetail(historyId, forceReload = false) {
@@ -2454,169 +2414,27 @@ async function loadHistoryDetail(historyId, forceReload = false) {
 }
 
 function getSelectedHistoryDetail() {
-  const selectedId = String(state.history?.selectedId || "").trim();
-  if (!selectedId) return null;
-  return state.history?.detailCache?.[selectedId] ?? null;
+  return getSelectedHistoryDetailModule(state);
 }
 
 function getSelectedHistoryItem() {
-  const items = getFilteredHistoryItems();
-  if (!state.history.selectedId) return null;
-  return items.find((item) => item.id === state.history.selectedId) || null;
+  return getSelectedHistoryItemModule(state);
 }
 
 function renderHistoryDetail() {
-  const item = getSelectedHistoryItem();
-
-  if (!item) {
-    el.historySummaryPeriod.textContent = "-";
-    el.historySummaryActualDiamond.textContent = "0";
-    el.historySummaryTotalPoints.textContent = "0";
-    el.historySummaryPerPoint.textContent = "0";
-    el.historySummaryRemaining.textContent = "0";
-    el.historySavedAt.textContent = "-";
-    el.historyTotalDiamond.textContent = "0";
-    el.historyGuildFeePercent.textContent = "0";
-    el.historyGuildMasterPercent.textContent = "0";
-    el.historyManagerPercent.textContent = "-";
-    renderHistoryGroupSummaryTable([]);
-    renderHistoryDeductionTable([]);
-    renderHistoryMemberTable([], []);
-    return;
-  }
-
-  el.historySummaryPeriod.textContent = `${item.startDate} ~ ${item.endDate}`;
-  el.historySummaryActualDiamond.textContent = formatNumber(item.actualDiamond);
-  el.historySummaryTotalPoints.textContent = formatNumber(item.totalPoints);
-  el.historySummaryPerPoint.textContent = formatDecimal(item.diamondPerPoint, 1);
-  el.historySummaryRemaining.textContent = formatNumber(item.remainingDiamond);
-  el.historySavedAt.textContent = item.savedAt;
-  el.historyTotalDiamond.textContent = formatNumber(item.totalDiamond);
-  el.historyGuildFeePercent.textContent = String(item.guildFeePercent);
-  el.historyGuildMasterPercent.textContent = String(item.guildMasterPercent);
-  el.historyManagerPercent.textContent = "-";
-
-  const detail = getSelectedHistoryDetail();
-  const isLoading = state.history?.loadingDetailId === item.id && !detail;
-
-  if (isLoading) {
-    renderHistoryGroupSummaryTable(null);
-    renderHistoryDeductionTable(null);
-    renderHistoryMemberTable(null, []);
-    return;
-  }
-
-  const groupRows = (detail?.groupRows || []).filter((row) => Number(row.assignedDiamond ?? 0) > 0);
-  renderHistoryGroupSummaryTable(groupRows);
-
-  const activeGroupTypes = groupRows.map((row) => row.groupType);
-  const deductionRows = (detail?.deductionRows || []).filter((row) => activeGroupTypes.includes(row.groupType));
-  renderHistoryDeductionTable(deductionRows);
-  renderHistoryMemberTable(detail?.memberRows || [], activeGroupTypes);
+  renderHistoryDetailModule({ state, el, formatNumber, formatDecimal, escapeHtml });
 }
 
 function renderHistoryGroupSummaryTable(rows) {
-  if (!el.historyGroupSummarySection || !el.historyGroupSummaryBody) return;
-
-  if (rows === null) {
-    el.historyGroupSummarySection.classList.remove("hidden");
-    el.historyGroupSummaryBody.innerHTML = `<tr><td class="distribution-empty-row" colspan="7">상세 데이터를 불러오는 중입니다.</td></tr>`;
-    return;
-  }
-
-  if (!rows.length) {
-    el.historyGroupSummarySection.classList.add("hidden");
-    el.historyGroupSummaryBody.innerHTML = "";
-    return;
-  }
-
-  el.historyGroupSummarySection.classList.remove("hidden");
-  el.historyGroupSummaryBody.innerHTML = rows.map((row) => `
-    <tr>
-      <td>${row.groupType === "world" ? "월드" : "본토"}</td>
-      <td class="is-right">${formatNumber(row.assignedDiamond)}</td>
-      <td class="is-right">${formatNumber(row.deductionTotal)}</td>
-      <td class="is-right">${formatNumber(row.actualDiamond)}</td>
-      <td class="is-right">${formatNumber(row.totalPoints)}</td>
-      <td class="is-right">${formatDecimal(row.diamondPerPoint, 1)}</td>
-      <td class="is-right">${formatNumber(row.remainingDiamond)}</td>
-    </tr>
-  `).join("");
+  renderHistoryGroupSummaryTableModule({ el, formatNumber, formatDecimal, rows });
 }
 
 function renderHistoryDeductionTable(rows) {
-  if (!el.historyDeductionSection || !el.historyDeductionBody) return;
-
-  if (rows === null) {
-    el.historyDeductionSection.classList.remove("hidden");
-    el.historyDeductionBody.innerHTML = `<tr><td class="distribution-empty-row" colspan="6">상세 데이터를 불러오는 중입니다.</td></tr>`;
-    return;
-  }
-
-  if (!rows.length) {
-    el.historyDeductionSection.classList.add("hidden");
-    el.historyDeductionBody.innerHTML = "";
-    return;
-  }
-
-  el.historyDeductionSection.classList.remove("hidden");
-  el.historyDeductionBody.innerHTML = rows.map((row, index) => `
-    <tr>
-      <td class="is-center">${index + 1}</td>
-      <td>${row.groupType === "world" ? "월드" : "본토"}</td>
-      <td>${escapeHtml(row.name || "-")}</td>
-      <td>${row.mode === "amount" ? "금액" : "비율"}</td>
-      <td class="is-right">${row.mode === "amount" ? formatNumber(row.value) : `${formatDecimal(row.value, 2)}%`}</td>
-      <td class="is-right">${formatNumber(row.amount)}</td>
-    </tr>
-  `).join("");
+  renderHistoryDeductionTableModule({ el, formatNumber, formatDecimal, escapeHtml, rows });
 }
 
 function renderHistoryMemberTable(rows, activeGroupTypes = []) {
-  const showMainland = activeGroupTypes.includes("mainland");
-  const showWorld = activeGroupTypes.includes("world");
-
-  const headCells = [
-    '<th class="is-center">No</th>',
-    "<th>길드원</th>"
-  ];
-  if (showMainland) headCells.push('<th class="is-right">본토 점수</th>');
-  if (showWorld) headCells.push('<th class="is-right">월드 점수</th>');
-  headCells.push('<th class="is-right">총점</th>');
-  if (showMainland) headCells.push('<th class="is-right">본토 다이아</th>');
-  if (showWorld) headCells.push('<th class="is-right">월드 다이아</th>');
-  headCells.push('<th class="is-right">최종 분배 다이아</th>');
-  headCells.push("<th>비고</th>");
-
-  el.historyMemberTableHead.innerHTML = `
-    <tr>
-      ${headCells.join("")}
-    </tr>
-  `;
-
-  if (rows === null) {
-    el.historyMemberTableBody.innerHTML = `<tr><td class="distribution-empty-row" colspan="${headCells.length}">상세 데이터를 불러오는 중입니다.</td></tr>`;
-    return;
-  }
-
-  if (!rows.length) {
-    el.historyMemberTableBody.innerHTML = `<tr><td class="distribution-empty-row" colspan="${headCells.length}">표시할 길드원별 분배 결과가 없습니다.</td></tr>`;
-    return;
-  }
-
-  el.historyMemberTableBody.innerHTML = rows.map((row, index) => `
-    <tr class="${row.note === "탈퇴한 길드원" ? "distribution-retired-row" : ""}">
-      <td class="is-center">${index + 1}</td>
-      <td>${escapeHtml(row.memberName)}</td>
-      ${showMainland ? `<td class="is-right">${formatNumber(row.mainlandPoints)}</td>` : ""}
-      ${showWorld ? `<td class="is-right">${formatNumber(row.worldPoints)}</td>` : ""}
-      <td class="is-right">${formatNumber(row.points)}</td>
-      ${showMainland ? `<td class="is-right">${formatNumber(row.mainlandDiamond)}</td>` : ""}
-      ${showWorld ? `<td class="is-right">${formatNumber(row.worldDiamond)}</td>` : ""}
-      <td class="is-right">${formatNumber(row.finalDiamond)}</td>
-      <td>${escapeHtml(row.note || "-")}</td>
-    </tr>
-  `).join("");
+  renderHistoryMemberTableModule({ el, formatNumber, escapeHtml, rows, activeGroupTypes });
 }
 
 async function handleHistoryListClick(event) {
