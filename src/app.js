@@ -3065,18 +3065,8 @@ function writeDistributionHistoryWorkbook(item, detail) {
     비고: row.note || ""
   }));
 
-  const logRows = (detail.logRows || []).map((row, index) => ({
-    No: index + 1,
-    날짜: row.date,
-    시간: row.time,
-    보스: row.boss,
-    컷자: row.cutter,
-    참여자: (row.participants || []).join(", ")
-  }));
-
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(summaryRows), "분배요약");
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(memberRows), "길드원별분배");
-  XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(logRows), "보스로그");
   XLSX.writeFile(workbook, `분배이력 ${formatBossParticipationFileDate(item.startDate)}-${formatBossParticipationFileDate(item.endDate)}.xlsx`);
 }
 
