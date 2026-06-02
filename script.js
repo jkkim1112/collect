@@ -319,12 +319,7 @@ function bindEvents() {
   el.guildManageTableBody.addEventListener("click", handleGuildManageTableClick);
   el.itemManageTableBody.addEventListener("click", handleItemManageTableClick);
 
-  // Backdrop 클릭으로 모달이 닫히지 않도록 비활성화한다.
-  [el.adminModeModalBackdrop, el.adminPasswordChangeModalBackdrop, el.passwordModalBackdrop, el.guildManageModalBackdrop, el.itemManageModalBackdrop, el.searchSelectModalBackdrop, el.importModalBackdrop].forEach((backdrop) => {
-    backdrop.addEventListener("click", (event) => {
-      if (event.target === backdrop) return;
-    });
-  });
+  // 모달 닫기는 각 모달의 닫기 버튼(X/취소/닫기)에서만 처리한다.
 }
 
 function updateTabUi() {
@@ -1792,7 +1787,7 @@ function handleDistributionChange(event) {
 }
 
 async function openDistributionModal(id) {
-  document.getElementById(id)?.classList.add("open");
+  document.getElementById(id)?.classList.remove("hidden");
   if (id === "newdistBossManageModal") {
     try {
       await loadDistributionBossRulesFromDb();
@@ -1805,7 +1800,7 @@ async function openDistributionModal(id) {
 }
 
 function closeDistributionModal(id) {
-  document.getElementById(id)?.classList.remove("open");
+  document.getElementById(id)?.classList.add("hidden");
 }
 
 function openDistributionLogEdit(groupKey, logKey) {
