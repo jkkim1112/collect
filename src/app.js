@@ -7,19 +7,19 @@
   formatPercent,
   formatUpdatedAt,
   normalizeSearchText
-} from "./src/formatters.js";
+} from "./formatters.js";
 import {
   ADMIN_PASSWORD_KEY,
   APP_SETTINGS_TABLE,
   bossSupabase,
   DISTRIBUTION_BOSS_RULES_TABLE,
   supabase
-} from "./src/supabaseClient.js";
-import { bindNewDistributionUi as bindDistributionUiModule } from "./src/distribution/actions.js";
+} from "./supabaseClient.js";
+import { bindNewDistributionUi as bindDistributionUiModule } from "./distribution/actions.js";
 import {
   renderDistributionTab as renderDistributionTabModule,
   updateDistributionSubtabs as updateDistributionSubtabsModule
-} from "./src/distribution/render.js";
+} from "./distribution/render.js";
 import {
   createBossRule as createBossRuleModule,
   createDistributionDeduction as createDistributionDeductionModule,
@@ -31,7 +31,7 @@ import {
   getDistributionDeductionAmount as getDistributionDeductionAmountModule,
   initializeDistributionState as initializeDistributionStateModule,
   normalizeDistributionName as normalizeDistributionNameModule
-} from "./src/distribution/state.js";
+} from "./distribution/state.js";
 
 let adminPassword = "";
 let adminPasswordLoadError = "";
