@@ -1726,7 +1726,7 @@ function handleDistributionApplyLogEdit() {
   if (!logKey) return;
   const edited = document.getElementById("newdistLogEditEdited");
   const nextParticipants = splitParticipantText(edited?.value || "");
-  const targetLog = state.distribution.loadedLogs.find((entry) => entry.key === logKey);
+  const targetLog = state.distribution.rawLogs.find((entry) => entry.key === logKey);
   if (!targetLog) return;
 
   targetLog.overrideParticipants = dedupeStrings(nextParticipants);
