@@ -64,6 +64,7 @@ import {
 } from "./distribution/distribution.js";
 import {
   formatBossParticipationFileDate,
+  formatBossParticipationTimeInput,
   handleBossParticipationExport as handleBossParticipationExportModule,
   handleBossParticipationReset as handleBossParticipationResetModule,
   handleBossParticipationSearch as handleBossParticipationSearchModule,
@@ -375,6 +376,8 @@ function bindEvents() {
   el.historySearchBtn.addEventListener("click", handleHistorySearch);
   el.historyDeleteBtn.addEventListener("click", handleHistoryDelete);
   el.historyExportBtn.addEventListener("click", handleHistoryExport);
+  el.bossParticipationStartTimeInput?.addEventListener("input", handleBossParticipationTimeInput);
+  el.bossParticipationEndTimeInput?.addEventListener("input", handleBossParticipationTimeInput);
   el.bossParticipationSearchBtn?.addEventListener("click", handleBossParticipationSearch);
   el.bossParticipationResetBtn?.addEventListener("click", handleBossParticipationReset);
   el.bossParticipationExportBtn?.addEventListener("click", handleBossParticipationExport);
@@ -2035,6 +2038,14 @@ async function handleBossParticipationReset() {
     el,
     renderBossParticipationTab
   });
+}
+
+function handleBossParticipationTimeInput(event) {
+  const input = event.target;
+  const formattedValue = formatBossParticipationTimeInput(input.value);
+  if (input.value !== formattedValue) {
+    input.value = formattedValue;
+  }
 }
 
 async function loadBossParticipationData() {
