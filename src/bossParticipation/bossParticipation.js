@@ -73,10 +73,22 @@ export function formatBossParticipationDateTime(value) {
   return `${map.month}-${map.day} ${hour}:${map.minute}`;
 }
 
-export function kstDateBoundaryToIso(dateText, isEndBoundary) {
+export function normalizeBossParticipationTime(value, fallback) {
+  const text = String(value || "").trim();
+  const match = text.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return fallback;
+
+  const hour = Math.min(23, Math.max(0, Number(match[1]) || 0));
+  const minute = Math.min(59, Math.max(0, Number(match[2]) || 0));
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+export function kstDateTimeToIso(dateText, timeText, fallbackTime, endOfMinute = false) {
   const [year, month, day] = String(dateText).split("-").map(Number);
-  const addDay = isEndBoundary ? 1 : 0;
-  return new Date(Date.UTC(year, month - 1, day + addDay, -9, 0, 0)).toISOString();
+  const normalizedTime = normalizeBossParticipationTime(timeText, fallbackTime);
+  const [hour, minute] = normalizedTime.split(":").map(Number);
+  const second = endOfMinute ? 59 : 0;
+  return new Date(Date.UTC(year, month - 1, day, hour - 9, minute, second)).toISOString();
 }
 
 export function escapeSupabaseLike(value) {
@@ -100,11 +112,11 @@ export async function loadBossParticipationRows({ bossSupabase, tabState, normal
       .range(recordFrom, recordFrom + recordPageSize - 1);
 
     if (tabState.startDate) {
-      query = query.gte("cut_time", kstDateBoundaryToIso(tabState.startDate, false));
+      query = query.gte("cut_time", kstDateTimeToIso(tabState.startDate, tabState.startTime, "00:00"));
     }
 
     if (tabState.endDate) {
-      query = query.lt("cut_time", kstDateBoundaryToIso(tabState.endDate, true));
+      query = query.lte("cut_time", kstDateTimeToIso(tabState.endDate, tabState.endTime, "23:59", true));
     }
 
     if (tabState.bossKeyword) {
@@ -205,7 +217,9 @@ export function groupBossParticipantsByRecordId(participants) {
 export function initializeBossParticipationState(state) {
   state.bossParticipation = {
     startDate: "",
+    startTime: "",
     endDate: "",
+    endTime: "",
     bossKeyword: "",
     participantKeyword: "",
     rows: [],
@@ -216,7 +230,9 @@ export function initializeBossParticipationState(state) {
 
 export async function handleBossParticipationSearch({ state, el, loadBossParticipationData, renderBossParticipationTab }) {
   state.bossParticipation.startDate = String(el.bossParticipationStartDateInput?.value || "").trim();
+  state.bossParticipation.startTime = String(el.bossParticipationStartTimeInput?.value || "").trim();
   state.bossParticipation.endDate = String(el.bossParticipationEndDateInput?.value || "").trim();
+  state.bossParticipation.endTime = String(el.bossParticipationEndTimeInput?.value || "").trim();
   state.bossParticipation.bossKeyword = String(el.bossParticipationBossInput?.value || "").trim();
   state.bossParticipation.participantKeyword = String(el.bossParticipationParticipantInput?.value || "").trim();
   await loadBossParticipationData();
@@ -225,14 +241,18 @@ export async function handleBossParticipationSearch({ state, el, loadBossPartici
 
 export async function handleBossParticipationReset({ state, el, renderBossParticipationTab }) {
   state.bossParticipation.startDate = "";
+  state.bossParticipation.startTime = "";
   state.bossParticipation.endDate = "";
+  state.bossParticipation.endTime = "";
   state.bossParticipation.bossKeyword = "";
   state.bossParticipation.participantKeyword = "";
   state.bossParticipation.rows = [];
   state.bossParticipation.loaded = false;
   state.bossParticipation.loading = false;
   if (el.bossParticipationStartDateInput) el.bossParticipationStartDateInput.value = "";
+  if (el.bossParticipationStartTimeInput) el.bossParticipationStartTimeInput.value = "";
   if (el.bossParticipationEndDateInput) el.bossParticipationEndDateInput.value = "";
+  if (el.bossParticipationEndTimeInput) el.bossParticipationEndTimeInput.value = "";
   if (el.bossParticipationBossInput) el.bossParticipationBossInput.value = "";
   if (el.bossParticipationParticipantInput) el.bossParticipationParticipantInput.value = "";
   renderBossParticipationTab();
@@ -321,7 +341,9 @@ export function renderBossParticipationTab({
 
 export function renderBossParticipationInputs({ tabState, setValueIfNeeded }) {
   setValueIfNeeded("bossParticipationStartDateInput", tabState.startDate || "");
+  setValueIfNeeded("bossParticipationStartTimeInput", tabState.startTime || "");
   setValueIfNeeded("bossParticipationEndDateInput", tabState.endDate || "");
+  setValueIfNeeded("bossParticipationEndTimeInput", tabState.endTime || "");
   setValueIfNeeded("bossParticipationBossInput", tabState.bossKeyword || "");
   setValueIfNeeded("bossParticipationParticipantInput", tabState.participantKeyword || "");
 }

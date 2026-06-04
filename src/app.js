@@ -257,7 +257,9 @@ function bindElements() {
   el.historyManagerPercent = document.getElementById("historyManagerPercent");
   el.bossParticipationContent = document.getElementById("bossParticipationContent");
   el.bossParticipationStartDateInput = document.getElementById("bossParticipationStartDateInput");
+  el.bossParticipationStartTimeInput = document.getElementById("bossParticipationStartTimeInput");
   el.bossParticipationEndDateInput = document.getElementById("bossParticipationEndDateInput");
+  el.bossParticipationEndTimeInput = document.getElementById("bossParticipationEndTimeInput");
   el.bossParticipationBossInput = document.getElementById("bossParticipationBossInput");
   el.bossParticipationParticipantInput = document.getElementById("bossParticipationParticipantInput");
   el.bossParticipationSearchBtn = document.getElementById("bossParticipationSearchBtn");
