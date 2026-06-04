@@ -24,7 +24,10 @@ import {
   createDistributionSummary as createDistributionSummaryModule,
   createNameRule as createNameRuleModule,
   getDistributionAssignedAmounts as getDistributionAssignedAmountsModule,
+  getDistributionCombinedResults as getDistributionCombinedResultsModule,
+  getDistributionCombinedSummary as getDistributionCombinedSummaryModule,
   getDistributionDeductionAmount as getDistributionDeductionAmountModule,
+  getDistributionPeriodRange as getDistributionPeriodRangeModule,
   initializeDistributionState as initializeDistributionStateModule,
   normalizeDistributionName as normalizeDistributionNameModule
 } from "./distribution/distribution.js";
@@ -34,7 +37,7 @@ import {
   handleBossParticipationReset as handleBossParticipationResetModule,
   handleBossParticipationSearch as handleBossParticipationSearchModule,
   initializeBossParticipationState as initializeBossParticipationStateModule,
-  loadBossParticipationRows as loadBossParticipationRowsModule,
+  loadBossParticipationData as loadBossParticipationDataModule,
   renderBossParticipationTab as renderBossParticipationTabModule
 } from "./bossParticipation/bossParticipation.js";
 import {
@@ -2346,78 +2349,15 @@ async function handleHistoryExport() {
 
 
 function getDistributionPeriodRange() {
-  const dates = state.distribution.loadedLogs
-    .map((log) => String(log.dateText || "").trim())
-    .filter(Boolean)
-    .sort();
-
-  if (!dates.length) {
-    return { startDate: "", endDate: "" };
-  }
-
-  return {
-    startDate: dates[0],
-    endDate: dates[dates.length - 1]
-  };
+  return getDistributionPeriodRangeModule(state);
 }
 
 function getDistributionCombinedResults() {
-  const resultMap = new Map();
-  const memberMap = new Map(state.members.map((member) => [normalizeDistributionName(member.name), member]));
-
-  ["mainland", "world"].forEach((groupKey) => {
-    state.distribution[groupKey].results.forEach((row) => {
-      const key = normalizeDistributionName(row.memberName);
-      const current = resultMap.get(key) || {
-        memberId: memberMap.get(key)?.id ?? null,
-        memberName: memberMap.get(key)?.name || row.memberName,
-        points: 0,
-        rawDiamond: 0,
-        finalDiamond: 0,
-        note: row.note || "",
-        isRetired: row.note === "탈퇴한 길드원"
-      };
-
-      current.points += Number(row.points ?? 0);
-      current.rawDiamond += Number(row.rawDiamond ?? 0);
-      current.finalDiamond += Number(row.finalDiamond ?? 0);
-      if (row.note === "탈퇴한 길드원") {
-        current.note = "탈퇴한 길드원";
-        current.isRetired = true;
-      }
-
-      resultMap.set(key, current);
-    });
-  });
-
-  const activeTotalPoints = Array.from(resultMap.values())
-    .filter((row) => !row.isRetired)
-    .reduce((sum, row) => sum + row.points, 0);
-
-  return Array.from(resultMap.values())
-    .sort((left, right) => {
-      if (right.points !== left.points) return right.points - left.points;
-      return String(left.memberName).localeCompare(String(right.memberName), "ko");
-    })
-    .map((row) => ({
-      ...row,
-      ratio: !row.isRetired && activeTotalPoints > 0 ? row.points / activeTotalPoints : 0
-    }));
+  return getDistributionCombinedResultsModule(state);
 }
 
 function getDistributionCombinedSummary() {
-  const mainlandSummary = state.distribution.mainland.summary || createDistributionSummary();
-  const worldSummary = state.distribution.world.summary || createDistributionSummary();
-  const totalPoints = Number(mainlandSummary.totalPoints ?? 0) + Number(worldSummary.totalPoints ?? 0);
-  const actualDiamond = Number(mainlandSummary.actualDiamond ?? 0) + Number(worldSummary.actualDiamond ?? 0);
-  const remainingDiamond = Number(mainlandSummary.remainingDiamond ?? 0) + Number(worldSummary.remainingDiamond ?? 0);
-
-  return {
-    actualDiamond,
-    totalPoints,
-    diamondPerPoint: totalPoints > 0 ? actualDiamond / totalPoints : 0,
-    remainingDiamond
-  };
+  return getDistributionCombinedSummaryModule(state, createDistributionSummary);
 }
 
 function handleDistributionExport() {
@@ -2731,26 +2671,13 @@ async function handleBossParticipationReset() {
 }
 
 async function loadBossParticipationData() {
-  const tabState = state.bossParticipation;
-  if (!tabState) return;
-
-  tabState.loading = true;
-  renderBossParticipationTab();
-
-  try {
-    tabState.rows = await loadBossParticipationRowsModule({
-      bossSupabase,
-      tabState,
-      normalizeSearchText
-    });
-    tabState.loaded = true;
-  } catch (error) {
-    tabState.rows = [];
-    tabState.loaded = true;
-    alert(error.message || "보스 참여 이력 조회 중 오류가 발생했습니다.");
-  } finally {
-    tabState.loading = false;
-  }
+  await loadBossParticipationDataModule({
+    state,
+    bossSupabase,
+    normalizeSearchText,
+    renderBossParticipationTab,
+    alertFn: alert
+  });
 }
 
 function renderBossParticipationTab() {

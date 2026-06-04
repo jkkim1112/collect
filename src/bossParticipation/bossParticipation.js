@@ -238,6 +238,35 @@ export async function handleBossParticipationReset({ state, el, renderBossPartic
   renderBossParticipationTab();
 }
 
+export async function loadBossParticipationData({
+  state,
+  bossSupabase,
+  normalizeSearchText,
+  renderBossParticipationTab,
+  alertFn = alert
+}) {
+  const tabState = state.bossParticipation;
+  if (!tabState) return;
+
+  tabState.loading = true;
+  renderBossParticipationTab();
+
+  try {
+    tabState.rows = await loadBossParticipationRows({
+      bossSupabase,
+      tabState,
+      normalizeSearchText
+    });
+    tabState.loaded = true;
+  } catch (error) {
+    tabState.rows = [];
+    tabState.loaded = true;
+    alertFn(error.message || "보스 참여 이력 조회 중 오류가 발생했습니다.");
+  } finally {
+    tabState.loading = false;
+  }
+}
+
 export function handleBossParticipationExport({ state, XLSX, alertFn = alert }) {
   const rows = state.bossParticipation?.rows || [];
   if (!rows.length) {

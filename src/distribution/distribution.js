@@ -153,6 +153,81 @@ export function getDistributionDeductionAmount(state, groupKey, row) {
   return Math.floor(assigned * (value / 100));
 }
 
+export function getDistributionPeriodRange(state) {
+  const dates = state.distribution.loadedLogs
+    .map((log) => String(log.dateText || "").trim())
+    .filter(Boolean)
+    .sort();
+
+  if (!dates.length) {
+    return { startDate: "", endDate: "" };
+  }
+
+  return {
+    startDate: dates[0],
+    endDate: dates[dates.length - 1]
+  };
+}
+
+export function getDistributionCombinedResults(state) {
+  const resultMap = new Map();
+  const memberMap = new Map(state.members.map((member) => [normalizeDistributionName(member.name), member]));
+
+  ["mainland", "world"].forEach((groupKey) => {
+    state.distribution[groupKey].results.forEach((row) => {
+      const key = normalizeDistributionName(row.memberName);
+      const current = resultMap.get(key) || {
+        memberId: memberMap.get(key)?.id ?? null,
+        memberName: memberMap.get(key)?.name || row.memberName,
+        points: 0,
+        rawDiamond: 0,
+        finalDiamond: 0,
+        note: row.note || "",
+        isRetired: row.note === "탈퇴한 길드원"
+      };
+
+      current.points += Number(row.points ?? 0);
+      current.rawDiamond += Number(row.rawDiamond ?? 0);
+      current.finalDiamond += Number(row.finalDiamond ?? 0);
+      if (row.note === "탈퇴한 길드원") {
+        current.note = "탈퇴한 길드원";
+        current.isRetired = true;
+      }
+
+      resultMap.set(key, current);
+    });
+  });
+
+  const activeTotalPoints = Array.from(resultMap.values())
+    .filter((row) => !row.isRetired)
+    .reduce((sum, row) => sum + row.points, 0);
+
+  return Array.from(resultMap.values())
+    .sort((left, right) => {
+      if (right.points !== left.points) return right.points - left.points;
+      return String(left.memberName).localeCompare(String(right.memberName), "ko");
+    })
+    .map((row) => ({
+      ...row,
+      ratio: !row.isRetired && activeTotalPoints > 0 ? row.points / activeTotalPoints : 0
+    }));
+}
+
+export function getDistributionCombinedSummary(state, createDistributionSummary) {
+  const mainlandSummary = state.distribution.mainland.summary || createDistributionSummary();
+  const worldSummary = state.distribution.world.summary || createDistributionSummary();
+  const totalPoints = Number(mainlandSummary.totalPoints ?? 0) + Number(worldSummary.totalPoints ?? 0);
+  const actualDiamond = Number(mainlandSummary.actualDiamond ?? 0) + Number(worldSummary.actualDiamond ?? 0);
+  const remainingDiamond = Number(mainlandSummary.remainingDiamond ?? 0) + Number(worldSummary.remainingDiamond ?? 0);
+
+  return {
+    actualDiamond,
+    totalPoints,
+    diamondPerPoint: totalPoints > 0 ? actualDiamond / totalPoints : 0,
+    remainingDiamond
+  };
+}
+
 export function normalizeDistributionName(value) {
   return String(value ?? "").trim().replace(/\s+/g, "").toLowerCase();
 }
