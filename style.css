@@ -1951,13 +1951,19 @@ button {
 
 .boss-participation-filter-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr auto;
+  grid-template-columns: minmax(150px, 0.9fr) 118px minmax(150px, 0.9fr) 118px minmax(150px, 1fr) minmax(150px, 1fr);
   gap: 12px;
   align-items: end;
 }
 
+.boss-participation-time-field input {
+  padding: 0 8px;
+}
+
 .boss-participation-button-row {
   align-self: end;
+  grid-column: 1 / -1;
+  justify-content: flex-end;
 }
 
 .boss-participation-summary-grid {
