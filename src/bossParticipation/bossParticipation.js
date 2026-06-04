@@ -86,7 +86,15 @@ export function normalizeBossParticipationTime(value, fallback) {
 export function formatBossParticipationTimeInput(value) {
   const digits = String(value || "").replace(/\D/g, "").slice(0, 4);
   if (digits.length <= 2) return digits;
-  return `${digits.slice(0, 2)}:${digits.slice(2)}`;
+
+  const hour = Math.min(23, Number(digits.slice(0, 2)) || 0);
+  const minuteText = digits.slice(2);
+  if (minuteText.length < 2) {
+    return `${String(hour).padStart(2, "0")}:${minuteText}`;
+  }
+
+  const minute = Math.min(59, Number(minuteText) || 0);
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
 export function kstDateTimeToIso(dateText, timeText, fallbackTime, endOfMinute = false) {
