@@ -15,13 +15,8 @@ import {
   DISTRIBUTION_BOSS_RULES_TABLE,
   supabase
 } from "./core/supabaseClient.js";
-import { closeModal, openModal } from "./ui/modals.js";
-import { bindNewDistributionUi as bindDistributionUiModule } from "./distribution/actions.js";
 import {
-  renderDistributionTab as renderDistributionTabModule,
-  updateDistributionSubtabs as updateDistributionSubtabsModule
-} from "./distribution/render.js";
-import {
+  bindNewDistributionUi as bindDistributionUiModule,
   createBossRule as createBossRuleModule,
   createDistributionDeduction as createDistributionDeductionModule,
   createDistributionGroupState as createDistributionGroupStateModule,
@@ -32,23 +27,21 @@ import {
   getDistributionDeductionAmount as getDistributionDeductionAmountModule,
   initializeDistributionState as initializeDistributionStateModule,
   normalizeDistributionName as normalizeDistributionNameModule
-} from "./distribution/state.js";
-import { formatBossParticipationFileDate } from "./bossParticipation/formatters.js";
-import { initializeBossParticipationState as initializeBossParticipationStateModule } from "./bossParticipation/state.js";
-import { loadBossParticipationRows as loadBossParticipationRowsModule } from "./bossParticipation/api.js";
+} from "./distribution/distribution.js";
 import {
+  formatBossParticipationFileDate,
   handleBossParticipationExport as handleBossParticipationExportModule,
   handleBossParticipationReset as handleBossParticipationResetModule,
-  handleBossParticipationSearch as handleBossParticipationSearchModule
-} from "./bossParticipation/actions.js";
-import { renderBossParticipationTab as renderBossParticipationTabModule } from "./bossParticipation/render.js";
+  handleBossParticipationSearch as handleBossParticipationSearchModule,
+  initializeBossParticipationState as initializeBossParticipationStateModule,
+  loadBossParticipationRows as loadBossParticipationRowsModule,
+  renderBossParticipationTab as renderBossParticipationTabModule
+} from "./bossParticipation/bossParticipation.js";
 import {
   getFilteredHistoryItems as getFilteredHistoryItemsModule,
   getSelectedHistoryDetail as getSelectedHistoryDetailModule,
   getSelectedHistoryItem as getSelectedHistoryItemModule,
-  initializeHistoryState as initializeHistoryStateModule
-} from "./history/state.js";
-import {
+  initializeHistoryState as initializeHistoryStateModule,
   renderHistoryDeductionTable as renderHistoryDeductionTableModule,
   renderHistoryDetail as renderHistoryDetailModule,
   renderHistoryGroupSummaryTable as renderHistoryGroupSummaryTableModule,
@@ -56,7 +49,15 @@ import {
   renderHistoryListTable as renderHistoryListTableModule,
   renderHistoryMemberTable as renderHistoryMemberTableModule,
   renderHistoryTab as renderHistoryTabModule
-} from "./history/render.js";
+} from "./history/history.js";
+
+function openModal(backdrop) {
+  backdrop?.classList.remove("hidden");
+}
+
+function closeModal(backdrop) {
+  backdrop?.classList.add("hidden");
+}
 
 let adminPassword = "";
 let adminPasswordLoadError = "";
@@ -1335,14 +1336,13 @@ function createDistributionId(prefix) {
 }
 
 function renderDistributionTab() {
-  renderDistributionTabModule({
-    renderDistributionCommonInputs,
-    renderDistributionCommonSummary,
-    renderDistributionGroup,
-    renderDistributionBossRules,
-    renderDistributionNameRules,
-    updateDistributionSubtabs
-  });
+  renderDistributionCommonInputs();
+  renderDistributionCommonSummary();
+  renderDistributionGroup("mainland");
+  renderDistributionGroup("world");
+  renderDistributionBossRules();
+  renderDistributionNameRules();
+  updateDistributionSubtabs();
 }
 
 function renderDistributionCommonInputs() {
@@ -1597,7 +1597,12 @@ function bindNewDistributionUi() {
 }
 
 function updateDistributionSubtabs() {
-  updateDistributionSubtabsModule(state);
+  const activeKey = state.distribution.activeSubtab || "mainland";
+  document.querySelectorAll(".newdist-subtab").forEach((tab) => {
+    tab.classList.toggle("active", tab.dataset.newdistTab === activeKey);
+  });
+  document.getElementById("newdistPanelMainland")?.classList.toggle("active", activeKey === "mainland");
+  document.getElementById("newdistPanelWorld")?.classList.toggle("active", activeKey === "world");
 }
 
 function handleDistributionReset() {
