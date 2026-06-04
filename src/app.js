@@ -41,7 +41,13 @@ import {
   getFilteredHistoryItems as getFilteredHistoryItemsModule,
   getSelectedHistoryDetail as getSelectedHistoryDetailModule,
   getSelectedHistoryItem as getSelectedHistoryItemModule,
+  handleHistoryDelete as handleHistoryDeleteModule,
+  handleHistoryExport as handleHistoryExportModule,
+  handleHistoryListClick as handleHistoryListClickModule,
+  handleHistorySearch as handleHistorySearchModule,
   initializeHistoryState as initializeHistoryStateModule,
+  loadHistoryData as loadHistoryDataModule,
+  loadHistoryDetail as loadHistoryDetailModule,
   renderHistoryDeductionTable as renderHistoryDeductionTableModule,
   renderHistoryDetail as renderHistoryDetailModule,
   renderHistoryGroupSummaryTable as renderHistoryGroupSummaryTableModule,
@@ -2251,69 +2257,7 @@ async function fetchPagedRows(makeQuery, errorPrefix, pageSize = 1000) {
 
 
 async function loadHistoryData() {
-  const sortKey = state.history?.sortKey || "saved_desc";
-  const filterDate = String(state.history?.filterDate || "").trim();
-
-  let historyRows = [];
-
-  try {
-    historyRows = await fetchPagedRows(() => {
-      let query = supabase
-        .from("distribution_histories")
-        .select("id, period_start, period_end, total_diamond, mainland_ratio, world_ratio, total_actual_diamond, total_points, total_remaining_diamond, workbook_name, saved_at, created_at, updated_at");
-
-      if (filterDate) {
-        query = query.lte("period_start", filterDate).gte("period_end", filterDate);
-      }
-
-      if (sortKey === "saved_asc") {
-        query = query.order("saved_at", { ascending: true });
-      } else if (sortKey === "period_desc") {
-        query = query.order("period_end", { ascending: false }).order("period_start", { ascending: false });
-      } else if (sortKey === "period_asc") {
-        query = query.order("period_start", { ascending: true }).order("period_end", { ascending: true });
-      } else {
-        query = query.order("saved_at", { ascending: false });
-      }
-
-      return query;
-    }, "분배 이력 조회");
-  } catch (error) {
-    alert(error.message || "분배 이력 조회 중 오류가 발생했습니다.");
-    return;
-  }
-  const nextItems = historyRows.map((row) => ({
-    id: row.id,
-    savedAt: formatDateTime(row.saved_at),
-    startDate: row.period_start,
-    endDate: row.period_end,
-    totalDiamond: Number(row.total_diamond ?? 0),
-    guildFeePercent: Number(row.mainland_ratio ?? 0),
-    guildMasterPercent: Number(row.world_ratio ?? 0),
-    managerPercent: 0,
-    actualDiamond: Number(row.total_actual_diamond ?? 0),
-    totalPoints: Number(row.total_points ?? 0),
-    diamondPerPoint: Number(row.total_points ?? 0) > 0
-      ? Number(row.total_actual_diamond ?? 0) / Number(row.total_points ?? 0)
-      : 0,
-    remainingDiamond: Number(row.total_remaining_diamond ?? 0),
-    workbookName: row.workbook_name || ""
-  }));
-
-  const visibleIds = new Set(nextItems.map((item) => item.id));
-  const nextCache = {};
-  Object.entries(state.history?.detailCache || {}).forEach(([historyId, detail]) => {
-    if (visibleIds.has(historyId)) {
-      nextCache[historyId] = detail;
-    }
-  });
-
-  state.history.items = nextItems;
-  state.history.detailCache = nextCache;
-
-  if (state.history.selectedId && !visibleIds.has(state.history.selectedId)) {
-    state.history.selectedId = null;
-  }
+  await loadHistoryDataModule({ state, supabase, fetchPagedRows, formatDateTime, alert });
 }
 
 function initializeHistoryState() {
@@ -2337,85 +2281,13 @@ function renderHistoryListTable() {
 }
 
 async function loadHistoryDetail(historyId, forceReload = false) {
-  const targetId = String(historyId || "").trim();
-  if (!targetId) return null;
-
-  if (!forceReload && state.history?.detailCache?.[targetId]) {
-    return state.history.detailCache[targetId];
-  }
-
-  state.history.loadingDetailId = targetId;
-  renderHistoryDetail();
-
-  let memberRows = [];
-  let groupRows = [];
-  let deductionRows = [];
-
-  try {
-    [memberRows, groupRows, deductionRows] = await Promise.all([
-      fetchPagedRows(() => supabase
-        .from("distribution_history_members")
-        .select("distribution_history_id, member_id, member_name, mainland_points, world_points, total_points, ratio, mainland_diamond, world_diamond, final_diamond, note, is_retired, display_order")
-        .eq("distribution_history_id", targetId)
-        .order("display_order", { ascending: true }), "분배 이력 길드원 결과 조회"),
-      fetchPagedRows(() => supabase
-        .from("distribution_history_groups")
-        .select("distribution_history_id, group_type, group_name, assigned_diamond, deduction_total, actual_diamond, total_points, diamond_per_point, remaining_diamond, display_order")
-        .eq("distribution_history_id", targetId)
-        .order("display_order", { ascending: true }), "분배 이력 그룹 요약 조회"),
-      fetchPagedRows(() => supabase
-        .from("distribution_history_deductions")
-        .select("distribution_history_id, group_type, name, mode, value, amount, display_order")
-        .eq("distribution_history_id", targetId)
-        .order("group_type", { ascending: true })
-        .order("display_order", { ascending: true }), "분배 이력 공제 항목 조회")
-    ]);
-  } catch (error) {
-    state.history.loadingDetailId = null;
-    alert(error.message || "분배 이력 상세 조회 중 오류가 발생했습니다.");
-    return null;
-  }
-
-  const detail = {
-    groupRows: groupRows.map((row) => ({
-      groupType: row.group_type === "world" ? "world" : "mainland",
-      groupName: row.group_name || (row.group_type === "world" ? "월드" : "본토"),
-      assignedDiamond: Number(row.assigned_diamond ?? 0),
-      deductionTotal: Number(row.deduction_total ?? 0),
-      actualDiamond: Number(row.actual_diamond ?? 0),
-      totalPoints: Number(row.total_points ?? 0),
-      diamondPerPoint: Number(row.diamond_per_point ?? 0),
-      remainingDiamond: Number(row.remaining_diamond ?? 0)
-    })),
-    deductionRows: deductionRows.map((row) => ({
-      groupType: row.group_type === "world" ? "world" : "mainland",
-      name: row.name || "",
-      mode: row.mode === "amount" ? "amount" : "percent",
-      value: Number(row.value ?? 0),
-      amount: Number(row.amount ?? 0),
-      displayOrder: Number(row.display_order ?? 0)
-    })),
-    memberRows: memberRows.map((row) => ({
-      memberId: row.member_id ?? null,
-      memberName: row.member_name,
-      mainlandPoints: Number(row.mainland_points ?? 0),
-      worldPoints: Number(row.world_points ?? 0),
-      points: Number(row.total_points ?? 0),
-      ratio: Number(row.ratio ?? 0),
-      mainlandDiamond: Number(row.mainland_diamond ?? 0),
-      worldDiamond: Number(row.world_diamond ?? 0),
-      rawDiamond: Number((row.mainland_diamond ?? 0) + (row.world_diamond ?? 0)),
-      finalDiamond: Number(row.final_diamond ?? 0),
-      note: row.note || (row.is_retired ? "탈퇴한 길드원" : "")
-    })),
-    logRows: []
-  };
-
-  state.history.detailCache[targetId] = detail;
-  if (state.history.loadingDetailId === targetId) {
-    state.history.loadingDetailId = null;
-  }
-  return detail;
+  return loadHistoryDetailModule({
+    state,
+    supabase,
+    fetchPagedRows,
+    renderHistoryDetail,
+    alert
+  }, historyId, forceReload);
 }
 
 function getSelectedHistoryDetail() {
@@ -2443,98 +2315,32 @@ function renderHistoryMemberTable(rows, activeGroupTypes = []) {
 }
 
 async function handleHistoryListClick(event) {
-  const row = event.target.closest('[data-role="history-select-row"]');
-  if (!row) return;
-  const historyId = row.dataset.historyId;
-  if (!historyId) return;
-
-  state.history.selectedId = historyId;
-  renderHistoryTab();
-  await loadHistoryDetail(historyId);
-  renderHistoryTab();
+  await handleHistoryListClickModule({ state, loadHistoryDetail, renderHistoryTab }, event);
 }
 
 async function handleHistorySearch() {
-  state.history.filterDate = String(el.historyDateInput.value || "").trim();
-  state.history.sortKey = String(el.historySortSelect.value || "saved_desc").trim();
-  await loadHistoryData();
-  renderHistoryTab();
+  await handleHistorySearchModule({ state, el, loadHistoryData, renderHistoryTab });
 }
 
 async function handleHistoryDelete() {
-  const selectedId = String(state.history?.selectedId || "").trim();
-  if (!selectedId) {
-    alert("삭제할 분배 이력을 먼저 선택해주세요.");
-    return;
-  }
-
-  const selectedItem = getSelectedHistoryItem();
-  const periodText = selectedItem ? `${selectedItem.startDate} ~ ${selectedItem.endDate}` : "선택 이력";
-  const confirmed = window.confirm(`${periodText} 분배 이력을 삭제하시겠습니까?`);
-  if (!confirmed) return;
-
-  const deleteMemberRes = await supabase
-    .from("distribution_history_members")
-    .delete()
-    .eq("distribution_history_id", selectedId);
-
-  if (deleteMemberRes.error) {
-    alert(`분배 이력 길드원 결과 삭제 중 오류가 발생했습니다.
-${deleteMemberRes.error.message}`);
-    return;
-  }
-
-  const deleteDeductionRes = await supabase
-    .from("distribution_history_deductions")
-    .delete()
-    .eq("distribution_history_id", selectedId);
-
-  if (deleteDeductionRes.error) {
-    alert(`분배 이력 공제 항목 삭제 중 오류가 발생했습니다.
-${deleteDeductionRes.error.message}`);
-    return;
-  }
-
-  const deleteGroupRes = await supabase
-    .from("distribution_history_groups")
-    .delete()
-    .eq("distribution_history_id", selectedId);
-
-  if (deleteGroupRes.error) {
-    alert(`분배 이력 그룹 요약 삭제 중 오류가 발생했습니다.
-${deleteGroupRes.error.message}`);
-    return;
-  }
-
-  const deleteRes = await supabase
-    .from("distribution_histories")
-    .delete()
-    .eq("id", selectedId);
-
-  if (deleteRes.error) {
-    alert(`분배 이력 삭제 중 오류가 발생했습니다.
-${deleteRes.error.message}`);
-    return;
-  }
-
-  state.history.selectedId = null;
-  delete state.history.detailCache[selectedId];
-  await loadHistoryData();
-  renderHistoryTab();
-  alert("분배 이력이 삭제되었습니다.");
+  await handleHistoryDeleteModule({
+    state,
+    supabase,
+    getSelectedHistoryItem,
+    loadHistoryData,
+    renderHistoryTab,
+    alert,
+    confirm: window.confirm.bind(window)
+  });
 }
 
 async function handleHistoryExport() {
-  const selectedItem = getSelectedHistoryItem();
-  if (!selectedItem) {
-    alert("엑셀 저장할 분배 이력을 먼저 선택해주세요.");
-    return;
-  }
-
-  const detail = await loadHistoryDetail(selectedItem.id);
-  if (!detail) return;
-
-  writeDistributionHistoryWorkbook(selectedItem, detail);
+  await handleHistoryExportModule({
+    getSelectedHistoryItem,
+    loadHistoryDetail,
+    writeDistributionHistoryWorkbook,
+    alert
+  });
 }
 
 
