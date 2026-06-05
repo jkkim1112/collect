@@ -1056,8 +1056,8 @@ function renderPowerSummaryTable() {
     `<th>no</th>`,
     `<th>길드원</th>`,
     `<th class="sortable-header ${state.powerSortDirection ? "active" : ""}" data-role="power-sort-header"><span class="sort-header-inner"><span>전투력</span><span class="sort-indicator">${powerSortText}</span></span></th>`,
-    `<th>전문화</th>`,
-    `<th>항마력</th>`,
+    `<th class="power-extra-col">전문화</th>`,
+    `<th class="power-extra-col">항마력</th>`,
     `<th class="save-col">저장</th>`,
     `<th class="last-updated-col sortable-header ${state.updatedAtSortDirection ? "active" : ""}" data-role="updated-sort-header"><span class="sort-header-inner"><span class="last-updated-header-text">수정일</span><span class="sort-indicator">${getUpdatedSortText()}</span></span></th>`
   ];
@@ -1098,8 +1098,8 @@ function renderPowerSummaryTable() {
         <td>${index + 1}</td>
         <td>${escapeHtml(member.name)}</td>
         <td>${powerCell}</td>
-        <td>${specializationPowerCell}</td>
-        <td>${antiMagicPowerCell}</td>
+        <td class="power-extra-col">${specializationPowerCell}</td>
+        <td class="power-extra-col">${antiMagicPowerCell}</td>
         <td>${saveCell}</td>
         <td>${lastUpdatedCell}</td>
       </tr>

@@ -820,6 +820,12 @@ button {
     max-width: 64px;
   }
 
+  .summary-table .power-extra-col {
+    width: 72px;
+    min-width: 72px;
+    max-width: 72px;
+  }
+
   .last-updated-header-text {
     font-size: 13px;
   }
@@ -1104,6 +1110,12 @@ button {
   width: 72px;
   min-width: 72px;
   max-width: 72px;
+}
+
+.summary-table .power-extra-col {
+  width: 96px;
+  min-width: 96px;
+  max-width: 96px;
 }
 
 .last-updated-header-text {
