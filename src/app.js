@@ -2127,7 +2127,7 @@ function handleBossParticipationExport() {
 
 function renderGuildManageTable() {
   if (state.members.length === 0) {
-    el.guildManageTableBody.innerHTML = `<tr><td colspan="7">등록된 길드원이 없습니다.</td></tr>`;
+    el.guildManageTableBody.innerHTML = `<tr><td colspan="4">등록된 길드원이 없습니다.</td></tr>`;
     return;
   }
 
@@ -2138,9 +2138,6 @@ function renderGuildManageTable() {
     <tr>
       <td>${index + 1}</td>
       <td>${escapeHtml(member.name)}</td>
-      <td>${member.power ?? 0}</td>
-      <td>${member.specialization_power ?? 0}</td>
-      <td>${member.anti_magic_power ?? 0}</td>
       <td>
         <button class="toggle-single-btn ${canEdit ? "owned" : "not-owned"}" type="button" data-action="toggle-member-editable" data-id="${member.id}">
           ${canEdit ? "수정 가능" : "수정 불가"}
@@ -2911,35 +2908,9 @@ async function addMember() {
     return;
   }
 
-  const powerValue = prompt("전투력을 입력해주세요.", "0");
-  if (powerValue === null) return;
-
-  const specializationPowerValue = prompt("전문화를 입력해주세요.", "0");
-  if (specializationPowerValue === null) return;
-
-  const antiMagicPowerValue = prompt("항마력을 입력해주세요.", "0");
-  if (antiMagicPowerValue === null) return;
-
-  const draftRow = {
-    power: powerValue,
-    specializationPower: specializationPowerValue,
-    antiMagicPower: antiMagicPowerValue
-  };
-
-  if (!validateDraftPowerValues(draftRow)) {
-    alert("전투력, 전문화, 항마력을 올바르게 입력해주세요.");
-    return;
-  }
-
-  const powerValues = getDraftPowerValues(draftRow);
   const insertRes = await supabase
     .from("guild_members")
-    .insert({
-      name,
-      power: powerValues.power,
-      specialization_power: powerValues.specializationPower,
-      anti_magic_power: powerValues.antiMagicPower
-    })
+    .insert({ name })
     .select(MEMBER_SELECT_COLUMNS)
     .single();
 
@@ -3055,36 +3026,9 @@ async function editMember(memberId) {
     return;
   }
 
-  const nextPowerValue = prompt("전투력을 수정해주세요.", String(member.power ?? 0));
-  if (nextPowerValue === null) return;
-
-  const nextSpecializationPowerValue = prompt("전문화를 수정해주세요.", String(member.specialization_power ?? 0));
-  if (nextSpecializationPowerValue === null) return;
-
-  const nextAntiMagicPowerValue = prompt("항마력을 수정해주세요.", String(member.anti_magic_power ?? 0));
-  if (nextAntiMagicPowerValue === null) return;
-
-  const draftRow = {
-    power: nextPowerValue,
-    specializationPower: nextSpecializationPowerValue,
-    antiMagicPower: nextAntiMagicPowerValue
-  };
-
-  if (!validateDraftPowerValues(draftRow)) {
-    alert("전투력, 전문화, 항마력을 올바르게 입력해주세요.");
-    return;
-  }
-
-  const powerValues = getDraftPowerValues(draftRow);
   const updateRes = await supabase
     .from("guild_members")
-    .update({
-      name: nextName,
-      power: powerValues.power,
-      specialization_power: powerValues.specializationPower,
-      anti_magic_power: powerValues.antiMagicPower,
-      updated_at: new Date().toISOString()
-    })
+    .update({ name: nextName, updated_at: new Date().toISOString() })
     .eq("id", memberId);
 
   if (updateRes.error) {

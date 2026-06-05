@@ -1905,47 +1905,26 @@ button {
 }
 
 #guildManageModalBackdrop .manage-table {
-  min-width: 900px;
+  min-width: 620px;
   table-layout: fixed;
 }
 
 #guildManageModalBackdrop .manage-table th:nth-child(2),
 #guildManageModalBackdrop .manage-table td:nth-child(2) {
-  width: 170px;
-  min-width: 170px;
-  max-width: 170px;
+  width: 220px;
+  min-width: 220px;
+  max-width: 220px;
 }
 
 #guildManageModalBackdrop .manage-table th:nth-child(3),
 #guildManageModalBackdrop .manage-table td:nth-child(3) {
-  width: 90px;
-  min-width: 90px;
-  max-width: 90px;
+  width: 155px;
+  min-width: 155px;
+  max-width: 155px;
 }
 
 #guildManageModalBackdrop .manage-table th:nth-child(4),
 #guildManageModalBackdrop .manage-table td:nth-child(4) {
-  width: 90px;
-  min-width: 90px;
-  max-width: 90px;
-}
-
-#guildManageModalBackdrop .manage-table th:nth-child(5),
-#guildManageModalBackdrop .manage-table td:nth-child(5) {
-  width: 90px;
-  min-width: 90px;
-  max-width: 90px;
-}
-
-#guildManageModalBackdrop .manage-table th:nth-child(6),
-#guildManageModalBackdrop .manage-table td:nth-child(6) {
-  width: 145px;
-  min-width: 145px;
-  max-width: 145px;
-}
-
-#guildManageModalBackdrop .manage-table th:nth-child(7),
-#guildManageModalBackdrop .manage-table td:nth-child(7) {
   width: 110px;
   min-width: 110px;
   max-width: 110px;
