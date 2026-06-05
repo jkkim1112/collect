@@ -1808,6 +1808,7 @@ button {
 .newdist-table th, .newdist-table td { padding:9px 10px; border-bottom:1px solid #eef2f6; white-space:nowrap; font-size:13px; text-align:left; vertical-align:middle; }
 .newdist-table th { background:#f8fafc; color:#475467; font-weight:800; font-size:12px; }
 .newdist-table tr:last-child td { border-bottom:0; }
+.newdist-table td.newdist-log-participants-cell { min-width:180px; max-width:240px; white-space:normal; overflow-wrap:anywhere; line-height:1.45; }
 .newdist-input-sm, .newdist-select-sm { width:100%; height:34px; border:1px solid #d7dce5; border-radius:var(--newdist-radius); padding:0 9px; background:#fff; font-size:13px; }
 .newdist-badge { display:inline-flex; align-items:center; justify-content:center; min-width:54px; padding:5px 8px; border-radius:999px; font-size:12px; font-weight:800; }
 .newdist-badge-mainland { background:#dbeafe; color:#1d4ed8; }

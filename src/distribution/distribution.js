@@ -164,8 +164,8 @@ export function renderDistributionLogs(deps, groupKey) {
       <td>${deps.escapeHtml(log.boss || "-")}</td>
       <td class="center"><span class="newdist-badge ${groupKey === "mainland" ? "newdist-badge-mainland" : "newdist-badge-world"}">${groupKey === "mainland" ? "본토" : "월드"}</span></td>
       <td>${deps.escapeHtml(log.cutter || "-")}</td>
-      <td>${deps.escapeHtml(log.rawParticipants.join(", ")) || "-"}</td>
-      <td>${deps.escapeHtml(log.workingParticipants.join(", ")) || "-"}</td>
+      <td class="newdist-log-participants-cell">${deps.escapeHtml(log.rawParticipants.join(", ")) || "-"}</td>
+      <td class="newdist-log-participants-cell">${deps.escapeHtml(log.workingParticipants.join(", ")) || "-"}</td>
       <td class="center"><button class="btn btn-outline newdist-log-edit-btn" type="button" data-role="newdist-edit-log" data-group="${groupKey}" data-log-key="${log.key}">수정</button></td>
     </tr>
   `).join("");
