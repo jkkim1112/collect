@@ -110,6 +110,8 @@ const ACCESSORY_PARTS = [
   { key: "belt_count", label: "허리띠" }
 ];
 
+const MEMBER_SELECT_COLUMNS = "id, name, power, specialization_power, anti_magic_power, updated_at, can_edit";
+
 const state = {
   activeTab: "power",
   distribution: null,
@@ -132,6 +134,8 @@ const state = {
   draftMemberId: null,
   draftTab: null,
   draftPower: "",
+  draftSpecializationPower: "",
+  draftAntiMagicPower: "",
   draftOwnedMap: {},
   draftAccessoryMap: {},
   draftAllRows: {},
@@ -474,7 +478,7 @@ async function loadActiveTabData() {
 }
 
 async function loadPowerData() {
-  const membersRes = await supabase.from("guild_members").select("id, name, power, updated_at, can_edit").order("name", { ascending: true });
+  const membersRes = await supabase.from("guild_members").select(MEMBER_SELECT_COLUMNS).order("name", { ascending: true });
 
   if (membersRes.error) {
     alert(`길드원 조회 중 오류가 발생했습니다.\n${membersRes.error.message}`);
@@ -487,7 +491,7 @@ async function loadPowerData() {
 
 async function loadMountData() {
   const [membersRes, itemsRes] = await Promise.all([
-    supabase.from("guild_members").select("id, name, power, updated_at, can_edit").order("name", { ascending: true }),
+    supabase.from("guild_members").select(MEMBER_SELECT_COLUMNS).order("name", { ascending: true }),
     supabase.from("mounts").select("id, name, display_order").order("display_order", { ascending: true })
   ]);
 
@@ -519,7 +523,7 @@ async function loadMountData() {
 }
 async function loadBossData() {
   const [membersRes, itemsRes] = await Promise.all([
-    supabase.from("guild_members").select("id, name, power, updated_at, can_edit").order("name", { ascending: true }),
+    supabase.from("guild_members").select(MEMBER_SELECT_COLUMNS).order("name", { ascending: true }),
     supabase
       .from("boss_collections")
       .select("id, name, display_order")
@@ -567,7 +571,7 @@ async function loadBossData() {
 
 async function loadAccessoryData() {
   const [membersRes, groupsRes] = await Promise.all([
-    supabase.from("guild_members").select("id, name, power, updated_at, can_edit").order("name", { ascending: true }),
+    supabase.from("guild_members").select(MEMBER_SELECT_COLUMNS).order("name", { ascending: true }),
     supabase.from("accessory_groups").select("id, name, display_order, max_count").order("display_order", { ascending: true })
   ]);
 
@@ -727,6 +731,8 @@ function syncDraftState() {
     state.draftMemberId = null;
     state.draftTab = null;
     state.draftPower = "";
+    state.draftSpecializationPower = "";
+    state.draftAntiMagicPower = "";
     state.draftOwnedMap = {};
     state.draftAccessoryMap = {};
     return;
@@ -737,6 +743,8 @@ function syncDraftState() {
   state.draftMemberId = editableMember.id;
   state.draftTab = state.activeTab;
   state.draftPower = String(editableMember.power ?? 0);
+  state.draftSpecializationPower = String(editableMember.specialization_power ?? 0);
+  state.draftAntiMagicPower = String(editableMember.anti_magic_power ?? 0);
   state.draftOwnedMap = {};
   state.draftAccessoryMap = {};
 
@@ -770,7 +778,13 @@ function ensureDraftRow(memberId) {
   if (!memberId) return null;
   if (!state.draftAllRows[memberId]) {
     const member = state.members.find((entry) => entry.id === memberId);
-    const row = { power: String(member?.power ?? 0), ownedMap: {}, accessoryMap: {} };
+    const row = {
+      power: String(member?.power ?? 0),
+      specializationPower: String(member?.specialization_power ?? 0),
+      antiMagicPower: String(member?.anti_magic_power ?? 0),
+      ownedMap: {},
+      accessoryMap: {}
+    };
 
     if (state.activeTab === "accessory") {
       state.accessoryGroups.forEach((group) => {
@@ -810,6 +824,20 @@ function getMemberDraftPower(member) {
     return getExistingDraftRow(member.id)?.power ?? String(member.power ?? 0);
   }
   return state.draftPower;
+}
+
+function getMemberDraftSpecializationPower(member) {
+  if (state.overallEditMode) {
+    return getExistingDraftRow(member.id)?.specializationPower ?? String(member.specialization_power ?? 0);
+  }
+  return state.draftSpecializationPower;
+}
+
+function getMemberDraftAntiMagicPower(member) {
+  if (state.overallEditMode) {
+    return getExistingDraftRow(member.id)?.antiMagicPower ?? String(member.anti_magic_power ?? 0);
+  }
+  return state.draftAntiMagicPower;
 }
 
 function getMemberDraftOwned(memberId, itemId) {
@@ -956,7 +984,7 @@ function renderGuideText() {
 
   if (state.overallEditMode) {
     el.tableGuideText.textContent = state.activeTab === "power"
-      ? "전체수정 모드입니다. 전체 목록에서 최고 투력을 수정한 뒤 하단 저장 버튼으로 저장할 수 있습니다."
+      ? "전체수정 모드입니다. 전체 목록에서 전투력, 전문화, 항마력을 수정한 뒤 하단 저장 버튼으로 저장할 수 있습니다."
       : state.activeTab === "accessory"
         ? "전체수정 모드입니다. 전체 목록에서 악세사리 수량을 수정한 뒤 하단 저장 버튼으로 저장할 수 있습니다."
         : "전체수정 모드입니다. 전체 목록에서 보유 상태를 수정한 뒤 하단 저장 버튼으로 저장할 수 있습니다.";
@@ -978,7 +1006,7 @@ function renderGuideText() {
 
   if (state.rowEditMemberId === state.selectedMemberId) {
     el.tableGuideText.textContent = state.activeTab === "power"
-      ? "선택된 길드원 1명 수정 모드입니다. 이 행에서 최고 투력을 수정한 뒤 저장할 수 있습니다."
+      ? "선택된 길드원 1명 수정 모드입니다. 이 행에서 전투력, 전문화, 항마력을 수정한 뒤 저장할 수 있습니다."
       : state.activeTab === "accessory"
         ? "선택된 길드원 1명 수정 모드입니다. 이 행에서 악세사리 수량을 수정한 뒤 저장할 수 있습니다."
         : "선택된 길드원 1명 수정 모드입니다. 이 행에서 보유 상태를 수정한 뒤 저장할 수 있습니다.";
@@ -1027,7 +1055,9 @@ function renderPowerSummaryTable() {
   const headers = [
     `<th>no</th>`,
     `<th>길드원</th>`,
-    `<th class="sortable-header ${state.powerSortDirection ? "active" : ""}" data-role="power-sort-header"><span class="sort-header-inner"><span>최고 투력</span><span class="sort-indicator">${powerSortText}</span></span></th>`,
+    `<th class="sortable-header ${state.powerSortDirection ? "active" : ""}" data-role="power-sort-header"><span class="sort-header-inner"><span>전투력</span><span class="sort-indicator">${powerSortText}</span></span></th>`,
+    `<th>전문화</th>`,
+    `<th>항마력</th>`,
     `<th class="save-col">저장</th>`,
     `<th class="last-updated-col sortable-header ${state.updatedAtSortDirection ? "active" : ""}" data-role="updated-sort-header"><span class="sort-header-inner"><span class="last-updated-header-text">수정일</span><span class="sort-indicator">${getUpdatedSortText()}</span></span></th>`
   ];
@@ -1039,7 +1069,7 @@ function renderPowerSummaryTable() {
   if (filteredMembers.length === 0) {
     el.summaryTableBody.innerHTML = `
       <tr>
-        <td class="empty-row" colspan="5">표시할 길드원이 없습니다.</td>
+        <td class="empty-row" colspan="7">표시할 길드원이 없습니다.</td>
       </tr>
     `;
     return;
@@ -1052,6 +1082,12 @@ function renderPowerSummaryTable() {
     const powerCell = isEditable
       ? `<input class="inline-power-input" type="number" min="0" step="1" data-role="power-input" data-member-id="${member.id}" value="${escapeAttr(getMemberDraftPower(member))}">`
       : `<span class="value-box">${member.power ?? 0}</span>`;
+    const specializationPowerCell = isEditable
+      ? `<input class="inline-power-input" type="number" min="0" step="1" data-role="specialization-power-input" data-member-id="${member.id}" value="${escapeAttr(getMemberDraftSpecializationPower(member))}">`
+      : `<span class="value-box">${member.specialization_power ?? 0}</span>`;
+    const antiMagicPowerCell = isEditable
+      ? `<input class="inline-power-input" type="number" min="0" step="1" data-role="anti-magic-power-input" data-member-id="${member.id}" value="${escapeAttr(getMemberDraftAntiMagicPower(member))}">`
+      : `<span class="value-box">${member.anti_magic_power ?? 0}</span>`;
 
     const saveCell = getRowActionButtonHtml(member.id, "save-row-power");
 
@@ -1062,6 +1098,8 @@ function renderPowerSummaryTable() {
         <td>${index + 1}</td>
         <td>${escapeHtml(member.name)}</td>
         <td>${powerCell}</td>
+        <td>${specializationPowerCell}</td>
+        <td>${antiMagicPowerCell}</td>
         <td>${saveCell}</td>
         <td>${lastUpdatedCell}</td>
       </tr>
@@ -2089,7 +2127,7 @@ function handleBossParticipationExport() {
 
 function renderGuildManageTable() {
   if (state.members.length === 0) {
-    el.guildManageTableBody.innerHTML = `<tr><td colspan="5">등록된 길드원이 없습니다.</td></tr>`;
+    el.guildManageTableBody.innerHTML = `<tr><td colspan="7">등록된 길드원이 없습니다.</td></tr>`;
     return;
   }
 
@@ -2101,6 +2139,8 @@ function renderGuildManageTable() {
       <td>${index + 1}</td>
       <td>${escapeHtml(member.name)}</td>
       <td>${member.power ?? 0}</td>
+      <td>${member.specialization_power ?? 0}</td>
+      <td>${member.anti_magic_power ?? 0}</td>
       <td>
         <button class="toggle-single-btn ${canEdit ? "owned" : "not-owned"}" type="button" data-action="toggle-member-editable" data-id="${member.id}">
           ${canEdit ? "수정 가능" : "수정 불가"}
@@ -2151,6 +2191,26 @@ function handleSummaryTableInput(event) {
       ensureDraftRow(memberId).power = target.value;
     } else {
       state.draftPower = target.value;
+    }
+    return;
+  }
+
+  if (target.matches('[data-role="specialization-power-input"]')) {
+    const memberId = target.dataset.memberId;
+    if (state.overallEditMode) {
+      ensureDraftRow(memberId).specializationPower = target.value;
+    } else {
+      state.draftSpecializationPower = target.value;
+    }
+    return;
+  }
+
+  if (target.matches('[data-role="anti-magic-power-input"]')) {
+    const memberId = target.dataset.memberId;
+    if (state.overallEditMode) {
+      ensureDraftRow(memberId).antiMagicPower = target.value;
+    } else {
+      state.draftAntiMagicPower = target.value;
     }
     return;
   }
@@ -2296,10 +2356,39 @@ function handleSummaryTableClick(event) {
   }
 }
 
-async function updateMemberPower(memberId, power, updatedAt) {
+function normalizePowerValue(value) {
+  return Math.floor(Number(value) || 0);
+}
+
+function validatePowerValue(value) {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) && numberValue >= 0;
+}
+
+function getDraftPowerValues(draftRow) {
+  return {
+    power: normalizePowerValue(draftRow?.power),
+    specializationPower: normalizePowerValue(draftRow?.specializationPower),
+    antiMagicPower: normalizePowerValue(draftRow?.antiMagicPower)
+  };
+}
+
+function validateDraftPowerValues(draftRow) {
+  return validatePowerValue(draftRow?.power)
+    && validatePowerValue(draftRow?.specializationPower)
+    && validatePowerValue(draftRow?.antiMagicPower);
+}
+
+async function updateMemberPower(memberId, powerValues, updatedAt) {
+  const values = getDraftPowerValues(powerValues);
   const updateMemberRes = await supabase
     .from("guild_members")
-    .update({ power: Math.floor(power), updated_at: updatedAt })
+    .update({
+      power: values.power,
+      specialization_power: values.specializationPower,
+      anti_magic_power: values.antiMagicPower,
+      updated_at: updatedAt
+    })
     .eq("id", memberId);
 
   if (updateMemberRes.error) {
@@ -2307,8 +2396,8 @@ async function updateMemberPower(memberId, power, updatedAt) {
   }
 }
 
-async function persistPowerRow(memberId, draftRow, power) {
-  await updateMemberPower(memberId, power, new Date().toISOString());
+async function persistPowerRow(memberId, draftRow) {
+  await updateMemberPower(memberId, draftRow, new Date().toISOString());
 }
 
 async function persistMountRow(memberId, draftRow) {
@@ -2379,7 +2468,10 @@ async function persistBossRow(memberId, draftRow) {
 
 function isPowerDraftChanged(memberId, draftRow) {
   const member = state.members.find((entry) => entry.id === memberId);
-  return Math.floor(Number(draftRow?.power) || 0) !== Math.floor(Number(member?.power) || 0);
+  const values = getDraftPowerValues(draftRow);
+  return values.power !== normalizePowerValue(member?.power)
+    || values.specializationPower !== normalizePowerValue(member?.specialization_power)
+    || values.antiMagicPower !== normalizePowerValue(member?.anti_magic_power);
 }
 
 function isSimpleDraftChanged(memberId, draftRow) {
@@ -2428,7 +2520,6 @@ async function saveAllOverallEdits() {
     for (let index = 0; index < memberIds.length; index += 1) {
       const memberId = memberIds[index];
       const draftRow = state.draftAllRows[memberId];
-      const power = Number(draftRow?.power);
 
       if (!isOverallDraftRowChanged(memberId, draftRow)) {
         setBulkSaveProgress(((index + 1) / memberIds.length) * 100);
@@ -2436,10 +2527,10 @@ async function saveAllOverallEdits() {
       }
 
       if (state.activeTab === "power") {
-        if (!Number.isFinite(power) || power < 0) {
-          throw new Error("전투력을 올바르게 입력해주세요.");
+        if (!validateDraftPowerValues(draftRow)) {
+          throw new Error("전투력, 전문화, 항마력을 올바르게 입력해주세요.");
         }
-        await persistPowerRow(memberId, draftRow, power);
+        await persistPowerRow(memberId, draftRow);
       } else if (state.activeTab === "accessory") {
         await persistAccessoryRow(memberId, draftRow);
       } else if (state.activeTab === "boss") {
@@ -2485,15 +2576,18 @@ async function savePowerEditableRow(memberId) {
 
   const draftRow = state.overallEditMode
     ? ensureDraftRow(memberId)
-    : { power: state.draftPower };
-  const power = Number(draftRow?.power);
-  if (!Number.isFinite(power) || power < 0) {
-    alert("전투력을 올바르게 입력해주세요.");
+    : {
+      power: state.draftPower,
+      specializationPower: state.draftSpecializationPower,
+      antiMagicPower: state.draftAntiMagicPower
+    };
+  if (!validateDraftPowerValues(draftRow)) {
+    alert("전투력, 전문화, 항마력을 올바르게 입력해주세요.");
     return;
   }
 
   try {
-    await persistPowerRow(memberId, draftRow, power);
+    await persistPowerRow(memberId, draftRow);
   } catch (error) {
     alert(error.message);
     return;
@@ -2820,16 +2914,33 @@ async function addMember() {
   const powerValue = prompt("전투력을 입력해주세요.", "0");
   if (powerValue === null) return;
 
-  const power = Number(powerValue);
-  if (!Number.isFinite(power) || power < 0) {
-    alert("전투력을 올바르게 입력해주세요.");
+  const specializationPowerValue = prompt("전문화를 입력해주세요.", "0");
+  if (specializationPowerValue === null) return;
+
+  const antiMagicPowerValue = prompt("항마력을 입력해주세요.", "0");
+  if (antiMagicPowerValue === null) return;
+
+  const draftRow = {
+    power: powerValue,
+    specializationPower: specializationPowerValue,
+    antiMagicPower: antiMagicPowerValue
+  };
+
+  if (!validateDraftPowerValues(draftRow)) {
+    alert("전투력, 전문화, 항마력을 올바르게 입력해주세요.");
     return;
   }
 
+  const powerValues = getDraftPowerValues(draftRow);
   const insertRes = await supabase
     .from("guild_members")
-    .insert({ name, power: Math.floor(power) })
-    .select("id, name, power, updated_at, can_edit")
+    .insert({
+      name,
+      power: powerValues.power,
+      specialization_power: powerValues.specializationPower,
+      anti_magic_power: powerValues.antiMagicPower
+    })
+    .select(MEMBER_SELECT_COLUMNS)
     .single();
 
   if (insertRes.error) {
@@ -2947,15 +3058,33 @@ async function editMember(memberId) {
   const nextPowerValue = prompt("전투력을 수정해주세요.", String(member.power ?? 0));
   if (nextPowerValue === null) return;
 
-  const nextPower = Number(nextPowerValue);
-  if (!Number.isFinite(nextPower) || nextPower < 0) {
-    alert("전투력을 올바르게 입력해주세요.");
+  const nextSpecializationPowerValue = prompt("전문화를 수정해주세요.", String(member.specialization_power ?? 0));
+  if (nextSpecializationPowerValue === null) return;
+
+  const nextAntiMagicPowerValue = prompt("항마력을 수정해주세요.", String(member.anti_magic_power ?? 0));
+  if (nextAntiMagicPowerValue === null) return;
+
+  const draftRow = {
+    power: nextPowerValue,
+    specializationPower: nextSpecializationPowerValue,
+    antiMagicPower: nextAntiMagicPowerValue
+  };
+
+  if (!validateDraftPowerValues(draftRow)) {
+    alert("전투력, 전문화, 항마력을 올바르게 입력해주세요.");
     return;
   }
 
+  const powerValues = getDraftPowerValues(draftRow);
   const updateRes = await supabase
     .from("guild_members")
-    .update({ name: nextName, power: Math.floor(nextPower), updated_at: new Date().toISOString() })
+    .update({
+      name: nextName,
+      power: powerValues.power,
+      specialization_power: powerValues.specializationPower,
+      anti_magic_power: powerValues.antiMagicPower,
+      updated_at: new Date().toISOString()
+    })
     .eq("id", memberId);
 
   if (updateRes.error) {
