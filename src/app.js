@@ -1054,7 +1054,7 @@ function renderPowerSummaryTable() {
 
   const headers = [
     `<th>no</th>`,
-    `<th>길드원</th>`,
+    `<th class="power-member-col">길드원</th>`,
     `<th class="sortable-header ${state.powerSortDirection ? "active" : ""}" data-role="power-sort-header"><span class="sort-header-inner"><span>전투력</span><span class="sort-indicator">${powerSortText}</span></span></th>`,
     `<th class="power-extra-col">전문화</th>`,
     `<th class="power-extra-col">항마력</th>`,
@@ -1096,7 +1096,7 @@ function renderPowerSummaryTable() {
     return `
       <tr class="${rowClass}">
         <td>${index + 1}</td>
-        <td>${escapeHtml(member.name)}</td>
+        <td class="power-member-col">${escapeHtml(member.name)}</td>
         <td>${powerCell}</td>
         <td class="power-extra-col">${specializationPowerCell}</td>
         <td class="power-extra-col">${antiMagicPowerCell}</td>

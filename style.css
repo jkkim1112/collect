@@ -811,7 +811,9 @@ button {
   }
 
   .last-updated-col {
+    width: 86px;
     min-width: 86px;
+    max-width: 86px;
   }
 
   .summary-table .save-col {
@@ -821,9 +823,14 @@ button {
   }
 
   .summary-table .power-extra-col {
-    width: 72px;
-    min-width: 72px;
-    max-width: 72px;
+    width: 80px;
+    min-width: 80px;
+    max-width: 80px;
+  }
+
+  .summary-table .power-member-col {
+    width: 96px;
+    min-width: 96px;
   }
 
   .last-updated-header-text {
@@ -1103,7 +1110,9 @@ button {
 }
 
 .last-updated-col {
+  width: 92px;
   min-width: 92px;
+  max-width: 92px;
 }
 
 .summary-table .save-col {
@@ -1113,9 +1122,14 @@ button {
 }
 
 .summary-table .power-extra-col {
-  width: 96px;
-  min-width: 96px;
-  max-width: 96px;
+  width: 104px;
+  min-width: 104px;
+  max-width: 104px;
+}
+
+.summary-table .power-member-col {
+  width: 132px;
+  min-width: 132px;
 }
 
 .last-updated-header-text {
