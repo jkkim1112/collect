@@ -823,9 +823,9 @@ button {
   }
 
   .summary-table .power-extra-col {
-    width: 80px;
-    min-width: 80px;
-    max-width: 80px;
+    width: 100px;
+    min-width: 100px;
+    max-width: 100px;
   }
 
   .summary-table .power-member-col {
@@ -1122,9 +1122,9 @@ button {
 }
 
 .summary-table .power-extra-col {
-  width: 104px;
-  min-width: 104px;
-  max-width: 104px;
+  width: 132px;
+  min-width: 132px;
+  max-width: 132px;
 }
 
 .summary-table .power-member-col {
