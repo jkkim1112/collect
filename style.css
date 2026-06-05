@@ -814,6 +814,12 @@ button {
     min-width: 86px;
   }
 
+  .summary-table .save-col {
+    width: 64px;
+    min-width: 64px;
+    max-width: 64px;
+  }
+
   .last-updated-header-text {
     font-size: 13px;
   }
@@ -1092,6 +1098,12 @@ button {
 
 .last-updated-col {
   min-width: 92px;
+}
+
+.summary-table .save-col {
+  width: 72px;
+  min-width: 72px;
+  max-width: 72px;
 }
 
 .last-updated-header-text {
