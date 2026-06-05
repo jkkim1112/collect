@@ -795,6 +795,10 @@ function ensureDraftRow(memberId) {
   return state.draftAllRows[memberId];
 }
 
+function getExistingDraftRow(memberId) {
+  return state.draftAllRows[memberId] ?? null;
+}
+
 function isMemberEditable(memberId) {
   if (state.overallEditMode) return true;
   const editableMember = getEditableMember();
@@ -803,21 +807,31 @@ function isMemberEditable(memberId) {
 
 function getMemberDraftPower(member) {
   if (state.overallEditMode) {
-    return ensureDraftRow(member.id)?.power ?? String(member.power ?? 0);
+    return getExistingDraftRow(member.id)?.power ?? String(member.power ?? 0);
   }
   return state.draftPower;
 }
 
 function getMemberDraftOwned(memberId, itemId) {
   if (state.overallEditMode) {
-    return Boolean(ensureDraftRow(memberId)?.ownedMap?.[itemId]);
+    const draftRow = getExistingDraftRow(memberId);
+    if (draftRow) return Boolean(draftRow.ownedMap?.[itemId]);
+
+    const record = getSimpleMemberRecords().find((entry) => {
+      return entry.member_id === memberId && String(entry[getSimpleItemForeignKey()]) === String(itemId);
+    });
+    return Boolean(record?.owned);
   }
   return Boolean(state.draftOwnedMap[itemId]);
 }
 
 function getMemberDraftAccessory(memberId, groupId, partKey) {
   if (state.overallEditMode) {
-    return Number(ensureDraftRow(memberId)?.accessoryMap?.[groupId]?.[partKey] ?? 0);
+    const draftRow = getExistingDraftRow(memberId);
+    if (draftRow) return Number(draftRow.accessoryMap?.[groupId]?.[partKey] ?? 0);
+
+    const record = getAccessoryRecord(memberId, groupId);
+    return Number(record?.[partKey] ?? 0);
   }
   return Number(state.draftAccessoryMap[groupId]?.[partKey] ?? 0);
 }
@@ -2363,6 +2377,38 @@ async function persistBossRow(memberId, draftRow) {
   }
 }
 
+function isPowerDraftChanged(memberId, draftRow) {
+  const member = state.members.find((entry) => entry.id === memberId);
+  return Math.floor(Number(draftRow?.power) || 0) !== Math.floor(Number(member?.power) || 0);
+}
+
+function isSimpleDraftChanged(memberId, draftRow) {
+  const simpleItems = getSimpleItems();
+  const getCurrentValue = state.activeTab === "boss" ? getBossOwnedValue : getOwnedValue;
+
+  return simpleItems.some((item) => {
+    return Boolean(draftRow?.ownedMap?.[item.id]) !== getCurrentValue(memberId, item.id);
+  });
+}
+
+function isAccessoryDraftChanged(memberId, draftRow) {
+  return state.accessoryGroups.some((group) => {
+    const record = getAccessoryRecord(memberId, group.id);
+    const maxCount = Number(group.max_count ?? 0);
+    const normalizeCount = (value) => Math.min(maxCount, Math.max(0, Math.floor(Number(value) || 0)));
+
+    return ACCESSORY_PARTS.some((part) => {
+      return normalizeCount(draftRow?.accessoryMap?.[group.id]?.[part.key]) !== normalizeCount(record?.[part.key]);
+    });
+  });
+}
+
+function isOverallDraftRowChanged(memberId, draftRow) {
+  if (state.activeTab === "power") return isPowerDraftChanged(memberId, draftRow);
+  if (state.activeTab === "accessory") return isAccessoryDraftChanged(memberId, draftRow);
+  return isSimpleDraftChanged(memberId, draftRow);
+}
+
 async function saveAllOverallEdits() {
   if (!state.overallEditMode || state.isBulkSaving) return;
 
@@ -2377,10 +2423,17 @@ async function saveAllOverallEdits() {
   updateTabUi();
 
   try {
+    let savedCount = 0;
+
     for (let index = 0; index < memberIds.length; index += 1) {
       const memberId = memberIds[index];
-      const draftRow = ensureDraftRow(memberId);
+      const draftRow = state.draftAllRows[memberId];
       const power = Number(draftRow?.power);
+
+      if (!isOverallDraftRowChanged(memberId, draftRow)) {
+        setBulkSaveProgress(((index + 1) / memberIds.length) * 100);
+        continue;
+      }
 
       if (state.activeTab === "power") {
         if (!Number.isFinite(power) || power < 0) {
@@ -2395,7 +2448,13 @@ async function saveAllOverallEdits() {
         await persistMountRow(memberId, draftRow);
       }
 
+      savedCount += 1;
       setBulkSaveProgress(((index + 1) / memberIds.length) * 100);
+    }
+
+    if (savedCount === 0) {
+      alert("저장할 변경사항이 없습니다.");
+      return;
     }
 
     resetOverallEditMode();
