@@ -1100,8 +1100,8 @@ function renderPowerSummaryTable() {
         <td>${powerCell}</td>
         <td class="power-extra-col">${specializationPowerCell}</td>
         <td class="power-extra-col">${antiMagicPowerCell}</td>
-        <td>${saveCell}</td>
-        <td>${lastUpdatedCell}</td>
+        <td class="save-col">${saveCell}</td>
+        <td class="last-updated-col">${lastUpdatedCell}</td>
       </tr>
     `;
   }).join("");
@@ -1170,8 +1170,8 @@ function renderMountSummaryTable() {
         <td>${escapeHtml(member.name)}</td>
         <td>${powerCell}</td>
         ${itemCells}
-        <td>${saveCell}</td>
-        <td>${lastUpdatedCell}</td>
+        <td class="save-col">${saveCell}</td>
+        <td class="last-updated-col">${lastUpdatedCell}</td>
       </tr>
     `;
   }).join("");
@@ -1248,8 +1248,8 @@ function renderBossSummaryTable() {
         <td>${escapeHtml(member.name)}</td>
         <td>${powerCell}</td>
         ${itemCells}
-        <td>${saveCell}</td>
-        <td>${lastUpdatedCell}</td>
+        <td class="save-col">${saveCell}</td>
+        <td class="last-updated-col">${lastUpdatedCell}</td>
       </tr>
     `;
   }).join("");
@@ -1358,8 +1358,8 @@ function renderAccessorySummaryTable() {
         <td>${escapeHtml(member.name)}</td>
         <td>${powerCell}</td>
         ${groupCells}
-        <td>${saveCell}</td>
-        <td>${lastUpdatedCell}</td>
+        <td class="save-col">${saveCell}</td>
+        <td class="last-updated-col">${lastUpdatedCell}</td>
       </tr>
     `;
   }).join("");

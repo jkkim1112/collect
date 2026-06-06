@@ -1130,6 +1130,7 @@ button {
 .summary-table .power-member-col {
   width: 132px;
   min-width: 132px;
+  max-width: 132px;
 }
 
 .last-updated-header-text {
