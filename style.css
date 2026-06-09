@@ -121,6 +121,7 @@ button {
 
 .top-actions {
   display: flex;
+  align-items: center;
   gap: 10px;
   flex-wrap: wrap;
 }
@@ -166,6 +167,7 @@ button {
 .table-search input {
   width: 240px;
   max-width: 100%;
+  height: 40px;
   border: 1px solid #d1d5db;
   border-radius: 10px;
   padding: 10px 12px;
@@ -192,7 +194,20 @@ button {
   border: 0;
   border-radius: 10px;
   padding: 10px 14px;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
   font-weight: 600;
+  cursor: pointer;
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .btn-primary {
@@ -218,6 +233,7 @@ button {
 
 .btn-sm {
   padding: 7px 10px;
+  min-height: 32px;
   font-size: 13px;
   border-radius: 8px;
 }
@@ -1784,6 +1800,8 @@ button {
 
 .distribution-header-actions {
   display: flex;
+  align-items: center;
+  justify-content: flex-end;
   gap: 10px;
   flex-wrap: wrap;
 }
@@ -1793,6 +1811,8 @@ button {
 }
 .history-header-actions {
   display: flex;
+  align-items: center;
+  justify-content: flex-end;
   gap: 10px;
   flex-wrap: wrap;
 }
@@ -2077,6 +2097,7 @@ button {
 .boss-participation-button-row {
   align-self: end;
   grid-column: 1 / -1;
+  gap: 8px;
   justify-content: flex-end;
 }
 
