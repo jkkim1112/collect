@@ -557,19 +557,11 @@ export async function handleDistributionFinalSave({
       return;
     }
 
-    const duplicateIds = (duplicateRes.data || [])
-      .map((row) => String(row.id || "").trim())
-      .filter(Boolean);
+    const hasDuplicatePeriod = (duplicateRes.data || [])
+      .some((row) => String(row.id || "").trim());
 
-    if (duplicateIds.length) {
-      const overwriteConfirmed = confirmFn(
-        `${period.startDate} ~ ${period.endDate} 기간의 기존 저장 이력이 있습니다.\n기존 이력을 삭제하고 새 결과로 저장할까요?`
-      );
-      if (!overwriteConfirmed) return;
-
-      for (const duplicateId of duplicateIds) {
-        await cleanupDistributionHistorySave(supabase, duplicateId);
-      }
+    if (hasDuplicatePeriod) {
+      alertFn("중복된 날짜 데이터가 있습니다.");
     }
 
     const summary = getDistributionCombinedSummary();
