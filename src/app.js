@@ -111,6 +111,10 @@ const ACCESSORY_PARTS = [
 ];
 
 const MEMBER_SELECT_COLUMNS = "id, name, power, specialization_power, anti_magic_power, updated_at, can_edit";
+const TAB_GROUPS = {
+  guild: ["power", "mount", "accessory", "boss"],
+  distribution: ["distribution", "history", "bossParticipation"]
+};
 
 const state = {
   activeTab: "power",
@@ -166,6 +170,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 function bindElements() {
   el.tabs = Array.from(document.querySelectorAll(".tab"));
+  el.tabCategories = Array.from(document.querySelectorAll(".tab-category"));
+  el.tabPanels = Array.from(document.querySelectorAll("[data-tab-panel]"));
   el.adminModeBtn = document.getElementById("adminModeBtn");
   el.guildManageBtn = document.getElementById("guildManageBtn");
   el.bulkEditBtn = document.getElementById("bulkEditBtn");
@@ -283,33 +289,20 @@ function bindElements() {
 }
 
 function bindEvents() {
+  el.tabCategories.forEach((button) => {
+    button.addEventListener("click", async () => {
+      const groupKey = button.dataset.tabGroup;
+      const nextTab = TAB_GROUPS[groupKey]?.[0];
+      if (!nextTab || nextTab === state.activeTab) return;
+      await switchTab(nextTab);
+    });
+  });
+
   el.tabs.forEach((tab) => {
     tab.addEventListener("click", async () => {
       const nextTab = tab.dataset.tab;
       if (nextTab === state.activeTab) return;
-
-      state.activeTab = nextTab;
-      resetOverallEditMode();
-      updateTabUi();
-
-      if (nextTab === "distribution") {
-        renderAll();
-        return;
-      }
-
-      if (nextTab === "history") {
-        await loadHistoryData();
-        renderAll();
-        return;
-      }
-
-      if (nextTab === "bossParticipation") {
-        renderAll();
-        return;
-      }
-
-      await loadActiveTabData();
-      renderAll();
+      await switchTab(nextTab);
     });
   });
 
@@ -395,7 +388,44 @@ function bindEvents() {
   // 모달 닫기는 각 모달의 닫기 버튼(X/취소/닫기)에서만 처리한다.
 }
 
+async function switchTab(nextTab) {
+  state.activeTab = nextTab;
+  resetOverallEditMode();
+  updateTabUi();
+
+  if (nextTab === "distribution") {
+    renderAll();
+    return;
+  }
+
+  if (nextTab === "history") {
+    await loadHistoryData();
+    renderAll();
+    return;
+  }
+
+  if (nextTab === "bossParticipation") {
+    renderAll();
+    return;
+  }
+
+  await loadActiveTabData();
+  renderAll();
+}
+
 function updateTabUi() {
+  const activeTabGroup = Object.entries(TAB_GROUPS).find(([, tabs]) => tabs.includes(state.activeTab))?.[0] || "guild";
+
+  el.tabCategories.forEach((button) => {
+    const active = button.dataset.tabGroup === activeTabGroup;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-selected", String(active));
+  });
+
+  el.tabPanels.forEach((panel) => {
+    panel.classList.toggle("active", panel.dataset.tabPanel === activeTabGroup);
+  });
+
   el.tabs.forEach((tab) => {
     const active = tab.dataset.tab === state.activeTab;
     tab.classList.toggle("active", active);

@@ -58,10 +58,45 @@ button {
   margin-bottom: 20px;
 }
 
+.tab-groups {
+  width: 100%;
+  display: grid;
+  gap: 10px;
+}
+
+.tab-category-tabs {
+  display: inline-flex;
+  width: fit-content;
+  padding: 4px;
+  border: 1px solid #d7dce5;
+  border-radius: 12px;
+  background: #eef2f7;
+}
+
+.tab-category {
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #64748b;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.tab-category.active {
+  background: #fff;
+  color: #111827;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+}
+
 .tabs {
-  display: flex;
+  display: none;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.tabs.active {
+  display: flex;
 }
 
 .tab {
@@ -574,9 +609,23 @@ button {
     margin-bottom: 14px;
   }
 
-  .tabs,
   .top-actions {
     width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .tab-category-tabs,
+  .tabs.active {
+    width: 100%;
+  }
+
+  .tab-category {
+    flex: 1 1 0;
+  }
+
+  .tabs.active {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
@@ -762,8 +811,11 @@ button {
     font-size: 20px;
   }
 
-  .tabs,
   .top-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .tabs.active {
     grid-template-columns: 1fr;
   }
 
@@ -865,9 +917,12 @@ button {
     gap: 10px;
   }
 
-  .tabs {
+  .tab-groups {
     order: 1;
     width: 100%;
+  }
+
+  .tabs.active {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 6px;
@@ -900,9 +955,13 @@ button {
 }
 
 @media (max-width: 480px) {
-  .tabs {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+  .tabs.active {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px;
+  }
+
+  .tab[data-tab="bossParticipation"] {
+    grid-column: 1 / -1;
   }
 
   .tab {
@@ -956,7 +1015,7 @@ button {
     margin-bottom: 14px;
   }
 
-  .tabs {
+  .tabs.active {
     width: 100%;
     gap: 6px;
     flex-wrap: nowrap;

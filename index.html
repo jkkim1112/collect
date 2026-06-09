@@ -21,14 +21,24 @@
     </header>
 
     <section class="tabs-wrap">
-      <div class="tabs">
-        <button class="tab active" type="button" data-tab="power">전투력</button>
-        <button class="tab" type="button" data-tab="mount">탈것</button>
-        <button class="tab" type="button" data-tab="accessory">악세사리</button>
-        <button class="tab" type="button" data-tab="boss">보스컬렉</button>
-        <button class="tab" type="button" data-tab="distribution">분배</button>
-        <button class="tab" type="button" data-tab="history">분배 이력</button>
-        <button class="tab" type="button" data-tab="bossParticipation">보스 참여 이력</button>
+      <div class="tab-groups" aria-label="주요 메뉴">
+        <div class="tab-category-tabs" role="tablist" aria-label="메뉴 그룹">
+          <button class="tab-category active" type="button" data-tab-group="guild">길드원 관리</button>
+          <button class="tab-category" type="button" data-tab-group="distribution">보스 · 분배</button>
+        </div>
+
+        <div class="tabs active" data-tab-panel="guild" role="tablist" aria-label="길드원 관리 메뉴">
+          <button class="tab active" type="button" data-tab="power">전투력</button>
+          <button class="tab" type="button" data-tab="mount">탈것</button>
+          <button class="tab" type="button" data-tab="accessory">악세사리</button>
+          <button class="tab" type="button" data-tab="boss">보스컬렉</button>
+        </div>
+
+        <div class="tabs" data-tab-panel="distribution" role="tablist" aria-label="보스 분배 메뉴">
+          <button class="tab" type="button" data-tab="distribution">분배</button>
+          <button class="tab" type="button" data-tab="history">분배 이력</button>
+          <button class="tab" type="button" data-tab="bossParticipation">보스 참여 이력</button>
+        </div>
       </div>
 
     </section>
