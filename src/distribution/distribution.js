@@ -828,8 +828,8 @@ export function initializeDistributionState(state, deps) {
   state.distribution = {
     activeSubtab: "mainland",
     totalDiamond: 0,
-    mainlandRatio: 70,
-    worldRatio: 30,
+    mainlandRatio: 100,
+    worldRatio: 0,
     workbookName: "",
     rawLogs: [],
     loadedLogs: [],
