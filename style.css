@@ -15,6 +15,12 @@ body {
   min-height: 100vh;
 }
 
+:root {
+  --table-max-height: min(62vh, 680px);
+  --table-compact-max-height: min(46vh, 420px);
+  --table-short-max-height: min(36vh, 320px);
+}
+
 button,
 input {
   font: inherit;
@@ -251,7 +257,7 @@ button {
 .table-wrap {
   overflow-x: auto;
   overflow-y: auto;
-  max-height: 62vh;
+  max-height: var(--table-max-height);
   padding: 0 20px 20px;
 }
 
@@ -1665,21 +1671,22 @@ button {
 .distribution-table-wrap {
   overflow-x: auto;
   overflow-y: auto;
+  max-height: var(--table-max-height);
   border: 1px solid #e5e7eb;
   border-radius: 12px;
   background: #fff;
 }
 
 .distribution-member-table-wrap {
-  max-height: 610px;
+  max-height: var(--table-max-height);
 }
 
 .distribution-log-table-wrap {
-  max-height: 420px;
+  max-height: var(--table-compact-max-height);
 }
 
 .distribution-boss-point-table-wrap {
-  max-height: 320px;
+  max-height: var(--table-short-max-height);
 }
 
 .distribution-boss-point-table {
@@ -1859,7 +1866,7 @@ button {
 }
 
 .history-list-table-wrap {
-  max-height: 360px;
+  max-height: var(--table-compact-max-height);
 }
 
 .history-info-grid {
@@ -2514,7 +2521,7 @@ button {
 }
 
 .boss-participation-table-wrap {
-  max-height: 620px;
+  max-height: var(--table-max-height);
 }
 
 .boss-participation-table {
