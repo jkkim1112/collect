@@ -696,6 +696,16 @@ button {
     gap: 12px;
   }
 
+  .boss-search-wrap {
+    width: 100%;
+    flex: 1 1 100%;
+    justify-content: stretch;
+  }
+
+  #bossSearchInput {
+    width: 100%;
+  }
+
   .table-search {
     width: 100%;
     display: grid;
@@ -1137,6 +1147,10 @@ button {
       "reset reset";
     gap: 8px;
     align-items: center;
+  }
+
+  .boss-search-wrap {
+    width: 100%;
   }
 
   .table-search input {
