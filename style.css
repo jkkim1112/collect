@@ -157,11 +157,17 @@ button {
   flex-wrap: wrap;
 }
 
+.table-header > :first-child {
+  flex: 1 1 280px;
+  min-width: 240px;
+}
+
 .table-search {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
 }
 
 .table-search input {
@@ -177,6 +183,7 @@ button {
 #bossSearchInput {
   width: 220px;
   max-width: 100%;
+  height: 40px;
   border: 1px solid #d1d5db;
   border-radius: 10px;
   padding: 10px 12px;
@@ -184,10 +191,13 @@ button {
 }
 
 .boss-search-wrap {
-  flex: 1;
+  flex: 0 1 240px;
   display: flex;
-  justify-content: center;
-  padding: 0 24px;
+  justify-content: flex-end;
+}
+
+.boss-search-wrap:has(#bossSearchInput.hidden) {
+  display: none;
 }
 
 .btn {
@@ -2467,7 +2477,7 @@ button {
 
 .boss-participation-filter-grid {
   display: grid;
-  grid-template-columns: minmax(150px, 0.9fr) 118px minmax(150px, 0.9fr) 118px minmax(150px, 1fr) minmax(150px, 1fr);
+  grid-template-columns: minmax(140px, 0.9fr) 104px minmax(140px, 0.9fr) 104px minmax(140px, 1fr) minmax(140px, 1fr) auto;
   gap: 12px;
   align-items: end;
 }
@@ -2478,7 +2488,7 @@ button {
 
 .boss-participation-button-row {
   align-self: end;
-  grid-column: 1 / -1;
+  grid-column: auto;
   gap: 8px;
   justify-content: flex-end;
 }
