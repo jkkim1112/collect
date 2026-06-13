@@ -1914,16 +1914,19 @@ button {
   --newdist-radius-lg: 10px;
   --newdist-control-height: 38px;
   --newdist-border: #e3e7ef;
-  padding: 0 20px 20px;
-  background: #f4f6fb;
+  padding: 0;
+  background: #fff;
 }
 
 .newdist-section {
-  margin-top: 14px;
-  padding: var(--newdist-section-padding);
+  margin-top: 0;
+  padding: 18px 24px 22px;
   background: #fff;
-  border: 1px solid var(--newdist-border);
-  border-radius: var(--newdist-radius-lg);
+  border-top: 1px solid #eef2f7;
+  border-right: 0;
+  border-bottom: 0;
+  border-left: 0;
+  border-radius: 0;
 }
 
 .newdist-section:first-child {
@@ -2306,11 +2309,12 @@ button {
     --newdist-control-height: 40px;
     --newdist-section-padding: 14px;
     --newdist-block-padding: 12px;
-    padding: 0 12px 14px;
+    padding: 0;
   }
 
   .newdist-section {
-    margin-top: 12px;
+    margin-top: 0;
+    padding: 16px 14px 18px;
   }
 
   .newdist-common-grid,
