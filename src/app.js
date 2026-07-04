@@ -112,6 +112,8 @@ const ACCESSORY_PARTS = [
 
 const WEAPON_OPTIONS = [
   "맨손",
+  "오른손",
+  "왼손",
   "검과 방패",
   "워드럼",
   "전투봉",
@@ -125,6 +127,8 @@ const WEAPON_OPTIONS = [
 ];
 const WEAPON_ICON_FILES = {
   "맨손": "unarmed.png",
+  "오른손": "right-hand.png",
+  "왼손": "left-hand.png",
   "검과 방패": "sword-shield.png",
   "워드럼": "war-drum.png",
   "전투봉": "combat-staff.png",
