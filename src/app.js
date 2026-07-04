@@ -123,6 +123,19 @@ const WEAPON_OPTIONS = [
   "활",
   "석궁"
 ];
+const WEAPON_ICON_FILES = {
+  "맨손": "unarmed.png",
+  "검과 방패": "sword-shield.png",
+  "워드럼": "war-drum.png",
+  "전투봉": "combat-staff.png",
+  "전투 방패": "combat-shield.png",
+  "대검": "greatsword.png",
+  "사이드": "scythe.png",
+  "지팡이": "staff.png",
+  "단검": "dagger.png",
+  "활": "bow.png",
+  "석궁": "crossbow.png"
+};
 const MEMBER_SELECT_COLUMNS = "id, name, power, specialization_power, anti_magic_power, main_weapon, sub_weapon, updated_at, can_edit";
 const TAB_GROUPS = {
   guild: ["power", "mount", "accessory", "boss"],
@@ -1124,6 +1137,16 @@ function renderPowerSummaryTable() {
     ))
   ].join("");
 
+  const renderWeaponValue = (weapon) => {
+    const normalizedWeapon = normalizeWeaponValue(weapon);
+    if (!normalizedWeapon) return `<span class="weapon-value weapon-empty">-</span>`;
+
+    return `<span class="weapon-value">
+      <img class="weapon-icon" src="assets/weapons/${WEAPON_ICON_FILES[normalizedWeapon]}" alt="">
+      <span>${escapeHtml(normalizedWeapon)}</span>
+    </span>`;
+  };
+
   const headers = [
     `<th>no</th>`,
     `<th class="power-member-col">길드원</th>`,
@@ -1164,10 +1187,10 @@ function renderPowerSummaryTable() {
       : `<span class="value-box">${member.anti_magic_power ?? 0}</span>`;
     const mainWeaponCell = isEditable
       ? `<select class="inline-weapon-select" data-role="main-weapon-select" data-member-id="${member.id}">${renderWeaponOptions(getMemberDraftMainWeapon(member))}</select>`
-      : `<span class="weapon-value">${escapeHtml(member.main_weapon ?? "-")}</span>`;
+      : renderWeaponValue(member.main_weapon);
     const subWeaponCell = isEditable
       ? `<select class="inline-weapon-select" data-role="sub-weapon-select" data-member-id="${member.id}">${renderWeaponOptions(getMemberDraftSubWeapon(member))}</select>`
-      : `<span class="weapon-value">${escapeHtml(member.sub_weapon ?? "-")}</span>`;
+      : renderWeaponValue(member.sub_weapon);
 
     const saveCell = getRowActionButtonHtml(member.id, "save-row-power");
 
