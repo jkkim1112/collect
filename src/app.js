@@ -110,7 +110,20 @@ const ACCESSORY_PARTS = [
   { key: "belt_count", label: "허리띠" }
 ];
 
-const MEMBER_SELECT_COLUMNS = "id, name, power, specialization_power, anti_magic_power, updated_at, can_edit";
+const WEAPON_OPTIONS = [
+  "맨손",
+  "검과 방패",
+  "워드럼",
+  "전투봉",
+  "전투 방패",
+  "대검",
+  "사이드",
+  "지팡이",
+  "단검",
+  "활",
+  "석궁"
+];
+const MEMBER_SELECT_COLUMNS = "id, name, power, specialization_power, anti_magic_power, main_weapon, sub_weapon, updated_at, can_edit";
 const TAB_GROUPS = {
   guild: ["power", "mount", "accessory", "boss"],
   distribution: ["distribution", "history", "bossParticipation"]
@@ -140,6 +153,8 @@ const state = {
   draftPower: "",
   draftSpecializationPower: "",
   draftAntiMagicPower: "",
+  draftMainWeapon: "",
+  draftSubWeapon: "",
   draftOwnedMap: {},
   draftAccessoryMap: {},
   draftAllRows: {},
@@ -763,6 +778,8 @@ function syncDraftState() {
     state.draftPower = "";
     state.draftSpecializationPower = "";
     state.draftAntiMagicPower = "";
+    state.draftMainWeapon = "";
+    state.draftSubWeapon = "";
     state.draftOwnedMap = {};
     state.draftAccessoryMap = {};
     return;
@@ -775,6 +792,8 @@ function syncDraftState() {
   state.draftPower = String(editableMember.power ?? 0);
   state.draftSpecializationPower = String(editableMember.specialization_power ?? 0);
   state.draftAntiMagicPower = String(editableMember.anti_magic_power ?? 0);
+  state.draftMainWeapon = String(editableMember.main_weapon ?? "");
+  state.draftSubWeapon = String(editableMember.sub_weapon ?? "");
   state.draftOwnedMap = {};
   state.draftAccessoryMap = {};
 
@@ -812,6 +831,8 @@ function ensureDraftRow(memberId) {
       power: String(member?.power ?? 0),
       specializationPower: String(member?.specialization_power ?? 0),
       antiMagicPower: String(member?.anti_magic_power ?? 0),
+      mainWeapon: String(member?.main_weapon ?? ""),
+      subWeapon: String(member?.sub_weapon ?? ""),
       ownedMap: {},
       accessoryMap: {}
     };
@@ -868,6 +889,20 @@ function getMemberDraftAntiMagicPower(member) {
     return getExistingDraftRow(member.id)?.antiMagicPower ?? String(member.anti_magic_power ?? 0);
   }
   return state.draftAntiMagicPower;
+}
+
+function getMemberDraftMainWeapon(member) {
+  if (state.overallEditMode) {
+    return getExistingDraftRow(member.id)?.mainWeapon ?? String(member.main_weapon ?? "");
+  }
+  return state.draftMainWeapon;
+}
+
+function getMemberDraftSubWeapon(member) {
+  if (state.overallEditMode) {
+    return getExistingDraftRow(member.id)?.subWeapon ?? String(member.sub_weapon ?? "");
+  }
+  return state.draftSubWeapon;
 }
 
 function getMemberDraftOwned(memberId, itemId) {
@@ -1082,12 +1117,21 @@ function renderPowerSummaryTable() {
       ? "▼"
       : "↕";
 
+  const renderWeaponOptions = (selectedValue) => [
+    `<option value="">미선택</option>`,
+    ...WEAPON_OPTIONS.map((weapon) => (
+      `<option value="${escapeAttr(weapon)}" ${weapon === selectedValue ? "selected" : ""}>${escapeHtml(weapon)}</option>`
+    ))
+  ].join("");
+
   const headers = [
     `<th>no</th>`,
     `<th class="power-member-col">길드원</th>`,
     `<th class="sortable-header ${state.powerSortDirection ? "active" : ""}" data-role="power-sort-header"><span class="sort-header-inner"><span>전투력</span><span class="sort-indicator">${powerSortText}</span></span></th>`,
     `<th class="power-extra-col">전문화</th>`,
     `<th class="power-extra-col">항마력</th>`,
+    `<th class="weapon-col">주무기</th>`,
+    `<th class="weapon-col">보조무기</th>`,
     `<th class="save-col">저장</th>`,
     `<th class="last-updated-col sortable-header ${state.updatedAtSortDirection ? "active" : ""}" data-role="updated-sort-header"><span class="sort-header-inner"><span class="last-updated-header-text">수정일</span><span class="sort-indicator">${getUpdatedSortText()}</span></span></th>`
   ];
@@ -1099,7 +1143,7 @@ function renderPowerSummaryTable() {
   if (filteredMembers.length === 0) {
     el.summaryTableBody.innerHTML = `
       <tr>
-        <td class="empty-row" colspan="7">표시할 길드원이 없습니다.</td>
+        <td class="empty-row" colspan="9">표시할 길드원이 없습니다.</td>
       </tr>
     `;
     return;
@@ -1118,6 +1162,12 @@ function renderPowerSummaryTable() {
     const antiMagicPowerCell = isEditable
       ? `<input class="inline-power-input" type="number" min="0" step="1" data-role="anti-magic-power-input" data-member-id="${member.id}" value="${escapeAttr(getMemberDraftAntiMagicPower(member))}">`
       : `<span class="value-box">${member.anti_magic_power ?? 0}</span>`;
+    const mainWeaponCell = isEditable
+      ? `<select class="inline-weapon-select" data-role="main-weapon-select" data-member-id="${member.id}">${renderWeaponOptions(getMemberDraftMainWeapon(member))}</select>`
+      : `<span class="weapon-value">${escapeHtml(member.main_weapon ?? "-")}</span>`;
+    const subWeaponCell = isEditable
+      ? `<select class="inline-weapon-select" data-role="sub-weapon-select" data-member-id="${member.id}">${renderWeaponOptions(getMemberDraftSubWeapon(member))}</select>`
+      : `<span class="weapon-value">${escapeHtml(member.sub_weapon ?? "-")}</span>`;
 
     const saveCell = getRowActionButtonHtml(member.id, "save-row-power");
 
@@ -1130,6 +1180,8 @@ function renderPowerSummaryTable() {
         <td>${powerCell}</td>
         <td class="power-extra-col">${specializationPowerCell}</td>
         <td class="power-extra-col">${antiMagicPowerCell}</td>
+        <td class="weapon-col">${mainWeaponCell}</td>
+        <td class="weapon-col">${subWeaponCell}</td>
         <td class="save-col">${saveCell}</td>
         <td class="last-updated-col">${lastUpdatedCell}</td>
       </tr>
@@ -2242,6 +2294,26 @@ function handleSummaryTableInput(event) {
     return;
   }
 
+  if (target.matches('[data-role="main-weapon-select"]')) {
+    const memberId = target.dataset.memberId;
+    if (state.overallEditMode) {
+      ensureDraftRow(memberId).mainWeapon = target.value;
+    } else {
+      state.draftMainWeapon = target.value;
+    }
+    return;
+  }
+
+  if (target.matches('[data-role="sub-weapon-select"]')) {
+    const memberId = target.dataset.memberId;
+    if (state.overallEditMode) {
+      ensureDraftRow(memberId).subWeapon = target.value;
+    } else {
+      state.draftSubWeapon = target.value;
+    }
+    return;
+  }
+
   if (target.matches('[data-role="accessory-qty-input"]')) {
     const memberId = target.dataset.memberId;
     const groupId = target.dataset.groupId;
@@ -2391,6 +2463,11 @@ function normalizePowerValue(value) {
   return Math.floor(Number(value) || 0);
 }
 
+function normalizeWeaponValue(value) {
+  const normalizedValue = String(value ?? "").trim();
+  return WEAPON_OPTIONS.includes(normalizedValue) ? normalizedValue : null;
+}
+
 function validatePowerValue(value) {
   const numberValue = Number(value);
   return Number.isFinite(numberValue) && numberValue >= 0;
@@ -2400,7 +2477,9 @@ function getDraftPowerValues(draftRow) {
   return {
     power: normalizePowerValue(draftRow?.power),
     specializationPower: normalizePowerValue(draftRow?.specializationPower),
-    antiMagicPower: normalizePowerValue(draftRow?.antiMagicPower)
+    antiMagicPower: normalizePowerValue(draftRow?.antiMagicPower),
+    mainWeapon: normalizeWeaponValue(draftRow?.mainWeapon),
+    subWeapon: normalizeWeaponValue(draftRow?.subWeapon)
   };
 }
 
@@ -2418,6 +2497,8 @@ async function updateMemberPower(memberId, powerValues, updatedAt) {
       power: values.power,
       specialization_power: values.specializationPower,
       anti_magic_power: values.antiMagicPower,
+      main_weapon: values.mainWeapon,
+      sub_weapon: values.subWeapon,
       updated_at: updatedAt
     })
     .eq("id", memberId);
@@ -2502,7 +2583,9 @@ function isPowerDraftChanged(memberId, draftRow) {
   const values = getDraftPowerValues(draftRow);
   return values.power !== normalizePowerValue(member?.power)
     || values.specializationPower !== normalizePowerValue(member?.specialization_power)
-    || values.antiMagicPower !== normalizePowerValue(member?.anti_magic_power);
+    || values.antiMagicPower !== normalizePowerValue(member?.anti_magic_power)
+    || values.mainWeapon !== normalizeWeaponValue(member?.main_weapon)
+    || values.subWeapon !== normalizeWeaponValue(member?.sub_weapon);
 }
 
 function isSimpleDraftChanged(memberId, draftRow) {
@@ -2610,7 +2693,9 @@ async function savePowerEditableRow(memberId) {
     : {
       power: state.draftPower,
       specializationPower: state.draftSpecializationPower,
-      antiMagicPower: state.draftAntiMagicPower
+      antiMagicPower: state.draftAntiMagicPower,
+      mainWeapon: state.draftMainWeapon,
+      subWeapon: state.draftSubWeapon
     };
   if (!validateDraftPowerValues(draftRow)) {
     alert("전투력, 전문화, 항마력을 올바르게 입력해주세요.");

@@ -357,6 +357,25 @@ button {
   text-align: right;
 }
 
+.inline-weapon-select {
+  width: 112px;
+  min-height: 34px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: #fff;
+  color: #111827;
+  font-size: 13px;
+}
+
+.weapon-value {
+  display: inline-block;
+  min-width: 72px;
+  color: #374151;
+  font-weight: 600;
+  text-align: center;
+}
+
 .toggle-single-btn {
   min-width: 70px;
   border: 1px solid #d1d5db;
@@ -781,6 +800,12 @@ button {
     font-size: 12px;
   }
 
+  .inline-weapon-select {
+    width: 104px;
+    min-height: 32px;
+    font-size: 12px;
+  }
+
   .badge,
   .toggle-single-btn {
     width: 64px;
@@ -926,6 +951,12 @@ button {
     width: 100px;
     min-width: 100px;
     max-width: 100px;
+  }
+
+  .summary-table .weapon-col {
+    width: 112px;
+    min-width: 112px;
+    max-width: 112px;
   }
 
   .summary-table .power-member-col {
@@ -1238,6 +1269,12 @@ button {
   max-width: 132px;
 }
 
+.summary-table .weapon-col {
+  width: 124px;
+  min-width: 124px;
+  max-width: 124px;
+}
+
 .summary-table .power-member-col {
   width: 132px;
   min-width: 132px;
@@ -1246,6 +1283,14 @@ button {
 
 .last-updated-header-text {
   font-size: 14px;
+}
+
+@media (max-width: 480px) {
+  .summary-table .weapon-col {
+    width: 112px;
+    min-width: 112px;
+    max-width: 112px;
+  }
 }
 
 .tab.disabled {
