@@ -2299,6 +2299,8 @@ function handleSummaryTableHeadClick(event) {
 
   const updatedHeader = event.target.closest('[data-role="updated-sort-header"]');
   if (updatedHeader) {
+    state.powerSortDirection = null;
+
     if (state.updatedAtSortDirection === "asc") {
       state.updatedAtSortDirection = "desc";
     } else if (state.updatedAtSortDirection === "desc") {
@@ -2313,6 +2315,8 @@ function handleSummaryTableHeadClick(event) {
 
   const header = event.target.closest('[data-role="power-sort-header"]');
   if (!header) return;
+
+  state.updatedAtSortDirection = null;
 
   if (state.powerSortDirection === "asc") {
     state.powerSortDirection = "desc";
