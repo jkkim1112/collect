@@ -2716,3 +2716,48 @@ button {
     width: 100%;
   }
 }
+
+/* UI refresh: presentation only; application behavior stays unchanged. */
+:root { --ui-accent: #2458d3; --ui-ink: #18243b; --ui-muted: #69788f; --ui-line: #e3e9f1; }
+html, body { background: #f2f5fa; color: var(--ui-ink); }
+.app { max-width: 1480px; padding: 36px 32px; }
+.topbar { padding-bottom: 24px; margin-bottom: 20px; border-bottom: 1px solid var(--ui-line); gap: 20px; }
+.page-title { font-size: 26px; letter-spacing: -1px; font-weight: 800; }
+.page-desc { color: var(--ui-muted); line-height: 1.6; }
+.tab-groups { gap: 16px; }
+.tab-category-tabs { background: #e8edf5; border: 0; border-radius: 8px; padding: 4px; }
+.tab-category { border-radius: 6px; padding: 9px 18px; font-weight: 600; }
+.tab-category.active { color: var(--ui-accent); box-shadow: 0 1px 4px #18243b10; }
+.tabs { gap: 24px; border-bottom: 1px solid #dce4ef; }
+.tab { min-width: 0; border: 0; border-bottom: 3px solid transparent; border-radius: 0; padding: 10px 6px 14px; background: transparent; color: var(--ui-muted); }
+.tab.active { color: var(--ui-accent); background: transparent; border-color: var(--ui-accent); }
+.tab:hover { color: var(--ui-accent); }
+.card { border: 1px solid var(--ui-line); border-radius: 12px; box-shadow: 0 4px 20px #18243b05; }
+.card-header { padding: 24px; }
+.card-title { font-size: 20px; letter-spacing: -.5px; }
+.card-subtitle { font-size: 13px; color: var(--ui-muted); line-height: 1.6; }
+.btn { border-radius: 7px; font-size: 13px; font-weight: 600; min-height: 40px; transition: background-color .15s, box-shadow .15s; }
+.btn-primary, .btn-dark { background: var(--ui-accent); color: #fff; border: 1px solid var(--ui-accent); }
+.btn-primary:hover, .btn-dark:hover { background: #1c46ac; }
+.btn-gray { background: #f3f6fa; color: #4c5d75; border: 1px solid var(--ui-line); }
+.btn-outline { color: var(--ui-accent); border-color: #ccd9f5; background: #fff; }
+input:not([type="checkbox"]):not([type="radio"]), select { border: 1px solid #dce3ed; border-radius: 7px; box-shadow: none; }
+input:focus, select:focus { outline: 2px solid #2458d330; outline-offset: 1px; }
+button:focus-visible, a:focus-visible { outline: 3px solid #2458d350; outline-offset: 3px; }
+.table-search input { background: #f8fafc; min-height: 40px; }
+#searchBtn { font-size: 0; position: relative; width: 40px; }
+#searchBtn::before { content: ''; display: block; width: 12px; height: 12px; border: 2px solid currentColor; border-radius: 50%; margin: 0 auto; }
+#searchBtn::after { content: ''; position: absolute; width: 7px; height: 2px; background: currentColor; transform: rotate(45deg); top: 25px; left: 24px; }
+.summary-table th, .manage-table th, .distribution-table th, .newdist-table th { color: #607089; font-size: 12px; font-weight: 600; background: #f7f9fc; }
+.summary-table td { padding-top: 13px; padding-bottom: 13px; font-size: 14px; font-variant-numeric: tabular-nums; border-bottom-color: #edf1f6; }
+.summary-table .value-box { font-size: 14px; font-variant-numeric: tabular-nums; }
+.summary-table tbody td:nth-child(2) { font-weight: 600; color: #263853; }
+.summary-table tbody tr:hover { background: #f0f5ff; }
+.newdist-section, .distribution-section { border-color: var(--ui-line); }
+.newdist-section-title, .distribution-section-title { color: #263853; font-size: 16px; }
+.newdist-stat, .newdist-panel-card, .distribution-summary-card { border: 1px solid var(--ui-line); border-radius: 8px; box-shadow: none; background: #f8faff; }
+.newdist-stat-value, .newdist-panel-value, .distribution-summary-value { color: var(--ui-accent); font-variant-numeric: tabular-nums; }
+@media (min-width: 1000px) {
+  .newdist-common-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
