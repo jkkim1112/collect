@@ -94,3 +94,20 @@
   .newdist-file-row { grid-template-columns: minmax(0,1fr); }
   .newdist-stat-value, .newdist-panel-value, .distribution-summary-value { font-size: 16px; }
 }
+
+/* Match the refreshed desktop visual system without changing mobile behavior. */
+@media (max-width: 768px) {
+  .app { padding: 20px 12px; }
+  .topbar { padding-bottom: 16px; gap: 12px; flex-wrap: wrap; }
+  .page-title { font-size: 22px; }
+  .topbar-actions { flex-wrap: wrap; }
+  .tab-groups { gap: 12px; }
+  .tabs.active { gap: 12px; }
+  .tab { border-radius: 0; padding: 10px 4px; min-width: 64px; font-size: 13px; }
+  .card-header { padding: 16px 12px; }
+  .card-title { font-size: 18px; }
+  .summary-table td, .summary-table .value-box { font-size: 13px; }
+  .summary-table td { padding-top: 10px; padding-bottom: 10px; }
+  .btn { font-size: 12px; }
+}
+
