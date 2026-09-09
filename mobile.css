@@ -32,9 +32,9 @@
   .summary-table thead th { height: 36px; top: 0; z-index: 3; }
   .summary-table thead tr:nth-child(2) th { top: 36px; }
   .summary-table tbody td:nth-child(2),
-  .summary-table thead tr:first-child th:nth-child(2) { position: sticky; left: 0; background: #fff; box-shadow: 2px 0 0 #e5e7eb; z-index: 2; }
-  .summary-table thead tr:first-child th:nth-child(2) { background: #f9fafb; z-index: 4; }
-  .summary-table tbody tr.power-zero-row td:nth-child(2) { background: #fef2f2; }
+  .summary-table thead tr:first-child th:nth-child(2) { position: sticky; left: 0; background: #191f29; box-shadow: 2px 0 0 #303b4d; z-index: 2; }
+  .summary-table thead tr:first-child th:nth-child(2) { background: #191f29; z-index: 4; }
+  .summary-table tbody tr.power-zero-row td:nth-child(2) { background: #402121; }
   .value-box, .action-box { min-height: 32px; font-size: 12px; }
   .badge, .toggle-single-btn { min-height: 36px; font-size: 12px; }
   .actions-below-table { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
@@ -110,4 +110,5 @@
   .summary-table td { padding-top: 10px; padding-bottom: 10px; }
   .btn { font-size: 12px; }
 }
+
 
