@@ -175,6 +175,7 @@ const state = {
   draftAllRows: {},
   overallEditMode: false,
   powerSortDirection: "desc",
+  masterySortDirection: null,
   updatedAtSortDirection: null,
   hiddenAccessoryGroupIds: {},
   isBulkSaving: false,
@@ -751,8 +752,9 @@ function getFilteredMembers() {
 function sortFilteredMembers(members) {
   const updatedDirection = state.updatedAtSortDirection;
   const powerDirection = state.powerSortDirection;
+  const masteryDirection = state.activeTab === "power" ? state.masterySortDirection : null;
 
-  if (!updatedDirection && !powerDirection) return members;
+  if (!updatedDirection && !powerDirection && !masteryDirection) return members;
 
   return [...members].sort((left, right) => {
     if (updatedDirection) {
@@ -762,6 +764,11 @@ function sortFilteredMembers(members) {
       if (leftTime !== rightTime) {
         return updatedDirection === "asc" ? leftTime - rightTime : rightTime - leftTime;
       }
+    }
+
+    if (masteryDirection) {
+      const difference = Number(left.integrated_mastery ?? 0) - Number(right.integrated_mastery ?? 0);
+      if (difference) return masteryDirection === "asc" ? difference : -difference;
     }
 
     if (powerDirection) {
@@ -1136,6 +1143,7 @@ function getRowActionButtonHtml(memberId, saveRole) {
 }
 
 function renderPowerSummaryTable() {
+  const masterySortText = state.masterySortDirection === "asc" ? "▲" : state.masterySortDirection === "desc" ? "▼" : "↕";
   const powerSortText = state.powerSortDirection === "asc"
     ? "▲"
     : state.powerSortDirection === "desc"
@@ -1162,7 +1170,7 @@ function renderPowerSummaryTable() {
   const headers = [
     `<th>no</th>`,
     `<th class="power-member-col">길드원</th>`,
-    `<th class="power-extra-col">통합 마스터리</th>`,
+    `<th class="power-extra-col sortable-header ${state.masterySortDirection ? "active" : ""}" data-role="mastery-sort-header"><span class="sort-header-inner"><span>통합 마스터리</span><span class="sort-indicator">${masterySortText}</span></span></th>`,
     `<th class="sortable-header ${state.powerSortDirection ? "active" : ""}" data-role="power-sort-header"><span class="sort-header-inner"><span>전투력</span><span class="sort-indicator">${powerSortText}</span></span></th>`,
     `<th class="power-extra-col">전문화</th>`,
     `<th class="power-extra-col">항마력</th>`,
@@ -2367,8 +2375,18 @@ function handleSummaryTableHeadClick(event) {
     return;
   }
 
+  const masteryHeader = event.target.closest('[data-role="mastery-sort-header"]');
+  if (masteryHeader) {
+    state.powerSortDirection = null;
+    state.updatedAtSortDirection = null;
+    state.masterySortDirection = state.masterySortDirection === "asc" ? "desc" : state.masterySortDirection === "desc" ? null : "asc";
+    renderSummaryTable();
+    return;
+  }
+
   const updatedHeader = event.target.closest('[data-role="updated-sort-header"]');
   if (updatedHeader) {
+    state.masterySortDirection = null;
     state.powerSortDirection = null;
 
     if (state.updatedAtSortDirection === "asc") {
@@ -2386,6 +2404,7 @@ function handleSummaryTableHeadClick(event) {
   const header = event.target.closest('[data-role="power-sort-header"]');
   if (!header) return;
 
+  state.masterySortDirection = null;
   state.updatedAtSortDirection = null;
 
   if (state.powerSortDirection === "asc") {
