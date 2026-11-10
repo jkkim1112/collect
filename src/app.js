@@ -137,7 +137,7 @@ const WEAPON_ICON_FILES = {
   "활": "bow.png",
   "석궁": "crossbow.png"
 };
-const MEMBER_SELECT_COLUMNS = "id, name, power, specialization_power, anti_magic_power, main_weapon, sub_weapon, updated_at, can_edit";
+const MEMBER_SELECT_COLUMNS = "id, name, integrated_mastery, power, specialization_power, anti_magic_power, main_weapon, sub_weapon, updated_at, can_edit";
 const TAB_GROUPS = {
   guild: ["power", "mount", "accessory", "boss"],
   distribution: ["distribution", "history", "bossParticipation"]
@@ -165,6 +165,7 @@ const state = {
   draftMemberId: null,
   draftTab: null,
   draftPower: "",
+  draftIntegratedMastery: "",
   draftSpecializationPower: "",
   draftAntiMagicPower: "",
   draftMainWeapon: "",
@@ -790,6 +791,7 @@ function syncDraftState() {
     state.draftMemberId = null;
     state.draftTab = null;
     state.draftPower = "";
+    state.draftIntegratedMastery = "";
     state.draftSpecializationPower = "";
     state.draftAntiMagicPower = "";
     state.draftMainWeapon = "";
@@ -804,6 +806,7 @@ function syncDraftState() {
   state.draftMemberId = editableMember.id;
   state.draftTab = state.activeTab;
   state.draftPower = String(editableMember.power ?? 0);
+  state.draftIntegratedMastery = String(editableMember.integrated_mastery ?? 0);
   state.draftSpecializationPower = String(editableMember.specialization_power ?? 0);
   state.draftAntiMagicPower = String(editableMember.anti_magic_power ?? 0);
   state.draftMainWeapon = String(editableMember.main_weapon ?? "");
@@ -843,6 +846,7 @@ function ensureDraftRow(memberId) {
     const member = state.members.find((entry) => entry.id === memberId);
     const row = {
       power: String(member?.power ?? 0),
+      integratedMastery: String(member?.integrated_mastery ?? 0),
       specializationPower: String(member?.specialization_power ?? 0),
       antiMagicPower: String(member?.anti_magic_power ?? 0),
       mainWeapon: String(member?.main_weapon ?? ""),
@@ -889,6 +893,13 @@ function getMemberDraftPower(member) {
     return getExistingDraftRow(member.id)?.power ?? String(member.power ?? 0);
   }
   return state.draftPower;
+}
+
+function getMemberDraftIntegratedMastery(member) {
+  if (state.overallEditMode) {
+    return getExistingDraftRow(member.id)?.integratedMastery ?? String(member.integrated_mastery ?? 0);
+  }
+  return state.draftIntegratedMastery;
 }
 
 function getMemberDraftSpecializationPower(member) {
@@ -1151,6 +1162,7 @@ function renderPowerSummaryTable() {
   const headers = [
     `<th>no</th>`,
     `<th class="power-member-col">길드원</th>`,
+    `<th class="power-extra-col">통합 마스터리</th>`,
     `<th class="sortable-header ${state.powerSortDirection ? "active" : ""}" data-role="power-sort-header"><span class="sort-header-inner"><span>전투력</span><span class="sort-indicator">${powerSortText}</span></span></th>`,
     `<th class="power-extra-col">전문화</th>`,
     `<th class="power-extra-col">항마력</th>`,
@@ -1167,7 +1179,7 @@ function renderPowerSummaryTable() {
   if (filteredMembers.length === 0) {
     el.summaryTableBody.innerHTML = `
       <tr>
-        <td class="empty-row" colspan="9">표시할 길드원이 없습니다.</td>
+        <td class="empty-row" colspan="10">표시할 길드원이 없습니다.</td>
       </tr>
     `;
     return;
@@ -1177,6 +1189,9 @@ function renderPowerSummaryTable() {
     const isEditable = isMemberEditable(member.id);
     const rowClass = Number(member.power ?? 0) === 0 ? "power-zero-row" : "";
 
+    const integratedMasteryCell = isEditable
+      ? `<input class="inline-power-input" type="number" min="0" step="1" data-role="integrated-mastery-input" data-member-id="${member.id}" value="${escapeAttr(getMemberDraftIntegratedMastery(member))}">`
+      : `<span class="value-box">${member.integrated_mastery ?? 0}</span>`;
     const powerCell = isEditable
       ? `<input class="inline-power-input" type="number" min="0" step="1" data-role="power-input" data-member-id="${member.id}" value="${escapeAttr(getMemberDraftPower(member))}">`
       : `<span class="value-box">${member.power ?? 0}</span>`;
@@ -1201,6 +1216,7 @@ function renderPowerSummaryTable() {
       <tr class="${rowClass}">
         <td>${index + 1}</td>
         <td class="power-member-col">${escapeHtml(member.name)}</td>
+        <td class="power-extra-col">${integratedMasteryCell}</td>
         <td>${powerCell}</td>
         <td class="power-extra-col">${specializationPowerCell}</td>
         <td class="power-extra-col">${antiMagicPowerCell}</td>
@@ -2246,6 +2262,16 @@ function handleSummaryTableInput(event) {
     return;
   }
 
+  if (target.matches('[data-role="integrated-mastery-input"]')) {
+    const memberId = target.dataset.memberId;
+    if (state.overallEditMode) {
+      ensureDraftRow(memberId).integratedMastery = target.value;
+    } else {
+      state.draftIntegratedMastery = target.value;
+    }
+    return;
+  }
+
   if (target.matches('[data-role="specialization-power-input"]')) {
     const memberId = target.dataset.memberId;
     if (state.overallEditMode) {
@@ -2448,6 +2474,7 @@ function validatePowerValue(value) {
 function getDraftPowerValues(draftRow) {
   return {
     power: normalizePowerValue(draftRow?.power),
+    integratedMastery: normalizePowerValue(draftRow?.integratedMastery),
     specializationPower: normalizePowerValue(draftRow?.specializationPower),
     antiMagicPower: normalizePowerValue(draftRow?.antiMagicPower),
     mainWeapon: normalizeWeaponValue(draftRow?.mainWeapon),
@@ -2456,7 +2483,10 @@ function getDraftPowerValues(draftRow) {
 }
 
 function validateDraftPowerValues(draftRow) {
-  return validatePowerValue(draftRow?.power)
+  return Number.isInteger(Number(draftRow?.integratedMastery))
+    && Number(draftRow?.integratedMastery) >= 0
+    && Number(draftRow?.integratedMastery) <= 2147483647
+    && validatePowerValue(draftRow?.power)
     && validatePowerValue(draftRow?.specializationPower)
     && validatePowerValue(draftRow?.antiMagicPower);
 }
@@ -2467,6 +2497,7 @@ async function updateMemberPower(memberId, powerValues, updatedAt) {
     .from("guild_members")
     .update({
       power: values.power,
+      integrated_mastery: values.integratedMastery,
       specialization_power: values.specializationPower,
       anti_magic_power: values.antiMagicPower,
       main_weapon: values.mainWeapon,
@@ -2554,6 +2585,7 @@ function isPowerDraftChanged(memberId, draftRow) {
   const member = state.members.find((entry) => entry.id === memberId);
   const values = getDraftPowerValues(draftRow);
   return values.power !== normalizePowerValue(member?.power)
+    || values.integratedMastery !== normalizePowerValue(member?.integrated_mastery)
     || values.specializationPower !== normalizePowerValue(member?.specialization_power)
     || values.antiMagicPower !== normalizePowerValue(member?.anti_magic_power)
     || values.mainWeapon !== normalizeWeaponValue(member?.main_weapon)
@@ -2614,7 +2646,7 @@ async function saveAllOverallEdits() {
 
       if (state.activeTab === "power") {
         if (!validateDraftPowerValues(draftRow)) {
-          throw new Error("전투력, 전문화, 항마력을 올바르게 입력해주세요.");
+          throw new Error("통합 마스터리는 0 이상 2,147,483,647 이하의 정수로, 전투력·전문화·항마력은 0 이상의 숫자로 입력해주세요.");
         }
         await persistPowerRow(memberId, draftRow);
       } else if (state.activeTab === "accessory") {
@@ -2664,13 +2696,14 @@ async function savePowerEditableRow(memberId) {
     ? ensureDraftRow(memberId)
     : {
       power: state.draftPower,
+      integratedMastery: state.draftIntegratedMastery,
       specializationPower: state.draftSpecializationPower,
       antiMagicPower: state.draftAntiMagicPower,
       mainWeapon: state.draftMainWeapon,
       subWeapon: state.draftSubWeapon
     };
   if (!validateDraftPowerValues(draftRow)) {
-    alert("전투력, 전문화, 항마력을 올바르게 입력해주세요.");
+    alert("통합 마스터리는 0 이상 2,147,483,647 이하의 정수로, 전투력·전문화·항마력은 0 이상의 숫자로 입력해주세요.");
     return;
   }
 
